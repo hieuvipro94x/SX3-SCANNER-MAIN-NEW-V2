@@ -1,0 +1,367 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Data.SQLite;
+using SX3_SCANER.Helper;
+using SX3_SCANER.Model.Respository;
+
+namespace SX3_SCANER.Model
+{
+    internal class BoxProductRepository
+    {
+        private static string _connectionString = DatabaseRepository.ConnectionString;
+
+        public BoxProductRepository()
+        {
+            CreateTableIfNotExists();
+        }
+
+        public static void CreateTableIfNotExists()
+        {
+            _connectionString = DatabaseRepository.ConnectionString;
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            {
+                string createTableQuery = @"
+                    CREATE TABLE IF NOT EXISTS BoxProduct (
+                        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                        BoxName TEXT,
+                        ProductPartName TEXT,
+                        ProductPartNumber TEXT,
+                        BoxSealNo TEXT,
+                        BoxQuantity INTEGER,
+                        BoxProgress INTEGER,
+                        BoxComplete INTEGER,
+                        BoxWorker TEXT,
+                        BoxType TEXT NOT NULL DEFAULT 'OPEN',
+                        IsPartialBox INTEGER NOT NULL DEFAULT 0
+                    );";
+                using (SQLiteCommand command = new SQLiteCommand(createTableQuery, connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+
+                EnsureColumn(connection, "BoxType", "TEXT NOT NULL DEFAULT 'OPEN'");
+                EnsureColumn(connection, "IsPartialBox", "INTEGER NOT NULL DEFAULT 0");
+
+                using (SQLiteCommand command = new SQLiteCommand(
+                    "UPDATE BoxProduct SET BoxType = CASE WHEN BoxComplete = 1 THEN 'FULL' ELSE 'OPEN' END WHERE BoxType IS NULL OR BoxType = '' OR (BoxComplete = 1 AND BoxType = 'OPEN')",
+                    connection))
+                {
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private static void EnsureColumn(SQLiteConnection connection, string columnName, string definition)
+        {
+            using (SQLiteCommand command = new SQLiteCommand("PRAGMA table_info(BoxProduct)", connection))
+            using (SQLiteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (string.Equals(reader["name"].ToString(), columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            using (SQLiteCommand command = new SQLiteCommand(
+                "ALTER TABLE BoxProduct ADD COLUMN " + columnName + " " + definition,
+                connection))
+            {
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public ObservableCollection<BoxProduct> GetAllBoxProducts()
+        {
+            ObservableCollection<BoxProduct> boxProducts = new ObservableCollection<BoxProduct>();
+            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string selectQuery = "SELECT * FROM BoxProduct";
+                using (SQLiteCommand command = new SQLiteCommand(selectQuery, connection))
+                {
+                    using (SQLiteDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            boxProducts.Add(new BoxProduct
+                            {
+                                ID = Convert.ToInt32(reader["ID"]),
+                                BoxName = reader["BoxName"].ToString(),
+                                ProductPartName = reader["ProductPartName"].ToString(),
+                                ProductPartNumber = reader["ProductPartNumber"].ToString(),
+                                BoxSealNo = reader["BoxSealNo"].ToString(),
+                                BoxQuantity = Convert.ToInt32(reader["BoxQuantity"]),
+                                BoxProgress = Convert.ToInt32(reader["BoxProgress"]),
+                                BoxComplete = Convert.ToBoolean(Convert.ToInt32(reader["BoxComplete"])),
+                                BoxWorker = reader["BoxWorker"].ToString(),
+                                BoxType = reader["BoxType"].ToString(),
+                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"]))
+                            });
+                        }
+                    }
+                }
+            }
+            return boxProducts;
+        }
+
+        public void InsertBoxProduct(BoxProduct boxProduct)
+        {
+            try
+            {
+                using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                using (SQLiteTransaction transaction = connection.BeginTransaction())
+                {
+                    string insertQuery = @"
+                        INSERT INTO BoxProduct (BoxName, ProductPartName, ProductPartNumber, BoxSealNo, BoxQuantity, BoxProgress, BoxComplete, BoxWorker, BoxType, IsPartialBox)
+                        VALUES (@BoxName, @ProductPartName, @ProductPartNumber, @BoxSealNo, @BoxQuantity, @BoxProgress, @BoxComplete, @BoxWorker, @BoxType, @IsPartialBox)";
+                    using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
+                    {
+                        command.Parameters.AddWithValue("@BoxName", boxProduct.BoxName);
+                        command.Parameters.AddWithValue("@ProductPartName", boxProduct.ProductPartName);
+                        command.Parameters.AddWithValue("@ProductPartNumber", boxProduct.ProductPartNumber);
+                        command.Parameters.AddWithValue("@BoxSealNo", boxProduct.BoxSealNo);
+                        command.Parameters.AddWithValue("@BoxQuantity", boxProduct.BoxQuantity);
+                        command.Parameters.AddWithValue("@BoxProgress", boxProduct.BoxProgress);
+                        command.Parameters.AddWithValue("@BoxComplete", boxProduct.BoxComplete ? 1 : 0);
+                        command.Parameters.AddWithValue("@BoxWorker", boxProduct.BoxWorker);
+                        command.Parameters.AddWithValue("@BoxType", boxProduct.BoxType);
+                        command.Parameters.AddWithValue("@IsPartialBox", boxProduct.IsPartialBox ? 1 : 0);
+                        command.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log("Loi insert BoxProduct vao " + DatabaseRepository.DatabasePath +
+                    ". BoxName=" + (boxProduct != null ? boxProduct.BoxName : string.Empty) + ". Chi tiet: " + ex);
+                throw;
+            }
+        }
+
+        public void UpdateBoxProduct(BoxProduct boxProduct)
+        {
+            try
+            {
+                using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                using (SQLiteTransaction transaction = connection.BeginTransaction())
+                {
+                    string updateQuery = @"
+                        UPDATE BoxProduct
+                        SET BoxName = @BoxName, ProductPartName = @ProductPartName, ProductPartNumber = @ProductPartNumber, BoxSealNo = @BoxSealNo,
+                            BoxQuantity = @BoxQuantity, BoxProgress = @BoxProgress, BoxComplete = @BoxComplete, BoxWorker = @BoxWorker,
+                            BoxType = @BoxType, IsPartialBox = @IsPartialBox
+                        WHERE ID = @ID";
+                    using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
+                    {
+                        command.Parameters.AddWithValue("@BoxName", boxProduct.BoxName);
+                        command.Parameters.AddWithValue("@ProductPartName", boxProduct.ProductPartName);
+                        command.Parameters.AddWithValue("@ProductPartNumber", boxProduct.ProductPartNumber);
+                        command.Parameters.AddWithValue("@BoxSealNo", boxProduct.BoxSealNo);
+                        command.Parameters.AddWithValue("@BoxQuantity", boxProduct.BoxQuantity);
+                        command.Parameters.AddWithValue("@BoxProgress", boxProduct.BoxProgress);
+                        command.Parameters.AddWithValue("@BoxComplete", boxProduct.BoxComplete ? 1 : 0);
+                        command.Parameters.AddWithValue("@BoxWorker", boxProduct.BoxWorker);
+                        command.Parameters.AddWithValue("@BoxType", boxProduct.BoxType);
+                        command.Parameters.AddWithValue("@IsPartialBox", boxProduct.IsPartialBox ? 1 : 0);
+                        command.Parameters.AddWithValue("@ID", boxProduct.ID);
+                        command.ExecuteNonQuery();
+                    }
+
+                    transaction.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log("Loi update BoxProduct trong " + DatabaseRepository.DatabasePath +
+                    ". ID=" + (boxProduct != null ? boxProduct.ID.ToString() : string.Empty) + ". Chi tiet: " + ex);
+                throw;
+            }
+        }
+
+        public void DeleteBoxProduct(int id)
+        {
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                string deleteQuery = "DELETE FROM BoxProduct WHERE ID = @ID";
+                using (SQLiteCommand command = new SQLiteCommand(deleteQuery, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@ID", id);
+                    command.ExecuteNonQuery();
+                }
+                transaction.Commit();
+            }
+        }
+
+        public void DeleteByBoxName(string boxName)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+            {
+                return;
+            }
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            using (SQLiteCommand command = new SQLiteCommand(
+                "DELETE FROM BoxProduct WHERE BoxName = @BoxName AND BoxComplete = 0",
+                connection,
+                transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.ExecuteNonQuery();
+                transaction.Commit();
+            }
+        }
+
+        public string GetNotComplete(string partnumber, DateTime date)
+        {
+            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string query = "SELECT BoxName FROM BoxProduct WHERE ProductPartNumber = @PartNumber AND BoxComplete = 0 AND BoxSealNo = @BoxSealNo";
+                using (SQLiteCommand command = new SQLiteCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@PartNumber", partnumber);
+                    command.Parameters.AddWithValue("@BoxSealNo", date.ToString("yyMMdd"));
+                    object result = command.ExecuteScalar();
+
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return result.ToString();
+                    }
+                    else
+                    {
+                        return null; // Trả về null nếu không tìm thấy
+                    }
+                }
+            }
+        }
+
+        public string GetNextBoxName()
+        {
+            string today = DateTime.Now.ToString("yyMMdd");
+            int nextBoxNumber = GetNextBoxNumberForToday(today);
+            string nextBoxName = $"P{today}{nextBoxNumber.ToString().PadLeft(4, '0')}";
+            return nextBoxName;
+        }
+
+        private int GetNextBoxNumberForToday(string today)
+        {
+            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string query = @"
+                    SELECT BoxName
+                    FROM (
+                        SELECT BoxName FROM BoxProduct WHERE BoxSealNo = @Today
+                        UNION ALL
+                        SELECT BoxName FROM ScanHistoryView WHERE BoxName LIKE @TodayPrefix
+                    )
+                    ORDER BY BoxName DESC
+                    LIMIT 1";
+                using (SQLiteCommand command = new SQLiteCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Today", today);
+                    command.Parameters.AddWithValue("@TodayPrefix", "P" + today + "%");
+                    object result = command.ExecuteScalar();
+
+                    if (result != null && result != DBNull.Value)
+                    {
+                        string lastBoxName = result.ToString();
+                        if (lastBoxName.Length >= 10 && lastBoxName.StartsWith($"P{today}"))
+                        {
+                            string lastBoxNumberString = lastBoxName.Substring(lastBoxName.Length -4);
+                            if (int.TryParse(lastBoxNumberString, out int lastBoxNumber))
+                            {
+                                return lastBoxNumber + 1;
+                            }
+                        }
+                    }
+                    return 1; // Trả về 1 nếu không tìm thấy hoặc lỗi
+                }
+            }
+        }
+
+        public ObservableCollection<BoxProduct> GetAllTodayBox()
+        {
+            ObservableCollection<BoxProduct> todayBoxes = new ObservableCollection<BoxProduct>();
+            string today = DateTime.Now.ToString("yyMMdd");
+
+            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string query = "SELECT * FROM BoxProduct WHERE BoxName LIKE @TodayPrefix";
+                using (SQLiteCommand command = new SQLiteCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@TodayPrefix", $"P{today}%");
+                    using (SQLiteDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            todayBoxes.Add(new BoxProduct
+                            {
+                                ID = Convert.ToInt32(reader["ID"]),
+                                BoxName = reader["BoxName"].ToString(),
+                                ProductPartName = reader["ProductPartName"].ToString(),
+                                ProductPartNumber = reader["ProductPartNumber"].ToString(),
+                                BoxSealNo = reader["BoxSealNo"].ToString(),
+                                BoxQuantity = Convert.ToInt32(reader["BoxQuantity"]),
+                                BoxProgress = Convert.ToInt32(reader["BoxProgress"]),
+                                BoxComplete = Convert.ToBoolean(Convert.ToInt32(reader["BoxComplete"])),
+                                BoxWorker = reader["BoxWorker"].ToString(),
+                                BoxType = reader["BoxType"].ToString(),
+                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"]))
+                            });
+                        }
+                    }
+                }
+            }
+            return todayBoxes;
+        }
+
+        public void UpdateBoxProgress(string boxname)
+        {
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                string updateQuery = "UPDATE BoxProduct SET BoxProgress = BoxProgress + 1 WHERE BoxName = @BoxName";
+                using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@BoxName", boxname);
+                    command.ExecuteNonQuery();
+                }
+                transaction.Commit();
+            }
+        }
+
+        public void SetBoxComplete(string boxname, bool isPartial, string worker)
+        {
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                string updateQuery = @"
+                    UPDATE BoxProduct
+                    SET BoxComplete = 1,
+                        BoxType = @BoxType,
+                        IsPartialBox = @IsPartialBox,
+                        BoxWorker = @BoxWorker
+                    WHERE BoxName = @BoxName AND BoxComplete = 0";
+                using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
+                {
+                    command.Parameters.AddWithValue("@BoxName", boxname);
+                    command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
+                    command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
+                    command.Parameters.AddWithValue("@BoxWorker", worker ?? string.Empty);
+                    command.ExecuteNonQuery();
+                }
+                transaction.Commit();
+            }
+        }
+    }
+}

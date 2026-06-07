@@ -1,0 +1,459 @@
+using SX3_SCANER.Model;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using SX3_SCANER.Model.Respository;
+
+namespace SX3_SCANER.ViewModel
+{
+    internal partial class MainViewModel : ViewModelBase
+    {
+        private const int QueryResultLimit = 500;
+        private int _historyQueryVersion;
+        private CancellationTokenSource _historySearchCts;
+
+        private readonly List<string> _scanResultFilterOptions =
+            new List<string> { "All", "PASS", "NG" };
+
+        public List<string> ScanResultFilterOptions
+        {
+            get { return _scanResultFilterOptions; }
+        }
+
+        private List<string> _historyDataSources =
+            new List<string> { HistoryDataRepository.ScanHistorySource };
+
+        public List<string> HistoryDataSources
+        {
+            get { return _historyDataSources; }
+            set
+            {
+                _historyDataSources = value ?? new List<string>();
+                OnPropertyChanged();
+                OnPropertyChanged("SQLiteTableList");
+            }
+        }
+
+        // Compatibility alias for older XAML/code.
+        public List<string> SQLiteTableList
+        {
+            get { return HistoryDataSources; }
+        }
+
+        private string _selectedHistoryDataSource =
+            HistoryDataRepository.ScanHistorySource;
+
+        public string SelectedHistoryDataSource
+        {
+            get { return _selectedHistoryDataSource; }
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value)
+                    ? HistoryDataRepository.ScanHistorySource
+                    : value;
+
+                if (_selectedHistoryDataSource == next)
+                {
+                    return;
+                }
+
+                _selectedHistoryDataSource = next;
+                OnPropertyChanged();
+                OnPropertyChanged("SelectedSQLiteTable");
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        // Compatibility alias for older XAML/code.
+        public string SelectedSQLiteTable
+        {
+            get { return SelectedHistoryDataSource; }
+            set { SelectedHistoryDataSource = value; }
+        }
+
+        private ObservableCollection<HistoryDataRow> _historyResults =
+            new ObservableCollection<HistoryDataRow>();
+
+        public ObservableCollection<HistoryDataRow> HistoryResults
+        {
+            get { return _historyResults; }
+            set
+            {
+                _historyResults =
+                    value ?? new ObservableCollection<HistoryDataRow>();
+                OnPropertyChanged();
+            }
+        }
+
+        private bool _isQuerying;
+
+        public bool IsQuerying
+        {
+            get { return _isQuerying; }
+            set
+            {
+                if (_isQuerying == value)
+                {
+                    return;
+                }
+
+                _isQuerying = value;
+                OnPropertyChanged();
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        private string _queryStatus = "Chưa tải dữ liệu lịch sử scan.";
+
+        public string QueryStatus
+        {
+            get { return _queryStatus; }
+            set { _queryStatus = value; OnPropertyChanged(); }
+        }
+
+        private string _queryTimes = "0";
+
+        public string QueryTimes
+        {
+            get { return _queryTimes; }
+            set { _queryTimes = value; OnPropertyChanged(); }
+        }
+
+        private int _rowCounts;
+
+        public int RowCounts
+        {
+            get { return _rowCounts; }
+            set { _rowCounts = value; OnPropertyChanged(); }
+        }
+
+        private string _historySearchKeyword = string.Empty;
+
+        public string HistorySearchKeyword
+        {
+            get { return _historySearchKeyword; }
+            set
+            {
+                if (_historySearchKeyword == value)
+                {
+                    return;
+                }
+
+                _historySearchKeyword = value ?? string.Empty;
+                OnPropertyChanged();
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        private List<string> _scanViewDistinctSealNoList = new List<string> { "All" };
+
+        public List<string> ScanViewDistinctSealNoList
+        {
+            get { return _scanViewDistinctSealNoList; }
+            set { _scanViewDistinctSealNoList = value; OnPropertyChanged(); }
+        }
+
+        private string _selectedDistinctSealNo = "All";
+
+        public string SelectedDistinctSealNo
+        {
+            get { return _selectedDistinctSealNo; }
+            set
+            {
+                string next = NormalizeFilter(value);
+                if (_selectedDistinctSealNo == next)
+                {
+                    return;
+                }
+
+                _selectedDistinctSealNo = next;
+                OnPropertyChanged();
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        private List<string> _scanViewDistinctProductNumberList =
+            new List<string> { "All" };
+
+        public List<string> ScanViewDistinctProductNumberList
+        {
+            get { return _scanViewDistinctProductNumberList; }
+            set { _scanViewDistinctProductNumberList = value; OnPropertyChanged(); }
+        }
+
+        private string _selectedDistinctProductNumber = "All";
+
+        public string SelectedDistinctProductNumber
+        {
+            get { return _selectedDistinctProductNumber; }
+            set
+            {
+                string next = NormalizeFilter(value);
+                if (_selectedDistinctProductNumber == next)
+                {
+                    return;
+                }
+
+                _selectedDistinctProductNumber = next;
+                OnPropertyChanged();
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        private List<string> _scanNGMessageList = new List<string> { "All" };
+
+        public List<string> ScanNGMessageList
+        {
+            get { return _scanNGMessageList; }
+            set { _scanNGMessageList = value; OnPropertyChanged(); }
+        }
+
+        private string _selectedScanNGMessage = "All";
+
+        public string SelectedScanNGMessage
+        {
+            get { return _selectedScanNGMessage; }
+            set
+            {
+                string next = NormalizeFilter(value);
+                if (_selectedScanNGMessage == next)
+                {
+                    return;
+                }
+
+                _selectedScanNGMessage = next;
+                OnPropertyChanged();
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        private string _selectedScanResultFilter = "All";
+
+        public string SelectedScanResultFilter
+        {
+            get { return _selectedScanResultFilter; }
+            set
+            {
+                string next = NormalizeResultFilter(value);
+                if (_selectedScanResultFilter == next)
+                {
+                    return;
+                }
+
+                _selectedScanResultFilter = next;
+                OnPropertyChanged();
+                OnPropertyChanged("OnlyPass");
+                DebounceHistorySearchAsync();
+            }
+        }
+
+        // Kept for compatibility with older bindings.
+        public bool OnlyPass
+        {
+            get { return SelectedScanResultFilter == "PASS"; }
+            set { SelectedScanResultFilter = value ? "PASS" : "All"; }
+        }
+
+        private ICommand _queryCMD;
+
+        public ICommand QueryCMD
+        {
+            get
+            {
+                if (_queryCMD == null)
+                {
+                    _queryCMD = new RelayCommand<object>(
+                        parameter => !IsQuerying,
+                        async parameter => await QueryDataAsync(CancellationToken.None));
+                }
+
+                return _queryCMD;
+            }
+        }
+
+        internal async void LoadQueryLookupsAsync()
+        {
+            ResetHistoryFilters();
+            QueryStatus = "Đang tải bộ lọc và dữ liệu lịch sử scan...";
+
+            try
+            {
+                var lookups = await Task.Run(() =>
+                {
+                    var repository = new ScanHistoryRepository();
+                    var dataRepository = new HistoryDataRepository();
+                    return new
+                    {
+                        Sources = dataRepository.GetAvailableSources(),
+                        SealNos = repository.GetDistinctSealNos(),
+                        ProductNumbers = repository.GetDistinctProductNumbers(),
+                        Messages = repository.GetDistinctNGMessage()
+                    };
+                });
+
+                HistoryDataSources = lookups.Sources;
+                _selectedHistoryDataSource =
+                    lookups.Sources.Contains(
+                        HistoryDataRepository.ScanHistorySource)
+                        ? HistoryDataRepository.ScanHistorySource
+                        : lookups.Sources.FirstOrDefault() ??
+                          HistoryDataRepository.ScanHistorySource;
+                OnPropertyChanged("SelectedHistoryDataSource");
+                OnPropertyChanged("SelectedSQLiteTable");
+                ScanViewDistinctSealNoList = lookups.SealNos;
+                ScanViewDistinctProductNumberList = lookups.ProductNumbers;
+                ScanNGMessageList = lookups.Messages;
+
+                await QueryDataAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Load history lookups failed: " + ex);
+                HistoryResults = new ObservableCollection<HistoryDataRow>();
+                RowCounts = 0;
+                QueryStatus = "Không tải được lịch sử scan: " + ex.Message;
+            }
+        }
+
+        private void ResetHistoryFilters()
+        {
+            CancelPendingHistorySearch();
+            _historySearchKeyword = string.Empty;
+            _selectedDistinctSealNo = "All";
+            _selectedDistinctProductNumber = "All";
+            _selectedScanNGMessage = "All";
+            _selectedScanResultFilter = "All";
+
+            OnPropertyChanged("HistorySearchKeyword");
+            OnPropertyChanged("SelectedDistinctSealNo");
+            OnPropertyChanged("SelectedDistinctProductNumber");
+            OnPropertyChanged("SelectedScanNGMessage");
+            OnPropertyChanged("SelectedScanResultFilter");
+            OnPropertyChanged("OnlyPass");
+        }
+
+        private async void DebounceHistorySearchAsync()
+        {
+            CancelPendingHistorySearch();
+            _historySearchCts = new CancellationTokenSource();
+            CancellationToken token = _historySearchCts.Token;
+
+            try
+            {
+                await Task.Delay(300, token);
+                await QueryDataAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private void CancelPendingHistorySearch()
+        {
+            if (_historySearchCts == null)
+            {
+                return;
+            }
+
+            _historySearchCts.Cancel();
+            _historySearchCts.Dispose();
+            _historySearchCts = null;
+        }
+
+        private async Task QueryDataAsync(CancellationToken token)
+        {
+            int queryVersion = Interlocked.Increment(ref _historyQueryVersion);
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            IsQuerying = true;
+            QueryStatus = "Đang tìm kiếm lịch sử scan...";
+
+            try
+            {
+                bool? resultFilter = GetScanResultFilter();
+                string keyword = HistorySearchKeyword;
+                string partNumber = SelectedDistinctProductNumber;
+                string sealNo = SelectedDistinctSealNo;
+                string message = SelectedScanNGMessage;
+
+                string source = SelectedHistoryDataSource;
+
+                ObservableCollection<HistoryDataRow> results = await Task.Run(
+                    () => new HistoryDataRepository().Search(
+                        source,
+                        keyword,
+                        partNumber,
+                        sealNo,
+                        message,
+                        resultFilter,
+                        QueryResultLimit),
+                    token);
+
+                token.ThrowIfCancellationRequested();
+                if (queryVersion != _historyQueryVersion)
+                {
+                    return;
+                }
+
+                HistoryResults = results;
+                RowCounts = results.Count;
+                stopwatch.Stop();
+                QueryTimes = stopwatch.Elapsed.TotalMilliseconds.ToString("0");
+                QueryStatus = results.Count == 0
+                    ? "Không có dữ liệu lịch sử scan phù hợp."
+                    : "Hiển thị " + results.Count + " dòng mới nhất.";
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Search history failed: " + ex);
+                HistoryResults = new ObservableCollection<HistoryDataRow>();
+                RowCounts = 0;
+                stopwatch.Stop();
+                QueryTimes = stopwatch.Elapsed.TotalMilliseconds.ToString("0");
+                QueryStatus = "Lỗi tìm kiếm lịch sử scan: " + ex.Message;
+            }
+            finally
+            {
+                if (queryVersion == _historyQueryVersion)
+                {
+                    IsQuerying = false;
+                }
+            }
+        }
+
+        private bool? GetScanResultFilter()
+        {
+            if (SelectedScanResultFilter == "PASS")
+            {
+                return true;
+            }
+
+            if (SelectedScanResultFilter == "NG")
+            {
+                return false;
+            }
+
+            return null;
+        }
+
+        private static string NormalizeFilter(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "All" : value.Trim();
+        }
+
+        private static string NormalizeResultFilter(string value)
+        {
+            string normalized = NormalizeFilter(value).ToUpperInvariant();
+            return normalized == "PASS" || normalized == "NG"
+                ? normalized
+                : "All";
+        }
+    }
+}

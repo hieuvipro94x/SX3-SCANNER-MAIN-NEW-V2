@@ -1,0 +1,14 @@
+bin/
+obj/
+.vs/
+InstallerOutput/
+ReleasePackages/
+
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+*.user
+*.suo
+*.cache

@@ -1,0 +1,17 @@
+# Release Notes
+
+### ✨ Cải tiến trải nghiệm khởi động ứng dụng
+
+* Loại bỏ cơ chế tạo file `startup.log`.
+* Thay thế bằng thanh trạng thái trực tiếp trên giao diện.
+* Hiển thị tiến trình khởi động theo thời gian thực:
+
+  * Kiểm tra dữ liệu
+  * Khởi tạo cơ sở dữ liệu
+  * Kiểm tra kết nối
+  * Tải cấu hình hệ thống
+* Giảm ghi log không cần thiết giúp ứng dụng khởi động gọn gàng hơn.
+* Tối ưu hiệu năng và giảm hoạt động đọc/ghi đĩa khi mở ứng dụng.
+* Cải thiện khả năng theo dõi trạng thái hệ thống cho người dùng.
+
+✅ Kết quả: Ứng dụng khởi động sạch hơn, nhanh hơn và trực quan hơn.

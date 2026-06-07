@@ -1,0 +1,10 @@
+﻿SX3 SCANNER LICENSE AGREEMENT
+
+Please read this agreement carefully before installing SX3 Scanner.
+
+By installing and using this software, you agree to use it only for authorized
+business purposes and to comply with your organization's policies.
+
+This software is provided as-is. The publisher is not responsible for data loss,
+incorrect usage, or damage caused by unauthorized modification.
+

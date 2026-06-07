@@ -1,0 +1,238 @@
+﻿<Window x:Class="SX3_SCANER.UpdateReleaseNotesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SX3 Scanner - Chi tiết bản cập nhật"
+        Width="820"
+        Height="700"
+        MinWidth="760"
+        MinHeight="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="#EEF2F7">
+
+    <Border Margin="22"
+            Background="White"
+            CornerRadius="18"
+            BorderBrush="#E5E7EB"
+            BorderThickness="1">
+
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18"
+                              ShadowDepth="2"
+                              Opacity="0.18"/>
+        </Border.Effect>
+
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Có bản cập nhật mới"
+                               FontSize="28"
+                               FontWeight="Bold"
+                               Foreground="#111827"/>
+
+                    <TextBlock Text="Vui lòng xem kỹ nội dung thay đổi trước khi cập nhật."
+                               Margin="0,6,0,0"
+                               FontSize="14"
+                               Foreground="#6B7280"/>
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        Padding="12,7"
+                        VerticalAlignment="Top"
+                        Background="#EFF6FF"
+                        CornerRadius="999">
+                    <TextBlock Text="SX3 Scanner"
+                               Foreground="#2563EB"
+                               FontWeight="SemiBold"/>
+                </Border>
+            </Grid>
+
+            <!-- Version info -->
+            <Border Grid.Row="1"
+                    Margin="0,22,0,16"
+                    Padding="16"
+                    Background="#F8FAFC"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    CornerRadius="14">
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Phiên bản hiện tại"
+                                   FontSize="13"
+                                   Foreground="#6B7280"/>
+                        <TextBlock x:Name="txtCurrentVersion"
+                                   Margin="0,4,0,0"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="#374151"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Phiên bản mới"
+                                   FontSize="13"
+                                   Foreground="#6B7280"/>
+                        <TextBlock x:Name="txtNewVersion"
+                                   Margin="0,4,0,0"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="#DC2626"/>
+                    </StackPanel>
+
+                    <Border x:Name="RequiredBadge"
+                            Grid.Column="2"
+                            Padding="12,7"
+                            VerticalAlignment="Center"
+                            Background="#FEE2E2"
+                            CornerRadius="999">
+                        <TextBlock Text="Bản cập nhật bắt buộc"
+                                   Foreground="#B91C1C"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Margin="0,0,0,16"
+                    Padding="16"
+                    VerticalAlignment="Top"
+                    Background="#F8FAFC"
+                    BorderBrush="#E5E7EB"
+                    BorderThickness="1"
+                    CornerRadius="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="File cập nhật" Foreground="#6B7280"/>
+                    <TextBlock x:Name="txtFileName"
+                               Grid.Column="1"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Grid.Row="1"
+                               Margin="0,6,0,0"
+                               Text="Dung lượng"
+                               Foreground="#6B7280"/>
+                    <TextBlock x:Name="txtFileSize"
+                               Grid.Row="1"
+                               Grid.Column="1"
+                               Margin="0,6,0,0"/>
+
+                    <TextBlock Grid.Row="2"
+                               Margin="0,6,0,0"
+                               Text="Nguồn phát hành"
+                               Foreground="#6B7280"/>
+                    <TextBlock x:Name="txtReleaseSource"
+                               Grid.Row="2"
+                               Grid.Column="1"
+                               Margin="0,6,0,0"
+                               Foreground="#2563EB"
+                               TextWrapping="Wrap"/>
+                </Grid>
+            </Border>
+
+            <!-- Release notes -->
+            <Border Grid.Row="3"
+                    Background="#FFFFFF"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1"
+                    CornerRadius="14">
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            Padding="16,12"
+                            Background="#F8FAFC"
+                            BorderBrush="#E5E7EB"
+                            BorderThickness="0,0,0,1"
+                            CornerRadius="14,14,0,0">
+                        <TextBlock Text="Nội dung thay đổi"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827"/>
+                    </Border>
+
+                    <ScrollViewer Grid.Row="1"
+                                  Padding="18"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <TextBlock x:Name="txtReleaseNotes"
+                                   TextWrapping="Wrap"
+                                   FontSize="15"
+                                   Foreground="#111827"
+                                   LineHeight="24"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Actions -->
+            <Grid Grid.Row="4"
+                  Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Text="Khuyến nghị: sao lưu dữ liệu trước khi cập nhật."
+                           Foreground="#6B7280"
+                           FontSize="13"/>
+
+                <Button Grid.Column="1"
+                        Content="Để sau"
+                        Width="110"
+                        Height="40"
+                        Margin="0,0,12,0"
+                        Background="#F3F4F6"
+                        Foreground="#374151"
+                        BorderBrush="#D1D5DB"
+                        FontWeight="SemiBold"
+                        Click="Cancel_Click"/>
+
+                <Button Grid.Column="2"
+                        Content="Cập nhật ngay"
+                        Width="150"
+                        Height="40"
+                        Background="#2563EB"
+                        Foreground="White"
+                        BorderBrush="#2563EB"
+                        FontWeight="SemiBold"
+                        Click="Update_Click"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
