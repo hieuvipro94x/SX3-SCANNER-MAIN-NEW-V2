@@ -1,6 +1,8 @@
 {
   "enabled": true,
-  "level": "error",
-  "message": "Vui lòng liên hệ quản trị viên.",
-  "updatedAt": "2026-06-09 18:00"
+  "level": "warning",
+  "message": "⚠️ Hệ thống sẽ bảo trì để nâng cấp tính năng vui lòng không Scan trong thời gian này.",
+  "updatedAt": "2026-06-09 16:30",
+  "autoHideSeconds": 120,
+  "pollSeconds": 10
 }
