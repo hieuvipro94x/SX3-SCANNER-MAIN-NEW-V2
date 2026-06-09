@@ -1,26 +1,8 @@
 {
-"enabled": false,
-"level": "warning",
-"title": "THÔNG BÁO",
-"message": "Quản lý QC ĐINH THỊ HÀ ĐÂY LÀ 1 THÔNG BÁO.",
-
-"updatedAt": "2026-06-09 18:00:00",
-
-"autoHideSeconds": 0,
-"showCountdown": true,
-
-"pollSeconds": 30,
-
-"showPopup": false,
-"allowClose": true,
-
-"version": "6.5.1",
-"forceUpdate": false,
-
-"priority": 5,
-
-"backgroundColor": "#1E88E5",
-"foregroundColor": "#FFFFFF",
-
-"createdBy": "ADMIN"
+  "enabled": true,
+  "title": "TEST LIVE",
+  "message": "Nếu bạn nhìn thấy dòng này thì GitHub Announcement đang hoạt động",
+  "updatedAt": "2026-06-09 16:40:00",
+  "pollSeconds": 10,
+  "autoHideSeconds": 15
 }
