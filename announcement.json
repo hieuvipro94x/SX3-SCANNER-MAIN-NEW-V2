@@ -2,7 +2,7 @@
   "enabled": true,
   "title": "SCAN SẢN XUẤT 3",
   "message": "Nếu có vấn đề gi liên hệ quản lý QC ĐINH THỊ HÀ NHÉ !!! ",
-  "updatedAt": "2026-06-09 16:55:00",
+  "updatedAt": "2026-06-09 17:01:00",
   "pollSeconds": 10,
-  "autoHideSeconds": 
+  "autoHideSeconds": 1800,
 }
