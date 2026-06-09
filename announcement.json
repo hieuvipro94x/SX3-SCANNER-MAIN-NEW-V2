@@ -1,11 +1,11 @@
 {
-"enabled": false,
-"level": "warning",
+"enabled": true,
+"level": "",
 "title": "THÔNG BÁO HỆ THỐNG",
 "message": "Hệ thống sẽ bảo trì từ 18:00 đến 19:00.",
 "updatedAt": "2026-06-09 18:00:00",
 
-"autoHideSeconds": 0,
+"autoHideSeconds": 60,
 "pollSeconds": 30,
 
 "showPopup": false,
