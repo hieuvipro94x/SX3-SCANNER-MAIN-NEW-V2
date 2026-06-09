@@ -1,8 +1,8 @@
 {
   "enabled": true,
   "title": "SCAN SẢN XUẤT",
-  "message": "Nếu có vấn đề gi liên hệ quản lý QC ĐINH THỊ HÀ NHÉ !!! ",
-  "updatedAt": "2026-06-09 17:50:00",
+  "message": "Chú ý đảm bảo chất lượng đang sảy ra rất nhiêu lỗi!!! ",
+  "updatedAt": "2026-06-09 20:22:00",
   "pollSeconds": 10,
-  "autoHideSeconds": 1800,
+  "autoHideSeconds": 30,
 }
