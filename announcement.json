@@ -1,8 +1,23 @@
 {
-  "enabled": true,
-  "level": "warning",
-  "message": "⚠️ Hệ thống sẽ bảo trì để nâng cấp tính năng vui lòng không Scan trong thời gian này.",
-  "updatedAt": "2026-06-09 16:30",
-  "autoHideSeconds": 120,
-  "pollSeconds": 10
+"enabled": true,
+"level": "warning",
+"title": "THÔNG BÁO HỆ THỐNG",
+"message": "⚠️ Hệ thống sẽ bảo trì từ 18:00 đến 19:00. Vui lòng hoàn tất việc scan trước thời gian này.",
+"updatedAt": "2026-06-09 18:00:00",
+
+"autoHideSeconds": 0,
+"pollSeconds": 30,
+
+"showPopup": false,
+"allowClose": true,
+
+"version": "6.2.0",
+"forceUpdate": false,
+
+"priority": 5,
+
+"backgroundColor": "#FF8C00",
+"foregroundColor": "#FFFFFF",
+
+"createdBy": "ADMIN"
 }
