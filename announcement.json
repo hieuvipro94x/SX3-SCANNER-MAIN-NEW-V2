@@ -1,11 +1,14 @@
 {
 "enabled": true,
-"level": "",
+"level": "info",
 "title": "THÔNG BÁO",
-"message": "📢 Chào mừng sử dụng SX3 Scanner Nếu có vấn đề gi cần giải quyết gặp Hà ĐT nhé !!!.",
+"message": "Quản lý QC ĐINH THỊ HÀ.",
+
 "updatedAt": "2026-06-09 18:00:00",
 
-"autoHideSeconds": 300,
+"autoHideSeconds": 0,
+"showCountdown": true,
+
 "pollSeconds": 30,
 
 "showPopup": false,
@@ -16,7 +19,7 @@
 
 "priority": 5,
 
-"backgroundColor": "#FF8C00",
+"backgroundColor": "#1E88E5",
 "foregroundColor": "#FFFFFF",
 
 "createdBy": "ADMIN"
