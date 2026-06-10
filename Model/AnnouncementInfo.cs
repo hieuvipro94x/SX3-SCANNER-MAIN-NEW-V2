@@ -12,8 +12,13 @@ namespace SX3_SCANER.Model
         public string UpdatedAt { get; set; } = string.Empty;
         public int AutoHideSeconds { get; set; }
         public bool ShowCountdown { get; set; }
-        public int PollSeconds { get; set; } = 30;
+        public int PollSeconds { get; set; } = 5;
         public int RotateSeconds { get; set; } = 10;
+        public int RepeatSeconds { get; set; } = 600;
+        public bool MarqueeEnabled { get; set; }
+        public string MarqueeDirection { get; set; } = "rightToLeft";
+        public int MarqueeSpeed { get; set; } = 80;
+        public int MarqueeDelaySeconds { get; set; } = 10;
         public List<AnnouncementMessageInfo> Messages { get; set; } =
             new List<AnnouncementMessageInfo>();
         public bool ShowPopup { get; set; }

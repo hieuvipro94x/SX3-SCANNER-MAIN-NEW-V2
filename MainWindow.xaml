@@ -2330,7 +2330,7 @@ Width="58" />
                 Background="#E2E8F0"
                 BorderBrush="#CBD5E1"
                 BorderThickness="0,1,0,0"
-                Padding="16,8,16,10">
+                Padding="16,4,16,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MaxWidth="250" />
@@ -2355,22 +2355,14 @@ Width="58" />
                              Width="{Binding ActualWidth, ElementName=footerAnnouncementArea}"
                              MinWidth="650"
                              MaxWidth="1100"
-                            MinHeight="58"
+                            Height="36"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            CornerRadius="12"
-                            Padding="14,8"
-                            Margin="0,4"
-                            BorderThickness="1.5"
+                            CornerRadius="7"
+                            Padding="8,3"
+                            BorderThickness="1"
                             Background="{Binding OnlineAnnouncementBackground}"
                             BorderBrush="{Binding OnlineAnnouncementBorderBrush}">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#334155"
-                                              BlurRadius="14"
-                                              ShadowDepth="2"
-                                              Direction="270"
-                                              Opacity="0.2" />
-                        </Border.Effect>
                         <Border.Style>
                             <Style TargetType="Border">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -2378,26 +2370,6 @@ Width="58" />
                                     <DataTrigger Binding="{Binding IsOnlineAnnouncementVisible}" Value="True">
                                         <Setter Property="Visibility" Value="Visible" />
                                     </DataTrigger>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding OnlineAnnouncementLevel}" Value="error" />
-                                            <Condition Binding="{Binding IsOnlineAnnouncementVisible}" Value="True" />
-                                        </MultiDataTrigger.Conditions>
-                                        <MultiDataTrigger.EnterActions>
-                                            <BeginStoryboard x:Name="OnlineAnnouncementErrorPulse">
-                                                <Storyboard RepeatBehavior="Forever"
-                                                            AutoReverse="True">
-                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                     From="1"
-                                                                     To="0.82"
-                                                                     Duration="0:0:0.8" />
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </MultiDataTrigger.EnterActions>
-                                        <MultiDataTrigger.ExitActions>
-                                            <StopStoryboard BeginStoryboardName="OnlineAnnouncementErrorPulse" />
-                                        </MultiDataTrigger.ExitActions>
-                                    </MultiDataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Border.Style>
@@ -2405,60 +2377,54 @@ Width="58" />
                         <Grid ClipToBounds="True"
                               VerticalAlignment="Center">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="30" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="20" />
-                                <RowDefinition Height="24" />
-                            </Grid.RowDefinitions>
 
-                            <TextBlock Grid.RowSpan="2"
-                                       Text="{Binding OnlineAnnouncementIcon}"
+                            <TextBlock Text="{Binding OnlineAnnouncementIcon}"
                                        Foreground="{Binding OnlineAnnouncementForeground}"
                                        FontFamily="Segoe UI Emoji"
-                                       FontSize="24"
+                                       FontSize="18"
                                        FontWeight="Bold"
                                        VerticalAlignment="Center"
                                        HorizontalAlignment="Center" />
 
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding OnlineAnnouncementTitle}"
+                                       Margin="3,0,8,0"
+                                       Text="{Binding OnlineAnnouncementTitle, StringFormat={}{0}:}"
                                        Foreground="{Binding OnlineAnnouncementForeground}"
-                                       FontSize="11"
+                                       FontSize="12"
                                        FontWeight="ExtraBold"
                                        VerticalAlignment="Center"
-                                       Opacity="0.9" />
+                                       TextWrapping="NoWrap" />
 
-                            <Canvas Grid.Row="1"
-                                    Grid.Column="1"
-                                    Margin="0,0,14,0"
-                                    x:Name="onlineAnnouncementCanvas"
-                                    ClipToBounds="True"
-                                    SizeChanged="OnlineAnnouncement_SizeChanged">
-                                <TextBlock x:Name="onlineAnnouncementText"
-                                           Canvas.Top="2"
-                                           Text="{Binding OnlineAnnouncementText, NotifyOnTargetUpdated=True}"
-                                           Tag="{Binding OnlineAnnouncementAnimationVersion, NotifyOnTargetUpdated=True}"
-                                           Foreground="{Binding OnlineAnnouncementForeground}"
-                                           TargetUpdated="OnlineAnnouncement_TargetUpdated"
-                                           FontSize="14"
+                            <Grid Grid.Column="2"
+                                  x:Name="AnnouncementMarqueeHost"
+                                  Margin="0,0,8,0"
+                                  ClipToBounds="True"
+                                  VerticalAlignment="Center">
+                                <TextBlock x:Name="AnnouncementMarqueeText"
+                                           Text="{Binding OnlineAnnouncementText}"
+                                           FontSize="13"
                                            FontWeight="Bold"
-                                           SizeChanged="OnlineAnnouncement_SizeChanged">
+                                           Foreground="{Binding OnlineAnnouncementForeground}"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"
+                                           TextWrapping="NoWrap">
                                     <TextBlock.RenderTransform>
-                                        <TranslateTransform x:Name="onlineAnnouncementTransform" />
+                                        <TranslateTransform x:Name="AnnouncementMarqueeTransform" />
                                     </TextBlock.RenderTransform>
                                 </TextBlock>
-                            </Canvas>
+                            </Grid>
 
-                            <StackPanel Grid.Column="2"
-                                        Grid.RowSpan="2"
-                                        Margin="14,0,0,0"
+                            <StackPanel Grid.Column="3"
+                                        Margin="6,0,0,0"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center">
-                                <Border Padding="9,4"
-                                        CornerRadius="8"
+                                <Border Padding="7,2"
+                                        CornerRadius="6"
                                         Background="#33FFFFFF"
                                         BorderBrush="#66FFFFFF"
                                         BorderThickness="1"
@@ -2472,7 +2438,7 @@ Width="58" />
                                 </Border>
 
                                 <Button Width="28"
-                                        Height="28"
+                                        Height="26"
                                         MinHeight="0"
                                         Margin="8,0,0,0"
                                         Padding="0"

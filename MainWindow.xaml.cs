@@ -1,7 +1,9 @@
 ﻿using SX3_SCANER.Helper;
 using System;
+using System.ComponentModel;
 using System.Configuration;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,14 +23,18 @@ namespace SX3_SCANER
         private readonly GitHubReleaseUpdateService _updateService =
             new GitHubReleaseUpdateService();
         private GitHubReleaseUpdateInfo availableUpdate;
-        private Storyboard _onlineAnnouncementStoryboard;
+        private INotifyPropertyChanged _announcementViewModel;
+        private CancellationTokenSource _announcementMarqueeCts;
+        private int _announcementMarqueeGeneration;
 
         public MainWindow()
         {
             InitializeComponent();
+            DataContextChanged += MainWindow_DataContextChanged;
             StartupManager.StatusChanged += StartupStatus_Changed;
             Closed += MainWindow_Closed;
             txtStartupStatus.Text = StartupManager.CurrentStatus;
+            AttachAnnouncementViewModel(DataContext as INotifyPropertyChanged);
 
             applicationVersion = GetCurrentAppVersion();
 
@@ -149,9 +155,11 @@ namespace SX3_SCANER
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
+            DataContextChanged -= MainWindow_DataContextChanged;
             StartupManager.StatusChanged -= StartupStatus_Changed;
             timer.Stop();
-            _onlineAnnouncementStoryboard?.Stop();
+            StopOnlineAnnouncementAnimation();
+            AttachAnnouncementViewModel(null);
 
             if (DataContext is MainViewModel viewModel)
             {
@@ -159,18 +167,35 @@ namespace SX3_SCANER
             }
         }
 
-        private void OnlineAnnouncement_TargetUpdated(
+        private void MainWindow_DataContextChanged(
             object sender,
-            DataTransferEventArgs e)
+            DependencyPropertyChangedEventArgs e)
         {
-            RestartOnlineAnnouncementAnimation();
+            AttachAnnouncementViewModel(e.NewValue as INotifyPropertyChanged);
         }
 
-        private void OnlineAnnouncement_SizeChanged(
-            object sender,
-            SizeChangedEventArgs e)
+        private void AttachAnnouncementViewModel(INotifyPropertyChanged viewModel)
         {
-            RestartOnlineAnnouncementAnimation();
+            if (ReferenceEquals(_announcementViewModel, viewModel))
+            {
+                return;
+            }
+
+            if (_announcementViewModel != null)
+            {
+                _announcementViewModel.PropertyChanged -=
+                    AnnouncementViewModel_PropertyChanged;
+            }
+
+            _announcementViewModel = viewModel;
+
+            if (_announcementViewModel != null)
+            {
+                _announcementViewModel.PropertyChanged +=
+                    AnnouncementViewModel_PropertyChanged;
+            }
+
+            RestartAnnouncementMarquee();
         }
 
         private void OnlineAnnouncementClose_Click(
@@ -183,45 +208,199 @@ namespace SX3_SCANER
             }
         }
 
-        private void RestartOnlineAnnouncementAnimation()
+        private void AnnouncementViewModel_PropertyChanged(
+            object sender,
+            PropertyChangedEventArgs e)
         {
+            string propertyName = e?.PropertyName ?? string.Empty;
+
+            if (string.IsNullOrEmpty(propertyName) ||
+                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementText), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementAnimationVersion), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.IsOnlineAnnouncementVisible), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.IsOnlineAnnouncementMarqueeEnabled), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeDirection), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeSpeed), StringComparison.Ordinal) ||
+                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeDelaySeconds), StringComparison.Ordinal))
+            {
+                RestartAnnouncementMarquee();
+            }
+        }
+
+        private async void RestartAnnouncementMarquee()
+        {
+            StopOnlineAnnouncementAnimation();
+
             if (!IsLoaded ||
-                onlineAnnouncementCanvas.ActualWidth <= 0 ||
-                onlineAnnouncementText.ActualWidth <= 0)
+                !(DataContext is MainViewModel viewModel) ||
+                !viewModel.IsOnlineAnnouncementVisible ||
+                !viewModel.IsOnlineAnnouncementMarqueeEnabled ||
+                string.IsNullOrWhiteSpace(viewModel.OnlineAnnouncementText))
+            {
+                if (AnnouncementMarqueeTransform != null)
+                {
+                    AnnouncementMarqueeTransform.X = 0;
+                }
+
+                return;
+            }
+
+            int generation = Interlocked.Increment(ref _announcementMarqueeGeneration);
+            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationTokenSource previousCts =
+                Interlocked.Exchange(ref _announcementMarqueeCts, cts);
+            previousCts?.Cancel();
+            previousCts?.Dispose();
+
+            try
+            {
+                await Dispatcher.BeginInvoke(
+                    new Action(() => { }),
+                    DispatcherPriority.Loaded).Task;
+            }
+            catch (TaskCanceledException)
             {
                 return;
             }
 
-            _onlineAnnouncementStoryboard?.Stop();
-
-            if (onlineAnnouncementText.ActualWidth <=
-                onlineAnnouncementCanvas.ActualWidth)
+            if (cts.IsCancellationRequested ||
+                generation != _announcementMarqueeGeneration ||
+                !TryGetAnnouncementMarqueeMetrics(out double hostWidth, out double textWidth))
             {
-                onlineAnnouncementTransform.X = 0;
-                return;
+                if (cts.IsCancellationRequested ||
+                    generation != _announcementMarqueeGeneration)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await Task.Delay(100, cts.Token);
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+
+                if (cts.IsCancellationRequested ||
+                    generation != _announcementMarqueeGeneration ||
+                    !TryGetAnnouncementMarqueeMetrics(out hostWidth, out textWidth))
+                {
+                    if (AnnouncementMarqueeTransform != null)
+                    {
+                        AnnouncementMarqueeTransform.X = 0;
+                    }
+
+                    return;
+                }
             }
 
-            double start = onlineAnnouncementCanvas.ActualWidth;
-            double end = -onlineAnnouncementText.ActualWidth;
-            double distance = start - end;
-            double seconds = Math.Max(6, distance / 70);
-
+            bool leftToRight = string.Equals(
+                viewModel.OnlineAnnouncementMarqueeDirection,
+                "leftToRight",
+                StringComparison.OrdinalIgnoreCase);
+            double from = leftToRight
+                ? -textWidth
+                : hostWidth;
+            double to = leftToRight
+                ? hostWidth
+                : -textWidth;
+            double distance = Math.Abs(to - from);
+            double seconds = Math.Max(
+                4.0,
+                distance / Math.Max(1, viewModel.OnlineAnnouncementMarqueeSpeed));
             var animation = new DoubleAnimation
             {
-                From = start,
-                To = end,
+                From = from,
+                To = to,
                 Duration = TimeSpan.FromSeconds(seconds),
-                RepeatBehavior = RepeatBehavior.Forever
+                FillBehavior = FillBehavior.Stop
+            };
+            Timeline.SetDesiredFrameRate(animation, 60);
+
+            animation.Completed += async (animationSender, animationArgs) =>
+            {
+                if (cts.IsCancellationRequested ||
+                    generation != _announcementMarqueeGeneration ||
+                    !IsLoaded)
+                {
+                    return;
+                }
+
+                if (AnnouncementMarqueeTransform != null)
+                {
+                    AnnouncementMarqueeTransform.X = from;
+                }
+
+                int delaySeconds = viewModel.OnlineAnnouncementMarqueeDelaySeconds > 0
+                    ? viewModel.OnlineAnnouncementMarqueeDelaySeconds
+                    : 10;
+
+                try
+                {
+                    if (delaySeconds > 0)
+                    {
+                        await Task.Delay(
+                            TimeSpan.FromSeconds(delaySeconds),
+                            cts.Token);
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    return;
+                }
+
+                if (cts.IsCancellationRequested ||
+                    generation != _announcementMarqueeGeneration ||
+                    !IsLoaded ||
+                    !(DataContext is MainViewModel currentViewModel) ||
+                    !currentViewModel.IsOnlineAnnouncementVisible ||
+                    !currentViewModel.IsOnlineAnnouncementMarqueeEnabled ||
+                    string.IsNullOrWhiteSpace(currentViewModel.OnlineAnnouncementText))
+                {
+                    return;
+                }
+
+                RestartAnnouncementMarquee();
             };
 
-            Storyboard.SetTarget(animation, onlineAnnouncementTransform);
-            Storyboard.SetTargetProperty(
-                animation,
-                new PropertyPath(TranslateTransform.XProperty));
+            if (AnnouncementMarqueeTransform != null)
+            {
+                AnnouncementMarqueeTransform.X = from;
+                AnnouncementMarqueeTransform.BeginAnimation(
+                    TranslateTransform.XProperty,
+                    animation);
+            }
+        }
 
-            _onlineAnnouncementStoryboard = new Storyboard();
-            _onlineAnnouncementStoryboard.Children.Add(animation);
-            _onlineAnnouncementStoryboard.Begin();
+        private void StopOnlineAnnouncementAnimation()
+        {
+            Interlocked.Increment(ref _announcementMarqueeGeneration);
+
+            CancellationTokenSource cts =
+                Interlocked.Exchange(ref _announcementMarqueeCts, null);
+            if (cts != null)
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+
+            if (AnnouncementMarqueeTransform != null)
+            {
+                AnnouncementMarqueeTransform.BeginAnimation(
+                    TranslateTransform.XProperty,
+                    null);
+                AnnouncementMarqueeTransform.X = 0;
+            }
+        }
+
+        private bool TryGetAnnouncementMarqueeMetrics(
+            out double hostWidth,
+            out double textWidth)
+        {
+            hostWidth = AnnouncementMarqueeHost?.ActualWidth ?? 0;
+            textWidth = AnnouncementMarqueeText?.ActualWidth ?? 0;
+            return hostWidth > 0 && textWidth > 0;
         }
 
         private async Task RefreshUpdateStatusAsync(bool showErrorMessage)
