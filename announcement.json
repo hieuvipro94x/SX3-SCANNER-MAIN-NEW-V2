@@ -10,7 +10,7 @@
 "autoHideSeconds": 0,
 "showCountdown": false,
 "showPopup": false,
-"allowClose": true,
+"allowClose": false,
 
 "marqueeEnabled": true,
 "marqueeDirection": "rightToLeft",
