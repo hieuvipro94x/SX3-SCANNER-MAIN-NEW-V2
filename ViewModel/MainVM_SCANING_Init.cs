@@ -155,7 +155,8 @@ namespace SX3_SCANER.ViewModel
             {
                 DateTime previousDate = _SelectedDate;
                 bool dateChanged = previousDate != default(DateTime) && previousDate.Date != value.Date;
-                if (dateChanged && !string.IsNullOrWhiteSpace(SelectedPartNumber))
+                bool hasOpenBox = HasOpenScanSession && !string.IsNullOrWhiteSpace(_CurrentBoxName);
+                if (dateChanged && !hasOpenBox && !string.IsNullOrWhiteSpace(SelectedPartNumber))
                 {
                     SaveCurrentScanSession(false);
                     InJob = false;
@@ -170,12 +171,16 @@ namespace SX3_SCANER.ViewModel
                 SealNoExpected = value.ToString("yyMMdd");
                 FullCodeExpected = FullCodeExpected.Replace(old, SealNoExpected);
 
-                if (dateChanged && !string.IsNullOrWhiteSpace(SelectedPartNumber))
+                if (!dateChanged ||
+                    hasOpenBox ||
+                    string.IsNullOrWhiteSpace(SelectedPartNumber))
                 {
-                    if (!RestoreScanSession(SelectedPartNumber))
-                    {
-                        CheckLastJob(SelectedPartNumber);
-                    }
+                    return;
+                }
+
+                if (!RestoreScanSession(SelectedPartNumber))
+                {
+                    CheckLastJob(SelectedPartNumber);
                 }
             }
         }

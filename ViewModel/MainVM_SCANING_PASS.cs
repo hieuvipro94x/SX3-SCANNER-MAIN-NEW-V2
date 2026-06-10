@@ -1,7 +1,6 @@
 using SX3_SCANER.Model;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Media;
 
 namespace SX3_SCANER.ViewModel
@@ -80,46 +79,20 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private async Task BoxingHandleAsync()
+        private void ApplyPersistedBox(BoxProduct persistedBox, int persistedProgress)
         {
-            if (!_CurrentScanHistory.ScanResult) return;
-
-            if (string.IsNullOrWhiteSpace(_CurrentBoxName))
-                _CurrentBoxName = await Task.Run(() => _boxProductRepository.GetNextBoxName());
-
             BoxProduct box = ToDayBoxSource?.FirstOrDefault(x => x.BoxName == _CurrentBoxName);
 
-            if (CurrentScanProgress == 1)
+            if (persistedBox != null)
             {
-                box = new BoxProduct
-                {
-                    BoxName = _CurrentBoxName,
-                    ProductPartName = PNameExpected,
-                    ProductPartNumber = SelectedPartNumber,
-                    BoxSealNo = SealNoExpected,
-                    BoxQuantity = SelectedQuantity,
-                    BoxProgress = CurrentScanProgress,
-                    BoxComplete = false,
-                    BoxWorker = string.IsNullOrWhiteSpace(Worker) ? "" : Worker.Trim(),
-                    BoxType = "OPEN",
-                    IsPartialBox = false
-                };
-
-                await Task.Run(() => _boxProductRepository.InsertBoxProduct(box));
-
                 if (ToDayBoxSource == null)
                     ToDayBoxSource = new ObservableCollection<BoxProduct>();
 
-                ToDayBoxSource.Add(box);
+                ToDayBoxSource.Add(persistedBox);
             }
-            else
+            else if (box != null)
             {
-                await Task.Run(() => _boxProductRepository.UpdateBoxProgress(_CurrentBoxName));
-
-                if (box != null)
-                {
-                    box.BoxProgress = CurrentScanProgress;
-                }
+                box.BoxProgress = persistedProgress;
             }
 
             ToDayBoxView?.Refresh();

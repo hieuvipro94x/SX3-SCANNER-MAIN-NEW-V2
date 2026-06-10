@@ -3,7 +3,9 @@ using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using SX3_SCANER.View;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data.SQLite;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -18,7 +20,7 @@ namespace SX3_SCANER.ViewModel
     {
         private readonly ScanHistoryRepository _scanHistoryRepository = new ScanHistoryRepository();
         private readonly BoxProductRepository _boxProductRepository = new BoxProductRepository();
-        private readonly IScanSessionService _scanSessionService = new ScanSessionService();
+        private readonly ScanSessionService _scanSessionService = new ScanSessionService();
         private readonly SemaphoreSlim _scanWriteLock = new SemaphoreSlim(1, 1);
         private bool _duplicateLotForCurrentScan;
         private bool _isScanBusy;
@@ -185,14 +187,16 @@ namespace SX3_SCANER.ViewModel
             if (ScanHistorySource == null)
                 ScanHistorySource = new ObservableCollection<ScanHistory>();
 
+            bool allocatedBoxName = string.IsNullOrWhiteSpace(_CurrentBoxName);
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
-                _CurrentBoxName = await Task.Run(() => _boxProductRepository.GetNextBoxName());
+                _CurrentBoxName = await Task.Run(
+                    () => _boxProductRepository.GetNextBoxName(SelectedDate));
 
             ResetScanStatus();
 
             _CurrentScanHistory = new ScanHistory
             {
-                ScanTime = DateTime.Now,
+                ScanTime = GetBusinessScanTime(),
                 ProductPartNumber = SelectedPartNumber,
                 ProductPartName = PNameExpected,
                 BoxName = _CurrentBoxName,
@@ -205,33 +209,89 @@ namespace SX3_SCANER.ViewModel
 
             if (!isPass)
             {
-                ScanTextResult = NG;
-
                 _CurrentScanHistory.ScanMessage = _ScanMess;
 
                 _CurrentScanHistory.ScanResult = false;
-
-                MessageBox.Show(
-                    BuildNgPopupMessage(inputScanCode),
-                    "K\u1EBET QU\u1EA2 SCAN: NG",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
             }
             else
             {
-                ScanTextResult = OK;
-
-                InputScanCode = string.Empty;
-
                 _CurrentScanHistory.ScanMessage = "PASS";
 
                 _CurrentScanHistory.ScanResult = true;
             }
 
             ScanHistory persistedHistory = _CurrentScanHistory;
+            string persistedBoxName = _CurrentBoxName;
+            int persistedProgress = isPass
+                ? CurrentScanProgress + 1
+                : CurrentScanProgress;
+            bool isFirstPassInBox = isPass && persistedProgress == 1;
+            BoxProduct persistedBox = isFirstPassInBox
+                ? new BoxProduct
+                {
+                    BoxName = _CurrentBoxName,
+                    ProductPartName = PNameExpected,
+                    ProductPartNumber = SelectedPartNumber,
+                    BoxSealNo = SelectedDate.ToString("yyMMdd"),
+                    BoxQuantity = SelectedQuantity,
+                    BoxProgress = persistedProgress,
+                    BoxComplete = false,
+                    BoxWorker = string.IsNullOrWhiteSpace(Worker)
+                        ? string.Empty
+                        : Worker.Trim(),
+                    BoxType = "OPEN",
+                    IsPartialBox = false
+                }
+                : null;
+
+            var persistedHistoryItems = new List<ScanHistory> { persistedHistory };
+            if (ScanHistorySource != null)
+            {
+                persistedHistoryItems.AddRange(ScanHistorySource);
+            }
+
+            ScanSessionState persistedSession = BuildCurrentScanSession(
+                InJob,
+                persistedProgress,
+                persistedHistoryItems);
+
             try
             {
-                await Task.Run(() => _scanHistoryRepository.InsertScanHistory(persistedHistory));
+                await Task.Run(() =>
+                {
+                    using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                    using (SQLiteTransaction transaction = connection.BeginTransaction())
+                    {
+                        _scanHistoryRepository.InsertScanHistory(
+                            persistedHistory,
+                            connection,
+                            transaction);
+
+                        if (isPass)
+                        {
+                            if (isFirstPassInBox)
+                            {
+                                _boxProductRepository.InsertBoxProduct(
+                                    persistedBox,
+                                    connection,
+                                    transaction);
+                            }
+                            else
+                            {
+                                _boxProductRepository.UpdateBoxProgress(
+                                    persistedBoxName,
+                                    connection,
+                                    transaction);
+                            }
+                        }
+
+                        _scanSessionService.SaveCurrentSession(
+                            persistedSession,
+                            connection,
+                            transaction);
+                        transaction.Commit();
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -243,12 +303,35 @@ namespace SX3_SCANER.ViewModel
                     "LOI LUU DATABASE",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
-                throw;
+                if (allocatedBoxName)
+                {
+                    _CurrentBoxName = null;
+                    OnPropertyChanged(nameof(HasOpenScanSession));
+                }
+                _CurrentScanHistory = null;
+                _duplicateLotForCurrentScan = false;
+                ScanTextResult = string.Empty;
+                ResetScanStatus();
+                return;
+            }
+
+            ScanTextResult = isPass ? OK : NG;
+            if (isPass)
+            {
+                InputScanCode = string.Empty;
+            }
+            else
+            {
+                MessageBox.Show(
+                    BuildNgPopupMessage(inputScanCode),
+                    "K\u1EBET QU\u1EA2 SCAN: NG",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
 
             if (isPass)
             {
-                CurrentScanProgress++;
+                CurrentScanProgress = persistedProgress;
             }
 
             ScanHistorySource.Insert(0, _CurrentScanHistory);
@@ -256,10 +339,8 @@ namespace SX3_SCANER.ViewModel
 
             if (isPass)
             {
-                await BoxingHandleAsync();
+                ApplyPersistedBox(persistedBox, persistedProgress);
             }
-
-            SaveCurrentScanSession(InJob);
 
             if (isPass && SelectedQuantity > 0 && CurrentScanProgress == SelectedQuantity)
             {
@@ -322,8 +403,52 @@ namespace SX3_SCANER.ViewModel
 
             string completedBoxName = _CurrentBoxName;
             string completedProductCode = SelectedPartNumber;
-            DateTime completedSessionDate = SelectedDate;
+            DateTime completedSessionDate = GetCurrentBoxSessionDate();
             string boxType = isPartial ? "PARTIAL" : "FULL";
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                    using (SQLiteTransaction transaction = connection.BeginTransaction())
+                    {
+                        _scanHistoryRepository.UpdateWorkerByBoxName(
+                            completedBoxName,
+                            Worker,
+                            connection,
+                            transaction);
+                        _scanHistoryRepository.SetBoxTypeByBoxName(
+                            completedBoxName,
+                            isPartial,
+                            connection,
+                            transaction);
+                        _boxProductRepository.SetBoxComplete(
+                            completedBoxName,
+                            isPartial,
+                            Worker,
+                            connection,
+                            transaction);
+                        _scanSessionService.RemoveSession(
+                            completedProductCode,
+                            completedSessionDate,
+                            connection,
+                            transaction);
+                        transaction.Commit();
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "Khong hoan tat duoc thung " + completedBoxName + ". Chi tiet: " + ex);
+                MessageBox.Show(
+                    "Không hoàn tất được thùng trong database.\nDữ liệu hiện tại vẫn được giữ nguyên để thử lại.",
+                    "LỖI HOÀN TẤT THÙNG",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
 
             foreach (var item in ScanHistorySource)
             {
@@ -331,13 +456,6 @@ namespace SX3_SCANER.ViewModel
                 item.BoxType = boxType;
                 item.IsPartialBox = isPartial;
             }
-
-            await Task.Run(() =>
-            {
-                _scanHistoryRepository.UpdateWorkerByBoxName(completedBoxName, Worker);
-                _scanHistoryRepository.SetBoxTypeByBoxName(completedBoxName, isPartial);
-                _boxProductRepository.SetBoxComplete(completedBoxName, isPartial, Worker);
-            });
 
             BoxProduct completedBox = ToDayBoxSource?.FirstOrDefault(x => x.BoxName == completedBoxName);
             if (completedBox != null)
@@ -352,7 +470,6 @@ namespace SX3_SCANER.ViewModel
             ScanHistoryView?.Refresh();
             ToDayBoxView?.Refresh();
 
-            _scanSessionService.RemoveSession(completedProductCode, completedSessionDate);
             CurrentScanProgress = 0;
             ScanHistorySource = new ObservableCollection<ScanHistory>();
             InputScanCode = string.Empty;
@@ -382,7 +499,11 @@ namespace SX3_SCANER.ViewModel
             if (!int.TryParse(lotNo, out int _))
                 return false;
 
-            return await Task.Run(() => _scanHistoryRepository.CheckExist(PNameExpected, SealNoExpected, lotNo));
+            return await Task.Run(
+                () => _scanHistoryRepository.CheckExist(
+                    PNameExpected,
+                    SealNoExpected,
+                    lotNo));
         }
 
         private void ResetScanStatus()
@@ -416,9 +537,14 @@ namespace SX3_SCANER.ViewModel
 
         private bool Scan(string input)
         {
-            _CurrentScanHistory.ScanTime = DateTime.Now;
+            _CurrentScanHistory.ScanTime = GetBusinessScanTime();
 
             return CheckLength(input);
+        }
+
+        private DateTime GetBusinessScanTime()
+        {
+            return SelectedDate.Date.Add(DateTime.Now.TimeOfDay);
         }
 
         private bool CheckLength(string input)
@@ -488,7 +614,7 @@ namespace SX3_SCANER.ViewModel
             {
                 SealNo_OK = 0;
 
-                _ScanMess = "NG - Sai ng\u00E0y/SealNo";
+                _ScanMess = "NG - Sai ngày / SealNo";
 
                 return false;
             }
@@ -528,7 +654,7 @@ namespace SX3_SCANER.ViewModel
             {
                 LotNo_OK = 0;
 
-                _ScanMess = "NG - Tr\u00F9ng LotNo";
+                _ScanMess = "NG - Trùng LotNo";
 
                 return false;
             }
@@ -634,7 +760,7 @@ namespace SX3_SCANER.ViewModel
                 }
             }
 
-            _scanSessionService.RemoveSession(SelectedPartNumber, SelectedDate);
+            _scanSessionService.RemoveSession(SelectedPartNumber, GetCurrentBoxSessionDate());
             ScanHistorySource?.Clear();
 
             CurrentScanProgress = 0;
@@ -779,17 +905,49 @@ namespace SX3_SCANER.ViewModel
                 return;
             }
 
-            _scanSessionService.SaveCurrentSession(new ScanSessionState
+            _scanSessionService.SaveCurrentSession(BuildCurrentScanSession(
+                isInJob,
+                CurrentScanProgress,
+                ScanHistorySource?.ToList() ?? new List<ScanHistory>()));
+        }
+
+        private ScanSessionState BuildCurrentScanSession(
+            bool isInJob,
+            int scannedCount,
+            List<ScanHistory> historyItems)
+        {
+            return new ScanSessionState
             {
                 ProductCode = SelectedPartNumber,
                 BoxCode = _CurrentBoxName ?? string.Empty,
-                ScannedCount = CurrentScanProgress,
+                ScannedCount = scannedCount,
                 TargetCount = SelectedQuantity,
-                ScanHistoryItems = ScanHistorySource?.ToList() ?? new System.Collections.Generic.List<ScanHistory>(),
+                ScanHistoryItems = historyItems ?? new List<ScanHistory>(),
                 IsInJob = isInJob,
                 Worker = Worker ?? string.Empty,
-                SessionDate = SelectedDate
-            });
+                SessionDate = GetCurrentBoxSessionDate()
+            };
+        }
+
+        private DateTime GetCurrentBoxSessionDate()
+        {
+            if (!string.IsNullOrWhiteSpace(_CurrentBoxName) &&
+                _CurrentBoxName.Length >= 7 &&
+                _CurrentBoxName.StartsWith("P"))
+            {
+                string yymmdd = _CurrentBoxName.Substring(1, 6);
+                if (DateTime.TryParseExact(
+                    yymmdd,
+                    "yyMMdd",
+                    null,
+                    System.Globalization.DateTimeStyles.None,
+                    out DateTime boxDate))
+                {
+                    return boxDate;
+                }
+            }
+
+            return SelectedDate;
         }
 
         private bool RestoreScanSession(string productCode)

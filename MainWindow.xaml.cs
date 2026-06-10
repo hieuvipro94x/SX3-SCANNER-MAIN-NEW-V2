@@ -5,7 +5,11 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using SX3_SCANER.ViewModel;
 
 namespace SX3_SCANER
 {
@@ -17,6 +21,7 @@ namespace SX3_SCANER
         private readonly GitHubReleaseUpdateService _updateService =
             new GitHubReleaseUpdateService();
         private GitHubReleaseUpdateInfo availableUpdate;
+        private Storyboard _onlineAnnouncementStoryboard;
 
         public MainWindow()
         {
@@ -145,6 +150,78 @@ namespace SX3_SCANER
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             StartupManager.StatusChanged -= StartupStatus_Changed;
+            timer.Stop();
+            _onlineAnnouncementStoryboard?.Stop();
+
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.StopOnlineAnnouncement();
+            }
+        }
+
+        private void OnlineAnnouncement_TargetUpdated(
+            object sender,
+            DataTransferEventArgs e)
+        {
+            RestartOnlineAnnouncementAnimation();
+        }
+
+        private void OnlineAnnouncement_SizeChanged(
+            object sender,
+            SizeChangedEventArgs e)
+        {
+            RestartOnlineAnnouncementAnimation();
+        }
+
+        private void OnlineAnnouncementClose_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.CloseOnlineAnnouncement();
+            }
+        }
+
+        private void RestartOnlineAnnouncementAnimation()
+        {
+            if (!IsLoaded ||
+                onlineAnnouncementCanvas.ActualWidth <= 0 ||
+                onlineAnnouncementText.ActualWidth <= 0)
+            {
+                return;
+            }
+
+            _onlineAnnouncementStoryboard?.Stop();
+
+            if (onlineAnnouncementText.ActualWidth <=
+                onlineAnnouncementCanvas.ActualWidth)
+            {
+                onlineAnnouncementTransform.X = 0;
+                return;
+            }
+
+            double start = onlineAnnouncementCanvas.ActualWidth;
+            double end = -onlineAnnouncementText.ActualWidth;
+            double distance = start - end;
+            double seconds = Math.Max(6, distance / 70);
+
+            var animation = new DoubleAnimation
+            {
+                From = start,
+                To = end,
+                Duration = TimeSpan.FromSeconds(seconds),
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+
+            Storyboard.SetTarget(animation, onlineAnnouncementTransform);
+            Storyboard.SetTargetProperty(
+                animation,
+                new PropertyPath(TranslateTransform.XProperty));
+
+            _onlineAnnouncementStoryboard = new Storyboard();
+            _onlineAnnouncementStoryboard.Children.Add(animation);
+            _onlineAnnouncementStoryboard.Begin();
         }
 
         private async Task RefreshUpdateStatusAsync(bool showErrorMessage)
@@ -178,13 +255,10 @@ namespace SX3_SCANER
                 return;
             }
 
-            txtUpdateStatus.Text = string.IsNullOrWhiteSpace(_updateService.LastStatusMessage)
-                ? "Không kết nối được GitHub."
-                : _updateService.LastStatusMessage;
-
+            txtUpdateStatus.Text = string.Empty;
             updateNotificationDot.Visibility = Visibility.Collapsed;
 
-            // Lỗi server thì vẫn cho bấm để thử lại.
+            // Network/API failures stay in Debug logs; the button remains retryable.
             btnSoftwareUpdate.IsEnabled = true;
         }
 

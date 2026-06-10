@@ -22,7 +22,7 @@ namespace SX3_SCANER.Model
 
         public int ID { get; set; }
 
-        public DateTime ScanTime { get; set; }
+        public DateTime? ScanTime { get; set; }
 
         public string BoxName { get; set; }
 
@@ -163,6 +163,11 @@ namespace SX3_SCANER.Model
                 return "NG - Sai ngày / SealNo";
             }
 
+            if (normalized == "DATE_DUP" || normalized == "DUP_DATE")
+            {
+                return "NG - Trùng ngày / SealNo";
+            }
+
             if (normalized == "LOT")
             {
                 return "NG - Sai LotNo";
@@ -208,6 +213,13 @@ namespace SX3_SCANER.Model
                 normalized.Contains("PART NAME"))
             {
                 return "Sai tên sản phẩm";
+            }
+
+            if ((normalized.Contains("NGAY") ||
+                 normalized.Contains("SEAL")) &&
+                normalized.Contains("TRUNG"))
+            {
+                return "Trùng ngày / SealNo";
             }
 
             if (normalized.Contains("NGAY") ||

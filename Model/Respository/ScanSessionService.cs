@@ -44,14 +44,31 @@ namespace SX3_SCANER.Model.Respository
                 return;
             }
 
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                SaveCurrentSession(state, connection, transaction);
+                transaction.Commit();
+            }
+        }
+
+        internal void SaveCurrentSession(
+            ScanSessionState state,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (state == null || string.IsNullOrWhiteSpace(state.ProductCode))
+                return;
+
             state.SessionDate = state.SessionDate.Date;
             state.SessionKey = BuildSessionKey(state.ProductCode, state.SessionDate);
             state.LastUpdated = DateTime.Now;
-            string historyJson = JsonConvert.SerializeObject(state.ScanHistoryItems ?? new List<ScanHistory>());
+            string historyJson =
+                JsonConvert.SerializeObject(state.ScanHistoryItems ?? new List<ScanHistory>());
 
-            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             using (SQLiteCommand command = connection.CreateCommand())
             {
+                command.Transaction = transaction;
                 command.CommandText = @"
                     INSERT OR REPLACE INTO ScanSessionDrafts
                         (SessionKey, ProductCode, BoxCode, ScannedCount, TargetCount, ScanHistoryJson, IsInJob, Worker, SessionDate, LastUpdated)
@@ -120,10 +137,30 @@ namespace SX3_SCANER.Model.Respository
             }
 
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                RemoveSession(productCode, sessionDate, connection, transaction);
+                transaction.Commit();
+            }
+        }
+
+        internal void RemoveSession(
+            string productCode,
+            DateTime sessionDate,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (string.IsNullOrWhiteSpace(productCode))
+                return;
+
             using (SQLiteCommand command = connection.CreateCommand())
             {
-                command.CommandText = "DELETE FROM ScanSessionDrafts WHERE SessionKey = @SessionKey";
-                command.Parameters.AddWithValue("@SessionKey", BuildSessionKey(productCode, sessionDate));
+                command.Transaction = transaction;
+                command.CommandText =
+                    "DELETE FROM ScanSessionDrafts WHERE SessionKey = @SessionKey";
+                command.Parameters.AddWithValue(
+                    "@SessionKey",
+                    BuildSessionKey(productCode, sessionDate));
                 command.ExecuteNonQuery();
             }
         }

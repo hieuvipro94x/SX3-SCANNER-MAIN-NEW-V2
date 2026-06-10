@@ -129,6 +129,7 @@ namespace SX3_SCANER.ViewModel
             EnsureCreateAppConfig();
             InitializeScaningPropeties();
             ReadAppConfig();
+            InitializeOnlineAnnouncement();
         }
     }
 

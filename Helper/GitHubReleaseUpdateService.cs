@@ -19,16 +19,29 @@ namespace SX3_SCANER.Helper
         internal const string ReleasesPageUrl =
             "https://github.com/hieuvipro94x/sx3-scanner-release/releases";
 
+        // Nguồn chính để kiểm tra update. File này tránh lỗi GitHub API 403 rate limit.
+        // Tạo file tại repo sx3-scanner-release/main/version.json.
+        private const string UpdateManifestUrl =
+            "https://raw.githubusercontent.com/hieuvipro94x/sx3-scanner-release/main/version.json";
+
+        // Chỉ dùng fallback khi version.json chưa có hoặc lỗi dữ liệu.
         private const string LatestReleaseApiUrl =
             "https://api.github.com/repos/hieuvipro94x/sx3-scanner-release/releases/latest";
+
         private const string UserAgent = "SX3Scanner-Updater";
         private const string EnabledSetting = "UpdateCheckOnStartup";
-        private static readonly TimeSpan AutomaticCheckInterval = TimeSpan.FromMinutes(15);
-        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(20);
-        private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
-        private DateTime? _lastAutomaticCheckUtc;
-        private GitHubReleaseUpdateInfo _lastAutomaticResult;
+        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(12);
+        private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
+        private static readonly TimeSpan ManualRateLimitBackoff =
+    TimeSpan.FromMinutes(15);
+
+        private static readonly object StartupCheckLock = new object();
+        private static bool _startupCheckStarted;
+        private static bool _startupCheckFinished;
+        private static GitHubReleaseUpdateInfo _startupCheckResult;
+
+        private DateTime? _manualRateLimitBackoffUntilUtc;
 
         internal bool LastCheckSucceeded { get; private set; }
 
@@ -40,87 +53,67 @@ namespace SX3_SCANER.Helper
             {
                 LastCheckSucceeded = true;
                 LastStatusMessage = "Tự động cập nhật đã tắt.";
+                LogUpdate("Startup update check skipped because UpdateCheckOnStartup=false.");
                 return null;
             }
 
-            if (!showErrors &&
-                _lastAutomaticCheckUtc.HasValue &&
-                DateTime.UtcNow - _lastAutomaticCheckUtc.Value < AutomaticCheckInterval)
+            if (!showErrors && !TryBeginStartupCheck())
             {
-                return _lastAutomaticResult;
+                LastCheckSucceeded = true;
+                LastStatusMessage = _startupCheckResult == null
+                    ? "Đã kiểm tra cập nhật lúc khởi động."
+                    : "Có bản mới: V" + _startupCheckResult.Version;
+                return _startupCheckResult;
             }
-
-            if (!showErrors)
-            {
-                _lastAutomaticCheckUtc = DateTime.UtcNow;
-                _lastAutomaticResult = null;
-            }
-
-            LastCheckSucceeded = false;
-            LastStatusMessage = "Không thể kiểm tra cập nhật.";
 
             try
             {
-                GitHubRelease release;
-                using (var client = CreateHttpClient(RequestTimeout))
-                using (HttpResponseMessage response = await client.GetAsync(LatestReleaseApiUrl))
+                LastCheckSucceeded = false;
+                LastStatusMessage = "Không thể kiểm tra cập nhật.";
+
+                GitHubReleaseUpdateInfo updateInfo = null;
+
+                try
                 {
-                    if (response.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        return HandleCheckError(
-                            "GitHub chưa có bản phát hành nào.",
-                            showErrors,
-                            null);
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return HandleCheckError(
-                            "GitHub API trả về lỗi " + (int)response.StatusCode + " (" +
-                            response.ReasonPhrase + ").",
-                            showErrors,
-                            null);
-                    }
-
-                    string json = await response.Content.ReadAsStringAsync();
-                    release = JsonConvert.DeserializeObject<GitHubRelease>(json);
+                    updateInfo = await CheckManifestAsync();
+                }
+                catch (Exception manifestException)
+                {
+                    LogUpdate("Manifest check failed, fallback to GitHub API. " + manifestException.Message);
+                    updateInfo = await CheckGitHubReleaseApiAsync(showErrors);
                 }
 
-                GitHubReleaseUpdateInfo info = BuildUpdateInfo(release);
                 LastCheckSucceeded = true;
 
-                if (!info.IsUpdateAvailable)
+                if (updateInfo == null || !updateInfo.IsUpdateAvailable)
                 {
                     LastStatusMessage = "Không có bản mới.";
+                    SaveStartupResult(showErrors, null);
                     return null;
                 }
 
-                LastStatusMessage = "Có bản mới: V" + info.Version;
-                if (!showErrors)
-                {
-                    _lastAutomaticResult = info;
-                }
-
-                return info;
+                LastStatusMessage = "Có bản mới: V" + updateInfo.Version;
+                SaveStartupResult(showErrors, updateInfo);
+                return updateInfo;
             }
             catch (TaskCanceledException ex)
             {
                 string message = ex.CancellationToken.IsCancellationRequested
                     ? "Đã hủy kiểm tra cập nhật."
-                    : "GitHub API phản hồi quá thời gian.";
+                    : "Máy chủ cập nhật phản hồi quá thời gian.";
                 return HandleCheckError(message, showErrors, ex);
             }
             catch (HttpRequestException ex)
             {
                 return HandleCheckError(
-                    "Không có Internet hoặc không kết nối được GitHub.",
+                    "Không có Internet hoặc không kết nối được máy chủ cập nhật.",
                     showErrors,
                     ex);
             }
             catch (JsonException ex)
             {
                 return HandleCheckError(
-                    "Dữ liệu trả về từ GitHub API không hợp lệ.",
+                    "Dữ liệu cập nhật trả về không hợp lệ.",
                     showErrors,
                     ex);
             }
@@ -131,9 +124,16 @@ namespace SX3_SCANER.Helper
             catch (Exception ex)
             {
                 return HandleCheckError(
-                    "Không thể kiểm tra cập nhật từ GitHub.",
+                    "Không thể kiểm tra cập nhật lúc này.",
                     showErrors,
                     ex);
+            }
+            finally
+            {
+                if (!showErrors)
+                {
+                    FinishStartupCheck();
+                }
             }
         }
 
@@ -154,8 +154,10 @@ namespace SX3_SCANER.Helper
             }
 
             string installerPath = Path.Combine(updateDirectory, safeFileName);
+            string temporaryPath = installerPath + ".download";
+            TryDelete(temporaryPath);
 
-            using (var client = CreateHttpClient(DownloadTimeout))
+            using (var client = CreateHttpClient(DownloadTimeout, true))
             using (HttpResponseMessage response = await client.GetAsync(
                 info.DownloadUrl,
                 HttpCompletionOption.ResponseHeadersRead))
@@ -163,13 +165,12 @@ namespace SX3_SCANER.Helper
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new InvalidOperationException(
-                        "Tải bản cập nhật thất bại. GitHub trả về lỗi " +
-                        (int)response.StatusCode + " (" + response.ReasonPhrase + ").");
+                        "Không tải được bản cập nhật lúc này. Vui lòng thử lại sau.");
                 }
 
                 using (Stream source = await response.Content.ReadAsStreamAsync())
                 using (var target = new FileStream(
-                    installerPath,
+                    temporaryPath,
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None))
@@ -178,21 +179,23 @@ namespace SX3_SCANER.Helper
                 }
             }
 
-            var downloadedFile = new FileInfo(installerPath);
+            var downloadedFile = new FileInfo(temporaryPath);
             if (!downloadedFile.Exists || downloadedFile.Length <= 0)
             {
-                TryDelete(installerPath);
+                TryDelete(temporaryPath);
                 throw new InvalidOperationException(
                     "File cập nhật tải về không tồn tại hoặc có dung lượng bằng 0.");
             }
 
             if (info.FileSize > 0 && downloadedFile.Length != info.FileSize)
             {
-                TryDelete(installerPath);
+                TryDelete(temporaryPath);
                 throw new InvalidOperationException(
-                    "Dung lượng file tải về không khớp với asset trên GitHub.");
+                    "Dung lượng file tải về không khớp với thông tin bản cập nhật.");
             }
 
+            TryDelete(installerPath);
+            File.Move(temporaryPath, installerPath);
             return installerPath;
         }
 
@@ -233,13 +236,6 @@ namespace SX3_SCANER.Helper
                 ShowError(LastStatusMessage);
                 return false;
             }
-            catch (HttpRequestException ex)
-            {
-                LastStatusMessage = "Download lỗi: không có Internet hoặc không kết nối được GitHub.";
-                LogError("update-download-http", ex);
-                ShowError(LastStatusMessage);
-                return false;
-            }
             catch (Win32Exception ex)
             {
                 LastStatusMessage = ex.NativeErrorCode == 1223
@@ -251,10 +247,10 @@ namespace SX3_SCANER.Helper
             }
             catch (Exception ex)
             {
-                LastStatusMessage = ex.Message.StartsWith("Tải bản cập nhật", StringComparison.Ordinal)
-                    ? ex.Message
-                    : "Download lỗi hoặc không thể chạy installer: " + ex.Message;
+                LastStatusMessage =
+                    "Không tải được bản cập nhật lúc này. Vui lòng thử lại sau.";
                 LogError("update-download-run", ex);
+                Debug.WriteLine(ex.ToString());
                 ShowError(LastStatusMessage);
                 return false;
             }
@@ -263,28 +259,177 @@ namespace SX3_SCANER.Helper
         internal static Version GetCurrentVersion()
         {
             Assembly assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-            Version assemblyVersion = assembly.GetName().Version;
-            if (assemblyVersion != null && assemblyVersion.Major > 0)
-            {
-                return assemblyVersion;
-            }
+            Version parsedVersion;
 
             var informationalVersion =
                 assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
-            Version parsedVersion;
             if (informationalVersion != null &&
                 TryParseVersion(informationalVersion.InformationalVersion, out parsedVersion))
             {
                 return parsedVersion;
             }
 
-            string configuredVersion = ConfigurationManager.AppSettings["CurrentVersion"];
-            if (TryParseVersion(configuredVersion, out parsedVersion))
+            var fileVersion = assembly.GetCustomAttribute<AssemblyFileVersionAttribute>();
+            if (fileVersion != null && TryParseVersion(fileVersion.Version, out parsedVersion))
             {
                 return parsedVersion;
             }
 
+            Version assemblyVersion = assembly.GetName().Version;
+            if (assemblyVersion != null)
+            {
+                return assemblyVersion;
+            }
+
             throw new InvalidOperationException("Không xác định được phiên bản hiện tại của ứng dụng.");
+        }
+
+        private static bool TryBeginStartupCheck()
+        {
+            lock (StartupCheckLock)
+            {
+                if (_startupCheckFinished || _startupCheckStarted)
+                {
+                    return false;
+                }
+
+                _startupCheckStarted = true;
+                return true;
+            }
+        }
+
+        private static void FinishStartupCheck()
+        {
+            lock (StartupCheckLock)
+            {
+                _startupCheckStarted = false;
+                _startupCheckFinished = true;
+            }
+        }
+
+        private static void SaveStartupResult(bool showErrors, GitHubReleaseUpdateInfo info)
+        {
+            if (showErrors)
+            {
+                return;
+            }
+
+            lock (StartupCheckLock)
+            {
+                _startupCheckResult = info;
+            }
+        }
+
+        private async Task<GitHubReleaseUpdateInfo> CheckManifestAsync()
+        {
+            string requestUrl = UpdateManifestUrl + "?t=" +
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            using (var client = CreateHttpClient(RequestTimeout, false))
+            using (HttpResponseMessage response = await client.GetAsync(requestUrl))
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new InvalidOperationException(
+                        "Manifest HTTP " + (int)response.StatusCode + " " + response.ReasonPhrase);
+                }
+
+                string json = await response.Content.ReadAsStringAsync();
+                UpdateManifest manifest = JsonConvert.DeserializeObject<UpdateManifest>(json);
+                return BuildUpdateInfo(manifest);
+            }
+        }
+
+        private async Task<GitHubReleaseUpdateInfo> CheckGitHubReleaseApiAsync(bool showErrors)
+        {
+            if (_manualRateLimitBackoffUntilUtc.HasValue &&
+                DateTime.UtcNow < _manualRateLimitBackoffUntilUtc.Value)
+            {
+                throw new InvalidOperationException(
+                    "GitHub API đang bị giới hạn, bỏ qua đến " +
+                    _manualRateLimitBackoffUntilUtc.Value.ToString("O"));
+            }
+
+            using (var client = CreateHttpClient(RequestTimeout, true))
+            using (HttpResponseMessage response = await client.GetAsync(LatestReleaseApiUrl))
+            {
+                if (response.StatusCode == HttpStatusCode.Forbidden ||
+                    (int)response.StatusCode == 429)
+                {
+                    _manualRateLimitBackoffUntilUtc =
+                        DateTime.UtcNow.Add(ManualRateLimitBackoff);
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new InvalidOperationException("GitHub chưa có bản phát hành nào.");
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (!showErrors)
+                    {
+                        return null;
+                    }
+
+                    throw new InvalidOperationException(
+                        "Không thể kiểm tra cập nhật lúc này.");
+                }
+
+                string json = await response.Content.ReadAsStringAsync();
+                GitHubRelease release = JsonConvert.DeserializeObject<GitHubRelease>(json);
+                return BuildUpdateInfo(release);
+            }
+        }
+
+        private static GitHubReleaseUpdateInfo BuildUpdateInfo(UpdateManifest manifest)
+        {
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("version.json không có dữ liệu.");
+            }
+
+            Version latestVersion;
+            if (!TryParseVersion(manifest.Version ?? manifest.TagName, out latestVersion))
+            {
+                throw new InvalidOperationException("version.json thiếu version hợp lệ.");
+            }
+
+            Uri downloadUri;
+            if (string.IsNullOrWhiteSpace(manifest.DownloadUrl) ||
+                !Uri.TryCreate(manifest.DownloadUrl, UriKind.Absolute, out downloadUri) ||
+                !string.Equals(downloadUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("version.json thiếu downloadUrl HTTPS hợp lệ.");
+            }
+
+            string fileName = manifest.FileName;
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                fileName = Path.GetFileName(downloadUri.LocalPath);
+            }
+
+            if (string.IsNullOrWhiteSpace(fileName) ||
+                !string.Equals(Path.GetExtension(fileName), ".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("version.json downloadUrl không phải file .exe.");
+            }
+
+            Version currentVersion = GetCurrentVersion();
+            bool isUpdateAvailable = IsNewerVersion(latestVersion, currentVersion);
+
+            return new GitHubReleaseUpdateInfo
+            {
+                Version = latestVersion.ToString(),
+                TagName = string.IsNullOrWhiteSpace(manifest.TagName)
+                    ? "v" + latestVersion
+                    : manifest.TagName.Trim(),
+                ReleaseNotes = manifest.ReleaseNotes ?? string.Empty,
+                FileName = fileName,
+                FileSize = Math.Max(0, manifest.FileSize),
+                DownloadUrl = manifest.DownloadUrl.Trim(),
+                IsUpdateAvailable = isUpdateAvailable
+            };
         }
 
         private static GitHubReleaseUpdateInfo BuildUpdateInfo(GitHubRelease release)
@@ -309,26 +454,34 @@ namespace SX3_SCANER.Helper
                     "Không tìm thấy asset .exe trong GitHub Release.");
             }
 
-            Uri downloadUri;
-            if (string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl) ||
-                !Uri.TryCreate(asset.BrowserDownloadUrl, UriKind.Absolute, out downloadUri) ||
-                !string.Equals(downloadUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    "Asset GitHub không có browser_download_url HTTPS hợp lệ.");
-            }
-
             Version currentVersion = GetCurrentVersion();
+            bool isUpdateAvailable = IsNewerVersion(latestVersion, currentVersion);
+
             return new GitHubReleaseUpdateInfo
             {
                 Version = latestVersion.ToString(),
                 TagName = release.TagName,
-                ReleaseNotes = release.Body,
+                ReleaseNotes = release.Body ?? string.Empty,
                 FileName = asset.Name,
                 FileSize = asset.Size,
                 DownloadUrl = asset.BrowserDownloadUrl,
-                IsUpdateAvailable = latestVersion > currentVersion
+                IsUpdateAvailable = isUpdateAvailable
             };
+        }
+
+        internal static bool IsNewerVersion(Version latestVersion, Version currentVersion)
+        {
+            if (latestVersion == null)
+            {
+                throw new ArgumentNullException("latestVersion");
+            }
+
+            if (currentVersion == null)
+            {
+                throw new ArgumentNullException("currentVersion");
+            }
+
+            return latestVersion.CompareTo(currentVersion) > 0;
         }
 
         private static GitHubReleaseAsset SelectInstallerAsset(
@@ -343,6 +496,7 @@ namespace SX3_SCANER.Helper
                 .Where(asset =>
                     asset != null &&
                     !string.IsNullOrWhiteSpace(asset.Name) &&
+                    !string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl) &&
                     string.Equals(
                         Path.GetExtension(asset.Name),
                         ".exe",
@@ -409,36 +563,48 @@ namespace SX3_SCANER.Helper
             Exception exception)
         {
             LastCheckSucceeded = false;
-            LastStatusMessage = message;
+            LastStatusMessage =
+                "Không kiểm tra được cập nhật lúc này. Vui lòng thử lại sau.";
+            LogUpdate("Update check failed: " + message);
             if (exception != null)
             {
-                LogError("github-update-check", exception);
+                Debug.WriteLine(exception.ToString());
             }
 
             if (showErrors)
             {
-                ShowError(message);
+                ShowError(LastStatusMessage);
             }
 
             return null;
         }
 
-        private static HttpClient CreateHttpClient(TimeSpan timeout)
+        private static HttpClient CreateHttpClient(TimeSpan timeout, bool acceptGitHubJson)
         {
             var client = new HttpClient
             {
                 Timeout = timeout
             };
+
             client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
-            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            if (acceptGitHubJson)
+            {
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            }
+
             return client;
         }
 
         private static bool IsStartupCheckEnabled()
         {
             bool enabled;
-            return !bool.TryParse(ConfigurationManager.AppSettings[EnabledSetting], out enabled) ||
-                   enabled;
+            string configuredValue = ConfigurationManager.AppSettings[EnabledSetting];
+            if (!bool.TryParse(configuredValue, out enabled))
+            {
+                return true;
+            }
+
+            return enabled;
         }
 
         private static void TryDelete(string path)
@@ -452,7 +618,7 @@ namespace SX3_SCANER.Helper
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Không xóa được installer lỗi: " + ex.Message);
+                Debug.WriteLine("Không xóa được file tạm: " + ex.Message);
             }
         }
 
@@ -463,6 +629,13 @@ namespace SX3_SCANER.Helper
                 "GitHub updater error: " + exception);
         }
 
+        private static void LogUpdate(string message)
+        {
+            string logMessage = "GitHub updater: " + message;
+            Debug.WriteLine(logMessage);
+            StartupManager.Log(logMessage);
+        }
+
         private static void ShowError(string message)
         {
             MessageBox.Show(
@@ -470,6 +643,27 @@ namespace SX3_SCANER.Helper
                 "SX3 Scanner - Lỗi cập nhật",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+
+        private sealed class UpdateManifest
+        {
+            [JsonProperty("version")]
+            public string Version { get; set; }
+
+            [JsonProperty("tagName")]
+            public string TagName { get; set; }
+
+            [JsonProperty("releaseNotes")]
+            public string ReleaseNotes { get; set; }
+
+            [JsonProperty("fileName")]
+            public string FileName { get; set; }
+
+            [JsonProperty("fileSize")]
+            public long FileSize { get; set; }
+
+            [JsonProperty("downloadUrl")]
+            public string DownloadUrl { get; set; }
         }
 
         private sealed class GitHubRelease

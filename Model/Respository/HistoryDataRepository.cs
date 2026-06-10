@@ -48,7 +48,7 @@ namespace SX3_SCANER.Model.Respository
             string validatedSource = ValidateSource(source);
             int safeLimit = Math.Max(1, Math.Min(limit, 2000));
 
-            IEnumerable<HistoryDataRow> rows =
+            List<HistoryDataRow> rows = (
                 validatedSource == ScanHistorySource
                     ? SearchScanHistory(
                         keyword,
@@ -62,7 +62,12 @@ namespace SX3_SCANER.Model.Respository
                         partNumber,
                         sealNo,
                         result,
-                        safeLimit);
+                        safeLimit)).ToList();
+
+            for (int index = 0; index < rows.Count; index++)
+            {
+                rows[index].RowIndex = index + 1;
+            }
 
             return new ObservableCollection<HistoryDataRow>(rows);
         }
@@ -120,7 +125,24 @@ namespace SX3_SCANER.Model.Respository
                 }
 
                 HashSet<string> columns = GetColumns(connection, BoxProductSource);
-                string sql = "SELECT * FROM [BoxProduct] WHERE 1=1";
+                bool hasScanHistory = TableExists(
+                    connection,
+                    ScanHistorySource);
+                string sql = hasScanHistory
+                    ? @"SELECT bp.*,
+                               (
+                                   SELECT MAX(sh.ScanTime)
+                                   FROM [ScanHistoryView] sh
+                                   WHERE sh.BoxName = bp.BoxName
+                                      OR (sh.BoxName IS NULL AND bp.BoxName IS NULL)
+                               ) AS RelatedScanTime
+                        FROM [BoxProduct] bp
+                        WHERE 1=1"
+                    : "SELECT bp.* FROM [BoxProduct] bp WHERE 1=1";
+                if (hasScanHistory)
+                {
+                    columns.Add("RelatedScanTime");
+                }
                 var parameters = new List<SQLiteParameter>();
 
                 AddExactTextFilter(
@@ -147,7 +169,7 @@ namespace SX3_SCANER.Model.Respository
                     "Result");
                 if (result.HasValue && resultColumn != null)
                 {
-                    sql += " AND [" + resultColumn + "] = @Result";
+                    sql += " AND bp.[" + resultColumn + "] = @Result";
                     parameters.Add(new SQLiteParameter(
                         "@Result",
                         result.Value ? 1 : 0));
@@ -181,7 +203,7 @@ namespace SX3_SCANER.Model.Respository
                             string.Join(
                                 " OR ",
                                 searchable.Select(column =>
-                                    "COALESCE([" + column +
+                                    "COALESCE(bp.[" + column +
                                     "], '') COLLATE NOCASE LIKE @Keyword ESCAPE '\\'")) +
                             ")";
                         parameters.Add(new SQLiteParameter(
@@ -194,11 +216,14 @@ namespace SX3_SCANER.Model.Respository
                     columns,
                     "ID",
                     "ScanTime",
-                    "Time",
-                    "CreatedAt");
+                    "CreatedAt",
+                    "CreateTime",
+                    "BoxTime",
+                    "DateTime",
+                    "Time");
                 if (orderColumn != null)
                 {
-                    sql += " ORDER BY [" + orderColumn + "] DESC";
+                    sql += " ORDER BY bp.[" + orderColumn + "] DESC";
                 }
 
                 sql += " LIMIT @Limit";
@@ -256,9 +281,13 @@ namespace SX3_SCANER.Model.Respository
                 ScanTime = ReadNullableDateTime(
                     reader,
                     columns,
+                    "RelatedScanTime",
                     "ScanTime",
-                    "Time",
-                    "CreatedAt"),
+                    "CreatedAt",
+                    "CreateTime",
+                    "BoxTime",
+                    "DateTime",
+                    "Time"),
                 DataSource = BoxProductSource,
                 BoxName = ReadString(reader, columns, "BoxName"),
                 ProductPartNumber = ReadString(
@@ -314,8 +343,8 @@ namespace SX3_SCANER.Model.Respository
                 return;
             }
 
-            sql += " AND COALESCE([" + column +
-                "], '') = " + parameterName + " COLLATE NOCASE";
+            sql += " AND bp.[" + column +
+                "] = " + parameterName + " COLLATE NOCASE";
             parameters.Add(new SQLiteParameter(parameterName, value));
         }
 

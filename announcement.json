@@ -1,14 +1,28 @@
 {
-  "Enabled": true,
-  "Mode": "single",
-  "Level": "warning",
-  "Title": "THÔNG BÁO KHẨN",
-  "Message": "Hôm nay có tổng giám đốc đến mọi người hãy mặc áo đồng phục nhé.",
-  "UpdatedAt": "2026-06-10T09:37:10",
-  "AutoHideSeconds": 1800,
-  "ShowCountdown": true,
-  "PollSeconds": 3,
-  "RotateSeconds": 10,
-  "ShowPopup": true,
-  "AllowClose": true
+  "enabled": true,
+  "mode": "playlist",
+  "pollSeconds": 30,
+  "rotateSeconds": 10,
+  "autoHideSeconds": 0,
+  "showCountdown": false,
+  "showPopup": false,
+  "allowClose": true,
+  "version": "6.5.1",
+  "forceUpdate": false,
+  "priority": 5,
+  "backgroundColor": "#1E88E5",
+  "foregroundColor": "#FFFFFF",
+  "createdBy": "ADMIN",
+  "messages": [
+    {
+      "level": "info",
+      "title": "THÔNG BÁO",
+      "message": "📢 Chào mừng sử dụng SX3 Scanner."
+    },
+    {
+      "level": "warning",
+      "title": "LƯU Ý",
+      "message": "Kiểm tra mã QR trước khi scan."
+    }
+  ]
 }

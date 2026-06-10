@@ -146,36 +146,12 @@ namespace SX3_SCANER.Model
 
         public void InsertScanHistory(ScanHistory scanHistory)
         {
-            if (scanHistory == null)
-            {
-                throw new ArgumentNullException(nameof(scanHistory));
-            }
-
             try
             {
                 using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
                 using (SQLiteTransaction transaction = connection.BeginTransaction())
                 {
-                    string insertQuery = @"
-                        INSERT INTO ScanHistoryView (ScanTime, BoxName, ProductPartNumber, ProductPartName, SealNo, LotNo, ScanData, ScanResult, ScanMessage, ScanWorker, BoxType, IsPartialBox)
-                        VALUES (@ScanTime, @BoxName, @ProductPartNumber, @ProductPartName, @SealNo, @LotNo, @ScanData, @ScanResult, @ScanMessage, @ScanWorker, @BoxType, @IsPartialBox)";
-                    using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
-                    {
-                        command.Parameters.AddWithValue("@ScanTime", scanHistory.ScanTime);
-                        command.Parameters.AddWithValue("@BoxName", scanHistory.BoxName);
-                        command.Parameters.AddWithValue("@ProductPartNumber", scanHistory.ProductPartNumber);
-                        command.Parameters.AddWithValue("@ProductPartName", scanHistory.ProductPartName);
-                        command.Parameters.AddWithValue("@SealNo", scanHistory.SealNo);
-                        command.Parameters.AddWithValue("@LotNo", scanHistory.LotNo);
-                        command.Parameters.AddWithValue("@ScanData", scanHistory.ScanData);
-                        command.Parameters.AddWithValue("@ScanResult", scanHistory.ScanResult ? 1 : 0);
-                        command.Parameters.AddWithValue("@ScanMessage", scanHistory.ScanMessage);
-                        command.Parameters.AddWithValue("@ScanWorker", scanHistory.ScanWorker);
-                        command.Parameters.AddWithValue("@BoxType", scanHistory.BoxType);
-                        command.Parameters.AddWithValue("@IsPartialBox", scanHistory.IsPartialBox ? 1 : 0);
-                        command.ExecuteNonQuery();
-                    }
-
+                    InsertScanHistory(scanHistory, connection, transaction);
                     transaction.Commit();
                 }
             }
@@ -192,6 +168,43 @@ namespace SX3_SCANER.Model
             }
         }
 
+        internal void InsertScanHistory(
+            ScanHistory scanHistory,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (scanHistory == null)
+                throw new ArgumentNullException(nameof(scanHistory));
+            if (connection == null)
+                throw new ArgumentNullException(nameof(connection));
+            if (transaction == null)
+                throw new ArgumentNullException(nameof(transaction));
+
+            const string insertQuery = @"
+                INSERT INTO ScanHistoryView (ScanTime, BoxName, ProductPartNumber, ProductPartName, SealNo, LotNo, ScanData, ScanResult, ScanMessage, ScanWorker, BoxType, IsPartialBox)
+                VALUES (@ScanTime, @BoxName, @ProductPartNumber, @ProductPartName, @SealNo, @LotNo, @ScanData, @ScanResult, @ScanMessage, @ScanWorker, @BoxType, @IsPartialBox)";
+            using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
+            {
+                command.Parameters.AddWithValue(
+                    "@ScanTime",
+                    scanHistory.ScanTime.HasValue
+                        ? (object)scanHistory.ScanTime.Value
+                        : DBNull.Value);
+                command.Parameters.AddWithValue("@BoxName", scanHistory.BoxName);
+                command.Parameters.AddWithValue("@ProductPartNumber", scanHistory.ProductPartNumber);
+                command.Parameters.AddWithValue("@ProductPartName", scanHistory.ProductPartName);
+                command.Parameters.AddWithValue("@SealNo", scanHistory.SealNo);
+                command.Parameters.AddWithValue("@LotNo", scanHistory.LotNo);
+                command.Parameters.AddWithValue("@ScanData", scanHistory.ScanData);
+                command.Parameters.AddWithValue("@ScanResult", scanHistory.ScanResult ? 1 : 0);
+                command.Parameters.AddWithValue("@ScanMessage", scanHistory.ScanMessage);
+                command.Parameters.AddWithValue("@ScanWorker", scanHistory.ScanWorker);
+                command.Parameters.AddWithValue("@BoxType", scanHistory.BoxType);
+                command.Parameters.AddWithValue("@IsPartialBox", scanHistory.IsPartialBox ? 1 : 0);
+                command.ExecuteNonQuery();
+            }
+        }
+
         public void UpdateScanHistory(ScanHistory scanHistory)
         {
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
@@ -205,7 +218,11 @@ namespace SX3_SCANER.Model
                     WHERE ID = @ID";
                 using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
                 {
-                    command.Parameters.AddWithValue("@ScanTime", scanHistory.ScanTime);
+                    command.Parameters.AddWithValue(
+                        "@ScanTime",
+                        scanHistory.ScanTime.HasValue
+                            ? (object)scanHistory.ScanTime.Value
+                            : DBNull.Value);
                     command.Parameters.AddWithValue("@BoxName", scanHistory.BoxName);
                     command.Parameters.AddWithValue("@ProductPartNumber", scanHistory.ProductPartNumber);
                     command.Parameters.AddWithValue("@ProductPartName", scanHistory.ProductPartName);
@@ -301,14 +318,20 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string query = "SELECT COUNT(*) FROM ScanHistoryView WHERE ProductPartName = @ProductPartName AND SealNo = @SealNo AND LotNo = @LotNo";
+                string query = @"
+                    SELECT 1
+                    FROM ScanHistoryView
+                    WHERE ProductPartName = @ProductPartName
+                      AND SealNo = @SealNo
+                      AND LotNo = @LotNo
+                      AND ScanResult = 1
+                    LIMIT 1";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@ProductPartName", productname);
                     command.Parameters.AddWithValue("@SealNo", sealno);
                     command.Parameters.AddWithValue("@LotNo", lotno);
-                    int count = Convert.ToInt32(command.ExecuteScalar());
-                    return count > 0;
+                    return command.ExecuteScalar() != null;
                 }
             }
         }
@@ -683,15 +706,15 @@ namespace SX3_SCANER.Model
             return bool.TryParse(Convert.ToString(value), out boolValue) && boolValue;
         }
 
-        private static DateTime SafeDateTime(SQLiteDataReader reader, string columnName)
+        private static DateTime? SafeDateTime(SQLiteDataReader reader, string columnName)
         {
             object value = reader[columnName];
-            if (value == null || value == DBNull.Value) return DateTime.MinValue;
+            if (value == null || value == DBNull.Value) return null;
 
             DateTime result;
             return DateTime.TryParse(Convert.ToString(value), out result)
-                ? result
-                : DateTime.MinValue;
+                ? (DateTime?)result
+                : null;
         }
 
         private static List<string> BuildSearchTerms(string keyword)
@@ -742,6 +765,16 @@ namespace SX3_SCANER.Model
                 AddUnique(terms, "Sai ma");
                 AddUnique(terms, "PartName");
                 AddUnique(terms, "PNAME");
+            }
+            else if ((normalized.Contains("TRUNG NGAY") ||
+                      normalized.Contains("TRUNG SEAL") ||
+                      normalized.Contains("DUP DATE")))
+            {
+                AddUnique(terms, "NG - Trùng ngày / SealNo");
+                AddUnique(terms, "Trùng ngày");
+                AddUnique(terms, "Trung ngay");
+                AddUnique(terms, "Trùng SealNo");
+                AddUnique(terms, "DUP_DATE");
             }
             else if (normalized.Contains("SAI NGAY") || normalized.Contains("SAI SEAL") || normalized.Contains("SAI DATE"))
             {
@@ -817,20 +850,29 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection conn = DatabaseRepository.CreateConnection())
             using (SQLiteTransaction transaction = conn.BeginTransaction())
             {
-                string sql = @"
-            UPDATE ScanHistoryView
-            SET ScanWorker = @ScanWorker
-            WHERE BoxName = @BoxName
-        ";
-
-                using (SQLiteCommand cmd = new SQLiteCommand(sql, conn, transaction))
-                {
-                    cmd.Parameters.AddWithValue("@ScanWorker", worker);
-                    cmd.Parameters.AddWithValue("@BoxName", boxName);
-
-                    cmd.ExecuteNonQuery();
-                }
+                UpdateWorkerByBoxName(boxName, worker, conn, transaction);
                 transaction.Commit();
+            }
+        }
+
+        internal void UpdateWorkerByBoxName(
+            string boxName,
+            string worker,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (string.IsNullOrWhiteSpace(boxName) || string.IsNullOrWhiteSpace(worker))
+                return;
+
+            const string sql = @"
+                UPDATE ScanHistoryView
+                SET ScanWorker = @ScanWorker
+                WHERE BoxName = @BoxName";
+            using (SQLiteCommand command = new SQLiteCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@ScanWorker", worker);
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.ExecuteNonQuery();
             }
         }
 
@@ -842,19 +884,30 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection conn = DatabaseRepository.CreateConnection())
             using (SQLiteTransaction transaction = conn.BeginTransaction())
             {
-                string sql = @"
-                    UPDATE ScanHistoryView
-                    SET BoxType = @BoxType, IsPartialBox = @IsPartialBox
-                    WHERE BoxName = @BoxName";
-
-                using (SQLiteCommand cmd = new SQLiteCommand(sql, conn, transaction))
-                {
-                    cmd.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
-                    cmd.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
-                    cmd.Parameters.AddWithValue("@BoxName", boxName);
-                    cmd.ExecuteNonQuery();
-                }
+                SetBoxTypeByBoxName(boxName, isPartial, conn, transaction);
                 transaction.Commit();
+            }
+        }
+
+        internal void SetBoxTypeByBoxName(
+            string boxName,
+            bool isPartial,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+                return;
+
+            const string sql = @"
+                UPDATE ScanHistoryView
+                SET BoxType = @BoxType, IsPartialBox = @IsPartialBox
+                WHERE BoxName = @BoxName";
+            using (SQLiteCommand command = new SQLiteCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
+                command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.ExecuteNonQuery();
             }
         }
     }

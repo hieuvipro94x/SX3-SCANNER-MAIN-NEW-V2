@@ -32,6 +32,7 @@
         <SolidColorBrush x:Key="InputBgBrush" Color="#FAFBFD" />
         <SolidColorBrush x:Key="OkBrush" Color="#16A34A" />
         <SolidColorBrush x:Key="NgBrush" Color="#DC2626" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
         <Style TargetType="materialDesign:Card">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -126,81 +127,6 @@
             <Setter Property="Foreground" Value="{Binding Converter={StaticResource ScanRowForegroundBrushConverter}}"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding ScanMessage}" Value="PASS">
-                    <Setter Property="Background" Value="#DCFCE7"/>
-                    <Setter Property="Foreground" Value="#166534"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [ScanMessage]}" Value="PASS">
-                    <Setter Property="Background" Value="#DCFCE7"/>
-                    <Setter Property="Foreground" Value="#166534"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ResultText}" Value="PASS">
-                    <Setter Property="Background" Value="#DCFCE7"/>
-                    <Setter Property="Foreground" Value="#166534"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [ResultText]}" Value="PASS">
-                    <Setter Property="Background" Value="#DCFCE7"/>
-                    <Setter Property="Foreground" Value="#166534"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding BoxComplete}" Value="True">
-                    <Setter Property="Background" Value="#DCFCE7"/>
-                    <Setter Property="Foreground" Value="#166534"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding IsPartialBox}" Value="True">
-                    <Setter Property="Background" Value="#FEF3C7"/>
-                    <Setter Property="Foreground" Value="#B45309"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [IsPartialBox]}" Value="True">
-                    <Setter Property="Background" Value="#FEF3C7"/>
-                    <Setter Property="Foreground" Value="#B45309"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding BoxType}" Value="PARTIAL">
-                    <Setter Property="Background" Value="#FEF3C7"/>
-                    <Setter Property="Foreground" Value="#B45309"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [BoxType]}" Value="PARTIAL">
-                    <Setter Property="Background" Value="#FEF3C7"/>
-                    <Setter Property="Foreground" Value="#B45309"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ScanResult}" Value="False">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [ScanResult]}" Value="False">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ResultText}" Value="NG">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [ResultText]}" Value="NG">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding ScanMessage}" Value="NG">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
-                <DataTrigger Binding="{Binding [ScanMessage]}" Value="NG">
-                    <Setter Property="Background" Value="#FEE2E2"/>
-                    <Setter Property="Foreground" Value="#991B1B"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                </DataTrigger>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E0F2FE"/>
                     <Setter Property="Foreground" Value="#0F172A"/>
@@ -282,32 +208,39 @@
             <ColumnDefinition Width="69*"/>
             <ColumnDefinition Width="571*"/>
         </Grid.ColumnDefinitions>
-        <Border Grid.ColumnSpan="2" Background="White" BorderBrush="#E0E7EF" BorderThickness="0,0,0,1" Padding="6,2">
-             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                 <TextBlock x:Name="txtUpdateStatus"
-               Text="Đang kiểm tra bản cập nhật..."
-               Foreground="{StaticResource TextMutedBrush}"
-               VerticalAlignment="Center"
-               Margin="0,0,8,0" />
+        <Border Grid.Row="0"
+                Grid.ColumnSpan="2"
+                Background="White"
+                BorderBrush="#E0E7EF"
+                BorderThickness="0,0,0,1"
+                Padding="6,2">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <TextBlock x:Name="txtUpdateStatus"
+                           Text="Đang kiểm tra bản cập nhật..."
+                           Foreground="{StaticResource TextMutedBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
 
                 <Grid>
                     <Button x:Name="btnSoftwareUpdate"
-                Content="CẬP NHẬT PHẦN MỀM"
-                Click="SoftwareUpdate_Click"
-                IsEnabled="False" />
+                            Content="CẬP NHẬT PHẦN MỀM"
+                            Click="SoftwareUpdate_Click"
+                            IsEnabled="False" />
 
                     <Ellipse x:Name="updateNotificationDot"
-                 Width="10"
-                 Height="10"
-                 Fill="#DC2626"
-                 Stroke="White"
-                 StrokeThickness="1"
-                 HorizontalAlignment="Right"
-                 VerticalAlignment="Top"
-                 Visibility="Collapsed" />
+                             Width="10"
+                             Height="10"
+                             Fill="#DC2626"
+                             Stroke="White"
+                             StrokeThickness="1"
+                             HorizontalAlignment="Right"
+                             VerticalAlignment="Top"
+                             Visibility="Collapsed" />
                 </Grid>
             </StackPanel>
         </Border>
+
         <TabControl Grid.Row="1" SelectedIndex="{Binding TabControlSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.ColumnSpan="2" Margin="2">
             <TabItem Header="QUÉT TEM">
                 <Grid Margin="4">
@@ -382,7 +315,7 @@
                     FontSize="13"
                     HorizontalAlignment="Stretch"
                     SelectedDate="{Binding SelectedDate}"
-                    IsEnabled="{Binding CanChangeProductInfo}" />
+                    IsEnabled="{Binding CanSwitchProduct}" />
 
                                     <TextBox Grid.Row="2"
                  Grid.Column="1"
@@ -2397,13 +2330,167 @@ Width="58" />
                 Background="#E2E8F0"
                 BorderBrush="#CBD5E1"
                 BorderThickness="0,1,0,0"
-                Padding="12,6">
-            <TextBlock x:Name="txtStartupStatus"
-                       Text="Đang khởi động ứng dụng..."
-                       FontSize="13"
-                       FontWeight="SemiBold"
-                       Foreground="#475569"
-                       TextTrimming="CharacterEllipsis" />
+                Padding="16,8,16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MaxWidth="250" />
+                    <ColumnDefinition Width="4*" MinWidth="670" />
+                    <ColumnDefinition Width="*" MaxWidth="250" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           x:Name="txtStartupStatus"
+                           Margin="0,0,12,0"
+                           Text="Đang khởi động ứng dụng..."
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#475569"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+
+                <Grid Grid.Column="1"
+                      x:Name="footerAnnouncementArea"
+                      Margin="10,0">
+                    <Border x:Name="onlineAnnouncementHost"
+                             Width="{Binding ActualWidth, ElementName=footerAnnouncementArea}"
+                             MinWidth="650"
+                             MaxWidth="1100"
+                            MinHeight="58"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            CornerRadius="12"
+                            Padding="14,8"
+                            Margin="0,4"
+                            BorderThickness="1.5"
+                            Background="{Binding OnlineAnnouncementBackground}"
+                            BorderBrush="{Binding OnlineAnnouncementBorderBrush}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#334155"
+                                              BlurRadius="14"
+                                              ShadowDepth="2"
+                                              Direction="270"
+                                              Opacity="0.2" />
+                        </Border.Effect>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOnlineAnnouncementVisible}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding OnlineAnnouncementLevel}" Value="error" />
+                                            <Condition Binding="{Binding IsOnlineAnnouncementVisible}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <MultiDataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="OnlineAnnouncementErrorPulse">
+                                                <Storyboard RepeatBehavior="Forever"
+                                                            AutoReverse="True">
+                                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                     From="1"
+                                                                     To="0.82"
+                                                                     Duration="0:0:0.8" />
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </MultiDataTrigger.EnterActions>
+                                        <MultiDataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="OnlineAnnouncementErrorPulse" />
+                                        </MultiDataTrigger.ExitActions>
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <Grid ClipToBounds="True"
+                              VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="20" />
+                                <RowDefinition Height="24" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.RowSpan="2"
+                                       Text="{Binding OnlineAnnouncementIcon}"
+                                       Foreground="{Binding OnlineAnnouncementForeground}"
+                                       FontFamily="Segoe UI Emoji"
+                                       FontSize="24"
+                                       FontWeight="Bold"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center" />
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding OnlineAnnouncementTitle}"
+                                       Foreground="{Binding OnlineAnnouncementForeground}"
+                                       FontSize="11"
+                                       FontWeight="ExtraBold"
+                                       VerticalAlignment="Center"
+                                       Opacity="0.9" />
+
+                            <Canvas Grid.Row="1"
+                                    Grid.Column="1"
+                                    Margin="0,0,14,0"
+                                    x:Name="onlineAnnouncementCanvas"
+                                    ClipToBounds="True"
+                                    SizeChanged="OnlineAnnouncement_SizeChanged">
+                                <TextBlock x:Name="onlineAnnouncementText"
+                                           Canvas.Top="2"
+                                           Text="{Binding OnlineAnnouncementText, NotifyOnTargetUpdated=True}"
+                                           Tag="{Binding OnlineAnnouncementAnimationVersion, NotifyOnTargetUpdated=True}"
+                                           Foreground="{Binding OnlineAnnouncementForeground}"
+                                           TargetUpdated="OnlineAnnouncement_TargetUpdated"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           SizeChanged="OnlineAnnouncement_SizeChanged">
+                                    <TextBlock.RenderTransform>
+                                        <TranslateTransform x:Name="onlineAnnouncementTransform" />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Canvas>
+
+                            <StackPanel Grid.Column="2"
+                                        Grid.RowSpan="2"
+                                        Margin="14,0,0,0"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Border Padding="9,4"
+                                        CornerRadius="8"
+                                        Background="#33FFFFFF"
+                                        BorderBrush="#66FFFFFF"
+                                        BorderThickness="1"
+                                        VerticalAlignment="Center"
+                                        Visibility="{Binding IsAnnouncementCountdownVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Foreground="{Binding OnlineAnnouncementForeground}"
+                                               FontFamily="Segoe UI Emoji"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Text="{Binding AnnouncementCountdownText}" />
+                                </Border>
+
+                                <Button Width="28"
+                                        Height="28"
+                                        MinHeight="0"
+                                        Margin="8,0,0,0"
+                                        Padding="0"
+                                        Content="×"
+                                        FontSize="18"
+                                        FontWeight="Bold"
+                                        Foreground="{Binding OnlineAnnouncementForeground}"
+                                        Background="#22FFFFFF"
+                                        BorderBrush="#55FFFFFF"
+                                        BorderThickness="1"
+                                        Click="OnlineAnnouncementClose_Click"
+                                        Visibility="{Binding IsAnnouncementCloseVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+            </Grid>
         </Border>
 
     </Grid>

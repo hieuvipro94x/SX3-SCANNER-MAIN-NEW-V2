@@ -1,47 +1,104 @@
-using SX3_SCANER.Model.Respository;
 using SX3_SCANER.Helper;
+using SX3_SCANER.Model.Respository;
 using System;
 using System.Data.SQLite;
-using System.IO;
+using System.Globalization;
 
 namespace SX3_SCANER.Model
 {
     internal class DatabaseInitialize
     {
-        public DatabaseInitialize()
-        {
-        }
+        private const int MainDatabaseSchemaVersion = 2;
+        private const int ProductDatabaseSchemaVersion = 1;
+        private const string LastIntegrityCheckKey = "LastIntegrityCheckUtc";
+        private static readonly TimeSpan IntegrityCheckInterval = TimeSpan.FromDays(7);
 
         internal void EnsureCreate()
         {
-            StartupManager.SetStatus("Đang kiểm tra thư mục dữ liệu...");
+            StartupManager.SetStatus("\u0110ang ki\u1EC3m tra th\u01B0 m\u1EE5c d\u1EEF li\u1EC7u...");
             DatabaseRepository.EnsureDatabaseFiles();
             DatabaseRepository.ValidateDatabasePaths();
 
-            bool isNewDatabase = !File.Exists(DatabaseRepository.MainDatabasePath);
-            if (isNewDatabase)
-            {
-                StartupManager.SetStatus("Đang tạo database.db...");
-                StartupManager.Log("Tao database moi tai: " + DatabaseRepository.MainDatabasePath);
-                SQLiteConnection.CreateFile(DatabaseRepository.MainDatabasePath);
-            }
-
-            StartupManager.SetStatus("Đang kiểm tra database.db...");
+            StartupManager.SetStatus("\u0110ang ki\u1EC3m tra database.db...");
             ConfigureDatabase();
-            StartupManager.SetStatus("Đang kiểm tra product.db...");
+            StartupManager.SetStatus("\u0110ang ki\u1EC3m tra product.db...");
             ConfigureProductDatabase();
 
-            StartupManager.SetStatus("Đang cập nhật cấu trúc dữ liệu...");
-            BoxProductRepository.CreateTableIfNotExists();
-            LabelProductInfoRepository.CreateTableIfNotExists();
-            ScanHistoryRepository.CreateTableIfNotExists();
-            ScanSessionService.CreateTableIfNotExists();
+            ApplyMigrationsIfNeeded();
+            RunPeriodicIntegrityCheck();
+            StartupManager.SetStatus("Ho\u00E0n t\u1EA5t kh\u1EDFi \u0111\u1ED9ng");
+        }
 
-            SyncHistoryBoxTypes();
-            CreateIndexes();
-            StartupManager.SetStatus("Đang kiểm tra tính toàn vẹn dữ liệu...");
+        private static void ApplyMigrationsIfNeeded()
+        {
+            int mainVersion = GetUserVersion(DatabaseRepository.CreateConnection);
+            if (mainVersion < MainDatabaseSchemaVersion)
+            {
+                StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc database.db...");
+                BoxProductRepository.CreateTableIfNotExists();
+                ScanHistoryRepository.CreateTableIfNotExists();
+                ScanSessionService.CreateTableIfNotExists();
+                SyncHistoryBoxTypes();
+                CreateMainIndexes();
+                SetUserVersion(
+                    DatabaseRepository.CreateConnection,
+                    MainDatabaseSchemaVersion);
+            }
+
+            int productVersion = GetUserVersion(DatabaseRepository.CreateProductConnection);
+            if (productVersion < ProductDatabaseSchemaVersion)
+            {
+                StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc product.db...");
+                LabelProductInfoRepository.CreateTableIfNotExists();
+                CreateProductIndexes();
+                SetUserVersion(
+                    DatabaseRepository.CreateProductConnection,
+                    ProductDatabaseSchemaVersion);
+            }
+        }
+
+        private static int GetUserVersion(Func<SQLiteConnection> connectionFactory)
+        {
+            using (SQLiteConnection connection = connectionFactory())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA user_version;";
+                return Convert.ToInt32(command.ExecuteScalar());
+            }
+        }
+
+        private static void SetUserVersion(
+            Func<SQLiteConnection> connectionFactory,
+            int version)
+        {
+            using (SQLiteConnection connection = connectionFactory())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA user_version = " + version + ";";
+                command.ExecuteNonQuery();
+            }
+        }
+
+        private static void RunPeriodicIntegrityCheck()
+        {
+            DateTime lastCheckUtc;
+            string storedValue = AppConfigHelper.Read(LastIntegrityCheckKey);
+            bool recentlyChecked =
+                DateTime.TryParse(
+                    storedValue,
+                    null,
+                    DateTimeStyles.RoundtripKind,
+                    out lastCheckUtc) &&
+                DateTime.UtcNow - lastCheckUtc.ToUniversalTime() < IntegrityCheckInterval;
+
+            if (recentlyChecked)
+                return;
+
+            StartupManager.SetStatus("\u0110ang ki\u1EC3m tra t\u00EDnh to\u00E0n v\u1EB9n d\u1EEF li\u1EC7u...");
             DatabaseRepository.RunIntegrityCheck();
-            StartupManager.SetStatus("Hoàn tất khởi động");
+            AppConfigHelper.Modify(
+                LastIntegrityCheckKey,
+                DateTime.UtcNow.ToString("O"));
         }
 
         private static void SyncHistoryBoxTypes()
@@ -61,8 +118,8 @@ namespace SX3_SCANER.Model
 
         private static void ConfigureDatabase()
         {
-            using (var connection = DatabaseRepository.CreateConnection())
-            using (var command = connection.CreateCommand())
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
             {
                 command.CommandText = @"
 PRAGMA journal_mode = WAL;
@@ -75,8 +132,8 @@ PRAGMA busy_timeout = 5000;";
 
         private static void ConfigureProductDatabase()
         {
-            using (var connection = DatabaseRepository.CreateProductConnection())
-            using (var command = connection.CreateCommand())
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
             {
                 command.CommandText = @"
 PRAGMA journal_mode = WAL;
@@ -87,12 +144,13 @@ PRAGMA busy_timeout = 5000;";
             }
         }
 
-        private static void CreateIndexes()
+        private static void CreateMainIndexes()
         {
-            // Các câu lệnh dùng IF NOT EXISTS nên an toàn khi chạy nhiều lần.
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName ON ScanHistoryView(BoxName);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ScanTime ON ScanHistoryView(BoxName, ScanTime DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ProductPartNumber ON ScanHistoryView(ProductPartNumber);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_SealNo ON ScanHistoryView(SealNo);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_LotNo ON ScanHistoryView(LotNo);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result ON ScanHistoryView(ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime ON ScanHistoryView(ScanTime);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ID_ScanTime ON ScanHistoryView(ID DESC, ScanTime DESC);");
@@ -100,11 +158,16 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanMessage ON ScanHistoryView(ScanMessage);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanWorker ON ScanHistoryView(ScanWorker);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxType ON ScanHistoryView(BoxType);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Product_Seal_Lot ON ScanHistoryView(ProductPartName, SealNo, LotNo);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_PartNumber_Seal_Lot ON ScanHistoryView(ProductPartNumber, SealNo, LotNo);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Product_Seal_Lot_Result ON ScanHistoryView(ProductPartName, SealNo, LotNo, ScanResult);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_PartNumber_Seal_Lot_Result ON ScanHistoryView(ProductPartNumber, SealNo, LotNo, ScanResult);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Pass_Product_Seal_Lot ON ScanHistoryView(ProductPartName, SealNo, LotNo) WHERE ScanResult = 1;");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxName ON BoxProduct(BoxName);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
+        }
+
+        private static void CreateProductIndexes()
+        {
             TryExecuteProduct("CREATE INDEX IF NOT EXISTS idx_LabelProductInfo_PartNumber ON LabelProductInfo(PartNumber);");
             TryExecuteProduct("CREATE INDEX IF NOT EXISTS idx_LabelProductInfo_PartName_PartNumber ON LabelProductInfo(PartName, PartNumber);");
         }
@@ -115,13 +178,9 @@ PRAGMA busy_timeout = 5000;";
             {
                 DatabaseRepository.ExecuteNonQuery(sql);
             }
-            catch (SQLiteException)
+            catch (Exception ex)
             {
-                // Một số project cũ có tên bảng/cột khác. Không chặn app khởi động vì index chỉ là tối ưu.
-            }
-            catch (Exception)
-            {
-                // Giữ tương thích với database cũ; lỗi index không được làm hỏng quá trình chạy máy.
+                StartupManager.Log("Khong tao duoc index tuy chon. SQL=" + sql + ". Chi tiet: " + ex);
             }
         }
 
@@ -129,18 +188,16 @@ PRAGMA busy_timeout = 5000;";
         {
             try
             {
-                using (var connection = DatabaseRepository.CreateProductConnection())
-                using (var command = connection.CreateCommand())
+                using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
+                using (SQLiteCommand command = connection.CreateCommand())
                 {
                     command.CommandText = sql;
                     command.ExecuteNonQuery();
                 }
             }
-            catch (SQLiteException)
+            catch (Exception ex)
             {
-            }
-            catch (Exception)
-            {
+                StartupManager.Log("Khong tao duoc product index tuy chon. SQL=" + sql + ". Chi tiet: " + ex);
             }
         }
     }

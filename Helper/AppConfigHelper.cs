@@ -91,7 +91,10 @@ namespace SX3_SCANER.Helper
         {
             string path = DatabaseRepository.RuntimeConfigPath;
             string directory = Path.GetDirectoryName(path);
-            Directory.CreateDirectory(directory);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
             string temporaryPath = path + ".tmp";
             File.WriteAllText(

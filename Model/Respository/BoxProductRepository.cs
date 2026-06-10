@@ -12,7 +12,7 @@ namespace SX3_SCANER.Model
 
         public BoxProductRepository()
         {
-            CreateTableIfNotExists();
+            _connectionString = DatabaseRepository.ConnectionString;
         }
 
         public static void CreateTableIfNotExists()
@@ -115,24 +115,7 @@ namespace SX3_SCANER.Model
                 using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
                 using (SQLiteTransaction transaction = connection.BeginTransaction())
                 {
-                    string insertQuery = @"
-                        INSERT INTO BoxProduct (BoxName, ProductPartName, ProductPartNumber, BoxSealNo, BoxQuantity, BoxProgress, BoxComplete, BoxWorker, BoxType, IsPartialBox)
-                        VALUES (@BoxName, @ProductPartName, @ProductPartNumber, @BoxSealNo, @BoxQuantity, @BoxProgress, @BoxComplete, @BoxWorker, @BoxType, @IsPartialBox)";
-                    using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
-                    {
-                        command.Parameters.AddWithValue("@BoxName", boxProduct.BoxName);
-                        command.Parameters.AddWithValue("@ProductPartName", boxProduct.ProductPartName);
-                        command.Parameters.AddWithValue("@ProductPartNumber", boxProduct.ProductPartNumber);
-                        command.Parameters.AddWithValue("@BoxSealNo", boxProduct.BoxSealNo);
-                        command.Parameters.AddWithValue("@BoxQuantity", boxProduct.BoxQuantity);
-                        command.Parameters.AddWithValue("@BoxProgress", boxProduct.BoxProgress);
-                        command.Parameters.AddWithValue("@BoxComplete", boxProduct.BoxComplete ? 1 : 0);
-                        command.Parameters.AddWithValue("@BoxWorker", boxProduct.BoxWorker);
-                        command.Parameters.AddWithValue("@BoxType", boxProduct.BoxType);
-                        command.Parameters.AddWithValue("@IsPartialBox", boxProduct.IsPartialBox ? 1 : 0);
-                        command.ExecuteNonQuery();
-                    }
-
+                    InsertBoxProduct(boxProduct, connection, transaction);
                     transaction.Commit();
                 }
             }
@@ -141,6 +124,33 @@ namespace SX3_SCANER.Model
                 StartupManager.Log("Loi insert BoxProduct vao " + DatabaseRepository.DatabasePath +
                     ". BoxName=" + (boxProduct != null ? boxProduct.BoxName : string.Empty) + ". Chi tiet: " + ex);
                 throw;
+            }
+        }
+
+        internal void InsertBoxProduct(
+            BoxProduct boxProduct,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (boxProduct == null)
+                throw new ArgumentNullException(nameof(boxProduct));
+
+            const string insertQuery = @"
+                INSERT INTO BoxProduct (BoxName, ProductPartName, ProductPartNumber, BoxSealNo, BoxQuantity, BoxProgress, BoxComplete, BoxWorker, BoxType, IsPartialBox)
+                VALUES (@BoxName, @ProductPartName, @ProductPartNumber, @BoxSealNo, @BoxQuantity, @BoxProgress, @BoxComplete, @BoxWorker, @BoxType, @IsPartialBox)";
+            using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxProduct.BoxName);
+                command.Parameters.AddWithValue("@ProductPartName", boxProduct.ProductPartName);
+                command.Parameters.AddWithValue("@ProductPartNumber", boxProduct.ProductPartNumber);
+                command.Parameters.AddWithValue("@BoxSealNo", boxProduct.BoxSealNo);
+                command.Parameters.AddWithValue("@BoxQuantity", boxProduct.BoxQuantity);
+                command.Parameters.AddWithValue("@BoxProgress", boxProduct.BoxProgress);
+                command.Parameters.AddWithValue("@BoxComplete", boxProduct.BoxComplete ? 1 : 0);
+                command.Parameters.AddWithValue("@BoxWorker", boxProduct.BoxWorker);
+                command.Parameters.AddWithValue("@BoxType", boxProduct.BoxType);
+                command.Parameters.AddWithValue("@IsPartialBox", boxProduct.IsPartialBox ? 1 : 0);
+                command.ExecuteNonQuery();
             }
         }
 
@@ -243,9 +253,9 @@ namespace SX3_SCANER.Model
             }
         }
 
-        public string GetNextBoxName()
+        public string GetNextBoxName(DateTime businessDate)
         {
-            string today = DateTime.Now.ToString("yyMMdd");
+            string today = businessDate.ToString("yyMMdd");
             int nextBoxNumber = GetNextBoxNumberForToday(today);
             string nextBoxName = $"P{today}{nextBoxNumber.ToString().PadLeft(4, '0')}";
             return nextBoxName;
@@ -330,13 +340,26 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             using (SQLiteTransaction transaction = connection.BeginTransaction())
             {
-                string updateQuery = "UPDATE BoxProduct SET BoxProgress = BoxProgress + 1 WHERE BoxName = @BoxName";
-                using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
-                {
-                    command.Parameters.AddWithValue("@BoxName", boxname);
-                    command.ExecuteNonQuery();
-                }
+                UpdateBoxProgress(boxname, connection, transaction);
                 transaction.Commit();
+            }
+        }
+
+        internal void UpdateBoxProgress(
+            string boxName,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            const string updateQuery =
+                "UPDATE BoxProduct SET BoxProgress = BoxProgress + 1 WHERE BoxName = @BoxName";
+            using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                if (command.ExecuteNonQuery() == 0)
+                {
+                    throw new InvalidOperationException(
+                        "Khong tim thay thung dang mo de cap nhat tien do: " + boxName);
+                }
             }
         }
 
@@ -345,22 +368,36 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             using (SQLiteTransaction transaction = connection.BeginTransaction())
             {
-                string updateQuery = @"
-                    UPDATE BoxProduct
-                    SET BoxComplete = 1,
-                        BoxType = @BoxType,
-                        IsPartialBox = @IsPartialBox,
-                        BoxWorker = @BoxWorker
-                    WHERE BoxName = @BoxName AND BoxComplete = 0";
-                using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
-                {
-                    command.Parameters.AddWithValue("@BoxName", boxname);
-                    command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
-                    command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
-                    command.Parameters.AddWithValue("@BoxWorker", worker ?? string.Empty);
-                    command.ExecuteNonQuery();
-                }
+                SetBoxComplete(boxname, isPartial, worker, connection, transaction);
                 transaction.Commit();
+            }
+        }
+
+        internal void SetBoxComplete(
+            string boxName,
+            bool isPartial,
+            string worker,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            const string updateQuery = @"
+                UPDATE BoxProduct
+                SET BoxComplete = 1,
+                    BoxType = @BoxType,
+                    IsPartialBox = @IsPartialBox,
+                    BoxWorker = @BoxWorker
+                WHERE BoxName = @BoxName AND BoxComplete = 0";
+            using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
+                command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
+                command.Parameters.AddWithValue("@BoxWorker", worker ?? string.Empty);
+                if (command.ExecuteNonQuery() == 0)
+                {
+                    throw new InvalidOperationException(
+                        "Khong tim thay thung dang mo de hoan tat: " + boxName);
+                }
             }
         }
     }
