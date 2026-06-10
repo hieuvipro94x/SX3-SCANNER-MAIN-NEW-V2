@@ -1,11 +1,12 @@
+```json
 {
   "enabled": true,
   "mode": "playlist",
   "updatedAt": "2026-06-10 16:30",
   "pollSeconds": 30,
-  "rotateSeconds": 10,
-  "autoHideSeconds": 10,
-  "repeatSeconds": 600,
+  "rotateSeconds": 20,
+  "autoHideSeconds": 0,
+  "repeatSeconds": 900,
   "showCountdown": false,
   "showPopup": false,
   "allowClose": true,
@@ -18,73 +19,74 @@
   "messages": [
     {
       "level": "info",
-      "title": "THÔNG BÁO",
-      "message": "📢 Vui lòng chú ý không để xảy ra sản phẩm lỗi.",
+      "title": "THÔNG BÁO CHẤT LƯỢNG",
+      "message": "📢 Mọi công đoạn phải thực hiện đúng theo hướng dẫn thao tác chuẩn. Không chủ quan và luôn kiểm tra sản phẩm trước khi chuyển sang công đoạn tiếp theo.",
       "backgroundColor": "#1565C0",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "KIỂM TRA QR",
-      "message": "🔍 Kiểm tra chính xác mã QR trước khi scan.",
+      "title": "KIỂM TRA QR CODE",
+      "message": "🔍 Trước khi scan, cần đối chiếu chính xác mã QR với mã hàng thực tế. Không scan khi thông tin không rõ ràng hoặc có dấu hiệu bất thường.",
       "backgroundColor": "#C62828",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "success",
-      "title": "CHẤT LƯỢNG",
-      "message": "✅ Đảm bảo đúng mã hàng trước khi đóng gói.",
+      "title": "XÁC NHẬN MÃ HÀNG",
+      "message": "✅ Kiểm tra đầy đủ mã sản phẩm, model, phiên bản và số lượng trước khi đóng gói hoặc xuất sang công đoạn tiếp theo.",
       "backgroundColor": "#2E7D32",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "NGOẠI QUAN",
-      "message": "⚠ Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn.",
+      "title": "KIỂM TRA NGOẠI QUAN",
+      "message": "⚠ Kiểm tra kỹ ngoại quan sản phẩm: trầy xước, nứt vỡ, biến dạng, thiếu linh kiện hoặc các lỗi bất thường trước khi xác nhận hoàn thành.",
       "backgroundColor": "#C62828",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
-      "title": "5S",
-      "message": "🧹 Giữ khu vực làm việc sạch sẽ và gọn gàng.",
+      "title": "THỰC HIỆN 5S",
+      "message": "🧹 Duy trì khu vực làm việc sạch sẽ, sắp xếp dụng cụ đúng vị trí, loại bỏ vật dụng không cần thiết để đảm bảo an toàn và hiệu quả làm việc.",
       "backgroundColor": "#1565C0",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "success",
-      "title": "AN TOÀN",
-      "message": "🦺 Tuân thủ đầy đủ quy định an toàn lao động.",
+      "title": "AN TOÀN LAO ĐỘNG",
+      "message": "🦺 Luôn sử dụng đầy đủ trang bị bảo hộ cá nhân, tuân thủ quy trình an toàn và báo cáo ngay các nguy cơ mất an toàn cho quản lý.",
       "backgroundColor": "#2E7D32",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "PHÂN LOẠI",
-      "message": "🚫 Không để lẫn sản phẩm NG với sản phẩm OK.",
+      "title": "PHÂN LOẠI SẢN PHẨM",
+      "message": "🚫 Tuyệt đối không để lẫn sản phẩm NG, sản phẩm chờ xử lý và sản phẩm OK. Thực hiện phân loại đúng khu vực quy định.",
       "backgroundColor": "#C62828",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
-      "title": "NĂNG SUẤT",
-      "message": "📈 Thực hiện đúng thao tác chuẩn để đảm bảo năng suất.",
+      "title": "ĐẢM BẢO NĂNG SUẤT",
+      "message": "📈 Thực hiện đúng thao tác chuẩn, hạn chế thao tác thừa và tuân thủ quy trình để đảm bảo năng suất và chất lượng sản phẩm.",
       "backgroundColor": "#1565C0",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "success",
-      "title": "SCAN",
-      "message": "📱 Kiểm tra màn hình scanner trước khi xác nhận.",
+      "title": "XÁC NHẬN SAU KHI SCAN",
+      "message": "📱 Sau khi scan, cần kiểm tra kết quả hiển thị trên màn hình scanner và xác nhận đúng thông tin trước khi tiếp tục thao tác.",
       "backgroundColor": "#2E7D32",
       "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
-      "title": "NHẮC NHỞ",
-      "message": "🤝 Báo ngay cho quản lý khi phát hiện bất thường.",
+      "title": "BÁO CÁO BẤT THƯỜNG",
+      "message": "🤝 Khi phát hiện lỗi sản phẩm, lỗi hệ thống, sai mã hàng hoặc bất kỳ bất thường nào, cần dừng thao tác và báo ngay cho quản lý hoặc QC phụ trách.",
       "backgroundColor": "#1565C0",
       "foregroundColor": "#FFFFFF"
     }
   ]
 }
+```
