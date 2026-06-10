@@ -1,70 +1,90 @@
 {
   "enabled": true,
   "mode": "playlist",
-  "updatedAt": "2026-06-10 15:00",
+  "updatedAt": "2026-06-10 16:30",
   "pollSeconds": 30,
   "rotateSeconds": 10,
   "autoHideSeconds": 10,
+  "repeatSeconds": 600,
   "showCountdown": false,
   "showPopup": false,
   "allowClose": true,
   "version": "6.8.0",
   "forceUpdate": false,
-  "priority": 5,
-  "backgroundColor": "#FF9800",
+  "priority": 10,
+  "backgroundColor": "#1565C0",
   "foregroundColor": "#FFFFFF",
   "createdBy": "ADMIN",
-  "cycleMinutes": 10,
   "messages": [
     {
       "level": "info",
       "title": "THÔNG BÁO",
-      "message": "📢 Vui lòng chú ý không để xảy ra sản phẩm lỗi."
+      "message": "📢 Vui lòng chú ý không để xảy ra sản phẩm lỗi.",
+      "backgroundColor": "#1565C0",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "LƯU Ý",
-      "message": "🔍 Kiểm tra mã QR trước khi scan."
+      "title": "KIỂM TRA QR",
+      "message": "🔍 Kiểm tra chính xác mã QR trước khi scan.",
+      "backgroundColor": "#C62828",
+      "foregroundColor": "#FFFFFF"
     },
     {
-      "level": "info",
+      "level": "success",
       "title": "CHẤT LƯỢNG",
-      "message": "✅ Đảm bảo đúng mã hàng trước khi đóng gói."
+      "message": "✅ Đảm bảo đúng mã hàng trước khi đóng gói.",
+      "backgroundColor": "#2E7D32",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "KIỂM TRA",
-      "message": "⚠ Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn."
+      "title": "NGOẠI QUAN",
+      "message": "⚠ Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn.",
+      "backgroundColor": "#C62828",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
       "title": "5S",
-      "message": "🧹 Giữ khu vực làm việc sạch sẽ và ngăn nắp."
+      "message": "🧹 Giữ khu vực làm việc sạch sẽ và gọn gàng.",
+      "backgroundColor": "#1565C0",
+      "foregroundColor": "#FFFFFF"
     },
     {
-      "level": "info",
+      "level": "success",
       "title": "AN TOÀN",
-      "message": "🦺 Tuân thủ quy định an toàn lao động trong ca làm việc."
+      "message": "🦺 Tuân thủ đầy đủ quy định an toàn lao động.",
+      "backgroundColor": "#2E7D32",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "warning",
-      "title": "LƯU Ý",
-      "message": "📦 Không để lẫn sản phẩm NG với sản phẩm OK."
+      "title": "PHÂN LOẠI",
+      "message": "🚫 Không để lẫn sản phẩm NG với sản phẩm OK.",
+      "backgroundColor": "#C62828",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
       "title": "NĂNG SUẤT",
-      "message": "📈 Thực hiện đúng thao tác chuẩn để đảm bảo năng suất."
+      "message": "📈 Thực hiện đúng thao tác chuẩn để đảm bảo năng suất.",
+      "backgroundColor": "#1565C0",
+      "foregroundColor": "#FFFFFF"
     },
     {
-      "level": "warning",
-      "title": "QUÉT MÃ",
-      "message": "📱 Kiểm tra màn hình scanner trước khi xác nhận."
+      "level": "success",
+      "title": "SCAN",
+      "message": "📱 Kiểm tra màn hình scanner trước khi xác nhận.",
+      "backgroundColor": "#2E7D32",
+      "foregroundColor": "#FFFFFF"
     },
     {
       "level": "info",
       "title": "NHẮC NHỞ",
-      "message": "🤝 Báo ngay cho quản lý khi phát hiện bất thường."
+      "message": "🤝 Báo ngay cho quản lý khi phát hiện bất thường.",
+      "backgroundColor": "#1565C0",
+      "foregroundColor": "#FFFFFF"
     }
   ]
 }
