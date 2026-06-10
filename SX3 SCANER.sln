@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11822.322 stable
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SX3 SCANER", "SX3 SCANER.csproj", "{B050395A-4B9E-4630-AC11-ECC623F4C51F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Debug|x64.ActiveCfg = Debug|x64
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Debug|x64.Build.0 = Debug|x64
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Release|x64.ActiveCfg = Release|x64
+		{B050395A-4B9E-4630-AC11-ECC623F4C51F}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5C75DA21-8911-4DB3-B5C7-71D4E5057C93}
+	EndGlobalSection
+EndGlobal
