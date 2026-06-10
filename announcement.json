@@ -1,7 +1,6 @@
 {
 "enabled": true,
 "mode": "playlist",
-
 "updatedAt": "2026-06-10 17:30:00",
 
 "pollSeconds": 10,
