@@ -3,26 +3,41 @@
   "mode": "playlist",
   "pollSeconds": 30,
   "rotateSeconds": 10,
-  "autoHideSeconds": 0,
+  "autoHideSeconds": 10,
   "showCountdown": false,
   "showPopup": false,
   "allowClose": true,
   "version": "6.5.1",
   "forceUpdate": false,
   "priority": 5,
-  "backgroundColor": "#1E88E5",
+  "backgroundColor": "#FF9800",
   "foregroundColor": "#FFFFFF",
   "createdBy": "ADMIN",
   "messages": [
     {
       "level": "info",
       "title": "THÔNG BÁO",
-      "message": "📢Vui lòng chú y không để sảy ra sản phẩm lỗi."
+      "message": "📢 Vui lòng chú ý không để xảy ra sản phẩm lỗi."
     },
     {
       "level": "warning",
       "title": "LƯU Ý",
       "message": "Kiểm tra mã QR trước khi scan."
+    },
+    {
+      "level": "info",
+      "title": "NHẮC NHỞ",
+      "message": "Đảm bảo sản phẩm đúng mã trước khi đóng gói."
+    },
+    {
+      "level": "warning",
+      "title": "KIỂM TRA",
+      "message": "Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn."
+    },
+    {
+      "level": "info",
+      "title": "AN TOÀN",
+      "message": "Giữ khu vực làm việc sạch sẽ, gọn gàng."
     }
   ]
 }
