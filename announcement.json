@@ -35,7 +35,6 @@
 "foregroundColor": "#FFFFFF"
 },
 
-```
 {
   "level": "warning",
   "title": "KIỂM TRA QR CODE",
@@ -59,7 +58,6 @@
   "backgroundColor": "#EF6C00",
   "foregroundColor": "#FFFFFF"
 }
-```
 
 ]
 }
