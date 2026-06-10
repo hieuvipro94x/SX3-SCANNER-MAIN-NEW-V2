@@ -1,18 +1,20 @@
 {
   "enabled": true,
   "mode": "playlist",
+  "updatedAt": "2026-06-10 15:00",
   "pollSeconds": 30,
   "rotateSeconds": 10,
   "autoHideSeconds": 10,
   "showCountdown": false,
   "showPopup": false,
   "allowClose": true,
-  "version": "6.5.1",
+  "version": "6.8.0",
   "forceUpdate": false,
   "priority": 5,
   "backgroundColor": "#FF9800",
   "foregroundColor": "#FFFFFF",
   "createdBy": "ADMIN",
+  "cycleMinutes": 10,
   "messages": [
     {
       "level": "info",
@@ -22,22 +24,47 @@
     {
       "level": "warning",
       "title": "LƯU Ý",
-      "message": "Kiểm tra mã QR trước khi scan."
+      "message": "🔍 Kiểm tra mã QR trước khi scan."
     },
     {
       "level": "info",
-      "title": "NHẮC NHỞ",
-      "message": "Đảm bảo sản phẩm đúng mã trước khi đóng gói."
+      "title": "CHẤT LƯỢNG",
+      "message": "✅ Đảm bảo đúng mã hàng trước khi đóng gói."
     },
     {
       "level": "warning",
       "title": "KIỂM TRA",
-      "message": "Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn."
+      "message": "⚠ Kiểm tra ngoại quan sản phẩm trước khi chuyển công đoạn."
+    },
+    {
+      "level": "info",
+      "title": "5S",
+      "message": "🧹 Giữ khu vực làm việc sạch sẽ và ngăn nắp."
     },
     {
       "level": "info",
       "title": "AN TOÀN",
-      "message": "Giữ khu vực làm việc sạch sẽ, gọn gàng."
+      "message": "🦺 Tuân thủ quy định an toàn lao động trong ca làm việc."
+    },
+    {
+      "level": "warning",
+      "title": "LƯU Ý",
+      "message": "📦 Không để lẫn sản phẩm NG với sản phẩm OK."
+    },
+    {
+      "level": "info",
+      "title": "NĂNG SUẤT",
+      "message": "📈 Thực hiện đúng thao tác chuẩn để đảm bảo năng suất."
+    },
+    {
+      "level": "warning",
+      "title": "QUÉT MÃ",
+      "message": "📱 Kiểm tra màn hình scanner trước khi xác nhận."
+    },
+    {
+      "level": "info",
+      "title": "NHẮC NHỞ",
+      "message": "🤝 Báo ngay cho quản lý khi phát hiện bất thường."
     }
   ]
 }
