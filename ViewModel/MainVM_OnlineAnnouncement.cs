@@ -23,6 +23,7 @@ namespace SX3_SCANER.ViewModel
 
         private AnnouncementInfo _onlineAnnouncementPlaylistSettings;
         private int _onlineAnnouncementPlaylistIndex;
+        private bool _onlineAnnouncementWaitingToRepeat;
         private string _onlineAnnouncementText;
         private string _onlineAnnouncementTitle = "THÔNG BÁO HỆ THỐNG";
         private bool _isOnlineAnnouncementVisible;
@@ -30,6 +31,10 @@ namespace SX3_SCANER.ViewModel
         private bool _isAnnouncementCloseVisible;
         private int _announcementRemainingSeconds;
         private int _onlineAnnouncementAnimationVersion;
+        private bool _isOnlineAnnouncementMarqueeEnabled;
+        private string _onlineAnnouncementMarqueeDirection = "rightToLeft";
+        private int _onlineAnnouncementMarqueeSpeed = 80;
+        private int _onlineAnnouncementMarqueeDelaySeconds = 10;
         private string _announcementCountdownText = string.Empty;
         private string _onlineAnnouncementLevel = "info";
         private string _onlineAnnouncementIcon = "\uD83D\uDCE2";
@@ -131,6 +136,50 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
+        public bool IsOnlineAnnouncementMarqueeEnabled
+        {
+            get { return _isOnlineAnnouncementMarqueeEnabled; }
+            private set
+            {
+                if (_isOnlineAnnouncementMarqueeEnabled == value) return;
+                _isOnlineAnnouncementMarqueeEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string OnlineAnnouncementMarqueeDirection
+        {
+            get { return _onlineAnnouncementMarqueeDirection; }
+            private set
+            {
+                if (_onlineAnnouncementMarqueeDirection == value) return;
+                _onlineAnnouncementMarqueeDirection = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int OnlineAnnouncementMarqueeSpeed
+        {
+            get { return _onlineAnnouncementMarqueeSpeed; }
+            private set
+            {
+                if (_onlineAnnouncementMarqueeSpeed == value) return;
+                _onlineAnnouncementMarqueeSpeed = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int OnlineAnnouncementMarqueeDelaySeconds
+        {
+            get { return _onlineAnnouncementMarqueeDelaySeconds; }
+            private set
+            {
+                if (_onlineAnnouncementMarqueeDelaySeconds == value) return;
+                _onlineAnnouncementMarqueeDelaySeconds = value;
+                OnPropertyChanged();
+            }
+        }
+
         public string OnlineAnnouncementLevel
         {
             get { return _onlineAnnouncementLevel; }
@@ -203,6 +252,7 @@ namespace SX3_SCANER.ViewModel
             _onlineAnnouncementPlaylist.Clear();
             _onlineAnnouncementPlaylistSettings = null;
             _onlineAnnouncementPlaylistIndex = 0;
+            _onlineAnnouncementWaitingToRepeat = false;
 
             if (!announcement.Enabled)
             {
@@ -210,7 +260,8 @@ namespace SX3_SCANER.ViewModel
                 return;
             }
 
-            if (announcement.Messages != null &&
+            if (announcement.Mode == "playlist" &&
+                announcement.Messages != null &&
                 announcement.Messages.Count > 0)
             {
                 _onlineAnnouncementPlaylist.AddRange(announcement.Messages);
@@ -220,6 +271,8 @@ namespace SX3_SCANER.ViewModel
 
                 ShowOnlineAnnouncementPlaylistItem(0);
                 _onlineAnnouncementRotateTimer.Start();
+                System.Diagnostics.Debug.WriteLine(
+                    "[Announcement] Playlist restarted.");
 
                 return;
             }
@@ -232,7 +285,11 @@ namespace SX3_SCANER.ViewModel
                 announcement.ForegroundColor,
                 announcement.AutoHideSeconds,
                 announcement.ShowCountdown,
-                announcement.AllowClose);
+                announcement.AllowClose,
+                announcement.MarqueeEnabled,
+                announcement.MarqueeDirection,
+                announcement.MarqueeSpeed,
+                announcement.MarqueeDelaySeconds);
         }
 
         private void OnlineAnnouncementRotateTimer_Tick(
@@ -246,10 +303,35 @@ namespace SX3_SCANER.ViewModel
                 return;
             }
 
-            int nextIndex =
-                (_onlineAnnouncementPlaylistIndex + 1) %
-                _onlineAnnouncementPlaylist.Count;
-            ShowOnlineAnnouncementPlaylistItem(nextIndex);
+            if (_onlineAnnouncementWaitingToRepeat)
+            {
+                _onlineAnnouncementWaitingToRepeat = false;
+                _onlineAnnouncementRotateTimer.Interval =
+                    TimeSpan.FromSeconds(
+                        _onlineAnnouncementPlaylistSettings.RotateSeconds);
+                ShowOnlineAnnouncementPlaylistItem(0);
+                System.Diagnostics.Debug.WriteLine(
+                    "[Announcement] Playlist restarted.");
+                return;
+            }
+
+            int nextIndex = _onlineAnnouncementPlaylistIndex + 1;
+            if (nextIndex < _onlineAnnouncementPlaylist.Count)
+            {
+                ShowOnlineAnnouncementPlaylistItem(nextIndex);
+                return;
+            }
+
+            HideOnlineAnnouncement();
+            _onlineAnnouncementWaitingToRepeat = true;
+            _onlineAnnouncementRotateTimer.Interval =
+                TimeSpan.FromSeconds(
+                    _onlineAnnouncementPlaylistSettings.RepeatSeconds);
+
+            if (_onlineAnnouncementPlaylistSettings.RepeatSeconds == 0)
+            {
+                OnlineAnnouncementRotateTimer_Tick(sender, e);
+            }
         }
 
         private void ShowOnlineAnnouncementPlaylistItem(int index)
@@ -277,7 +359,13 @@ namespace SX3_SCANER.ViewModel
                     : item.ForegroundColor,
                 autoHideSeconds,
                 settings.ShowCountdown,
-                settings.AllowClose);
+                settings.AllowClose,
+                settings.MarqueeEnabled,
+                settings.MarqueeDirection,
+                settings.MarqueeSpeed,
+                settings.MarqueeDelaySeconds);
+            System.Diagnostics.Debug.WriteLine(
+                "[Announcement] Message changed.");
         }
 
         private void ShowOnlineAnnouncement(
@@ -288,7 +376,11 @@ namespace SX3_SCANER.ViewModel
             string foregroundColor,
             int autoHideSeconds,
             bool showCountdown,
-            bool allowClose)
+            bool allowClose,
+            bool marqueeEnabled,
+            string marqueeDirection,
+            int marqueeSpeed,
+            int marqueeDelaySeconds)
         {
             _onlineAnnouncementAutoHideTimer.Stop();
 
@@ -310,6 +402,10 @@ namespace SX3_SCANER.ViewModel
                 shouldAutoHide && showCountdown;
             IsAnnouncementCloseVisible = isVisible && allowClose;
             IsOnlineAnnouncementVisible = isVisible;
+            IsOnlineAnnouncementMarqueeEnabled = marqueeEnabled;
+            OnlineAnnouncementMarqueeDirection = marqueeDirection;
+            OnlineAnnouncementMarqueeSpeed = marqueeSpeed;
+            OnlineAnnouncementMarqueeDelaySeconds = marqueeDelaySeconds;
             OnlineAnnouncementAnimationVersion++;
 
             if (shouldAutoHide)

@@ -2,8 +2,10 @@ using Newtonsoft.Json;
 using SX3_SCANER.Model;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +44,7 @@ namespace SX3_SCANER.Helper
 
             _refreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(30)
+                Interval = TimeSpan.FromSeconds(5)
             };
             _refreshTimer.Tick += RefreshTimer_Tick;
         }
@@ -80,23 +82,73 @@ namespace SX3_SCANER.Helper
 
             try
             {
+                Debug.WriteLine("[Announcement] Downloading configuration...");
+
                 string requestUrl = AnnouncementApiUrl + "?t=" +
-                    DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                Debug.WriteLine(
+                    "[Announcement] URL = " + requestUrl);
+
+                StartupManager.Log(
+                    "[Announcement] URL = " + requestUrl);
 
                 using (HttpResponseMessage response =
                     await _httpClient.GetAsync(requestUrl).ConfigureAwait(false))
                 {
                     if (!response.IsSuccessStatusCode)
                     {
-                        Debug.WriteLine(
-                            "Announcement request failed: " +
-                            (int)response.StatusCode + " " + response.ReasonPhrase);
+                        LogNetworkUnavailable();
                         return;
                     }
 
                     string announcementJson =
                         await response.Content.ReadAsStringAsync()
                             .ConfigureAwait(false);
+
+                    Debug.WriteLine(
+                        "========== ANNOUNCEMENT RAW BEGIN ==========");
+
+                    Debug.WriteLine(announcementJson);
+
+                    Debug.WriteLine(
+                        "========== ANNOUNCEMENT RAW END ==========");
+
+                    StartupManager.Log(
+                        "ANNOUNCEMENT RAW BEGIN\r\n" +
+                        announcementJson +
+                        "\r\nANNOUNCEMENT RAW END");
+
+                    try
+                    {
+                        string desktopFile =
+                            Path.Combine(
+                                Environment.GetFolderPath(
+                                    Environment.SpecialFolder.Desktop),
+                                "announcement_debug.txt");
+
+                        File.WriteAllText(
+                            desktopFile,
+                            announcementJson);
+                    }
+                    catch
+                    {
+                    }
+
+                    string trimmed =
+                        announcementJson.TrimStart();
+
+                    if (trimmed.StartsWith("<"))
+                    {
+                        throw new JsonException(
+                            "GitHub returned HTML instead of JSON.");
+                    }
+
+                    if (trimmed.StartsWith("```"))
+                    {
+                        throw new JsonException(
+                            "GitHub JSON contains markdown code fences.");
+                    }
 
                     AnnouncementInfo announcement =
                         JsonConvert.DeserializeObject<AnnouncementInfo>(
@@ -115,7 +167,7 @@ namespace SX3_SCANER.Helper
                         return;
                     }
 
-                    string fingerprint = BuildFingerprint(announcement);
+                    string fingerprint = BuildFingerprint(announcementJson);
                     bool announcementChanged =
                         !string.Equals(
                             _lastAnnouncementFingerprint,
@@ -138,15 +190,46 @@ namespace SX3_SCANER.Helper
                                 return;
                             }
 
+                            Debug.WriteLine(
+                                "[Announcement] Configuration changed.");
                             _lastAnnouncementFingerprint = fingerprint;
                             AnnouncementChanged?.Invoke(this, announcement);
                         })
                         .Task.ConfigureAwait(false);
                 }
             }
+            catch (JsonException ex)
+            {
+                Debug.WriteLine(
+                    "[Announcement] Invalid JSON.");
+
+                Debug.WriteLine(ex);
+
+                StartupManager.Log(
+                    "[Announcement] Invalid JSON. " +
+                    ex);
+
+                return;
+            }
+            catch (HttpRequestException ex)
+            {
+                Debug.WriteLine(
+                    "[Announcement] Network unavailable.");
+
+                StartupManager.Log(
+                    "[Announcement] Network unavailable. " +
+                    ex);
+
+                return;
+            }
             catch (Exception ex)
             {
-                Debug.WriteLine("Announcement error: " + ex);
+                Debug.WriteLine(
+                    "[Announcement] Unexpected error.");
+
+                StartupManager.Log(
+                    "[Announcement] Unexpected error. " +
+                    ex);
             }
             finally
             {
@@ -175,12 +258,24 @@ namespace SX3_SCANER.Helper
             announcement.Priority = Math.Max(0, announcement.Priority);
             announcement.PollSeconds = NormalizePollSeconds(announcement.PollSeconds);
             announcement.RotateSeconds = NormalizeRotateSeconds(announcement.RotateSeconds);
+            announcement.RepeatSeconds = Math.Max(0, announcement.RepeatSeconds);
+            announcement.MarqueeDirection =
+                string.Equals(
+                    announcement.MarqueeDirection,
+                    "leftToRight",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "leftToRight"
+                    : "rightToLeft";
+            announcement.MarqueeSpeed =
+                announcement.MarqueeSpeed <= 0 ? 80 : announcement.MarqueeSpeed;
+            announcement.MarqueeDelaySeconds =
+                Math.Max(0, announcement.MarqueeDelaySeconds);
             NormalizeMessages(announcement);
         }
 
         private static int NormalizePollSeconds(int pollSeconds)
         {
-            return pollSeconds < 10 ? 30 : pollSeconds;
+            return pollSeconds < 5 ? 5 : pollSeconds;
         }
 
         private static int NormalizeRotateSeconds(int rotateSeconds)
@@ -220,34 +315,23 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        private static string BuildFingerprint(AnnouncementInfo announcement)
+        private static string BuildFingerprint(string announcementJson)
         {
-            var fingerprint = new StringBuilder();
-            fingerprint.Append(announcement.Enabled).Append('\u001f')
-                .Append(announcement.Mode ?? string.Empty).Append('\u001f')
-                .Append(announcement.Level ?? string.Empty).Append('\u001f')
-                .Append(announcement.Title ?? string.Empty).Append('\u001f')
-                .Append(announcement.Message ?? string.Empty).Append('\u001f')
-                .Append(announcement.UpdatedAt ?? string.Empty).Append('\u001f')
-                .Append(announcement.AutoHideSeconds).Append('\u001f')
-                .Append(announcement.ShowCountdown).Append('\u001f')
-                .Append(announcement.AllowClose).Append('\u001f')
-                .Append(announcement.RotateSeconds).Append('\u001f')
-                .Append(announcement.BackgroundColor ?? string.Empty).Append('\u001f')
-                .Append(announcement.ForegroundColor ?? string.Empty);
-
-            foreach (AnnouncementMessageInfo message in announcement.Messages)
+            using (SHA256 sha256 = SHA256.Create())
             {
-                fingerprint.Append('\u001e')
-                    .Append(message.Level ?? string.Empty).Append('\u001f')
-                    .Append(message.Title ?? string.Empty).Append('\u001f')
-                    .Append(message.Message ?? string.Empty).Append('\u001f')
-                    .Append(message.BackgroundColor ?? string.Empty).Append('\u001f')
-                    .Append(message.ForegroundColor ?? string.Empty).Append('\u001f')
-                    .Append(message.AutoHideSeconds);
+                byte[] hash = sha256.ComputeHash(
+                    Encoding.UTF8.GetBytes(announcementJson ?? string.Empty));
+                return BitConverter.ToString(hash).Replace("-", string.Empty);
             }
+        }
 
-            return fingerprint.ToString();
+        private void LogNetworkUnavailable()
+        {
+            Debug.WriteLine("[Announcement] Network unavailable.");
+            if (!string.IsNullOrEmpty(_lastAnnouncementFingerprint))
+            {
+                Debug.WriteLine("[Announcement] Using cached configuration.");
+            }
         }
 
         private static string NormalizeLevel(string level)
