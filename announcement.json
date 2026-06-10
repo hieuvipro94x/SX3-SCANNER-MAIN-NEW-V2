@@ -3,9 +3,9 @@
 "mode": "playlist",
 "updatedAt": "2026-06-10 17:30:00",
 
-"pollSeconds": 10,
+"pollSeconds": 15,
 "rotateSeconds": 15,
-"repeatSeconds": 10,
+"repeatSeconds": 15,
 
 "autoHideSeconds": 0,
 "showCountdown": false,
