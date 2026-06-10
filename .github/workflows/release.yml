@@ -1,0 +1,73 @@
+name: SX3 Scanner EXE Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_PATH: SX3Scanner/SX3Scanner.csproj
+  APP_NAME: SX3Scanner
+  DOTNET_VERSION: 8.0.x
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "${{ env.PROJECT_PATH }}"
+
+      - name: Publish EXE
+        run: dotnet publish "${{ env.PROJECT_PATH }}" -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+
+      - name: Rename EXE
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $exe = Get-ChildItem publish -Filter "*.exe" | Select-Object -First 1
+          Copy-Item $exe.FullName "SX3Scanner-$tag.exe"
+
+      - name: Create version.json
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/SX3Scanner-$tag.exe"
+
+          $json = @{
+            version = $version
+            tagName = $tag
+            downloadUrl = $downloadUrl
+            releaseNotes = "Cập nhật phiên bản $version"
+          } | ConvertTo-Json -Depth 10
+
+          $json | Out-File -FilePath version.json -Encoding utf8
+
+      - name: Commit updated version.json
+        shell: pwsh
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add version.json
+          git commit -m "Update version.json for ${{ github.ref_name }}" || echo "No changes"
+          git push origin HEAD:main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            SX3Scanner-${{ github.ref_name }}.exe
+            version.json
+          generate_release_notes: true
