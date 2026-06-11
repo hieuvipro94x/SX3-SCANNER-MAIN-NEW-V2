@@ -246,10 +246,33 @@ Name: "{commondesktop}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"; Tasks: d
 
 [Run]
 Filename: "{sys}\schtasks.exe"; Parameters: "/Create /F /TN ""SX3 Scanner"" /TR ""{app}\{#MyAppExeName}"" /SC ONLOGON /RL HIGHEST"; Flags: runhidden waituntilterminated
+Filename: "{app}\AnnouncementServer\SX3.AnnouncementServer.exe"; Flags: nowait skipifsilent
 Filename: "{app}\{#MyAppExeName}"; Description: "Open SX3 Scanner"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM SX3.AnnouncementServer.exe"; Flags: runhidden waituntilterminated; RunOnceId: "KillAnnouncementServer"
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM ""SX3 SCANER.exe"""; Flags: runhidden waituntilterminated; RunOnceId: "KillSX3Scanner"
 Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /F /TN ""SX3 Scanner"""; Flags: runhidden waituntilterminated; RunOnceId: "DeleteSX3ScannerTask"
+
+[Code]
+procedure KillProcessByName(FileName: string);
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'),
+       '/F /IM "' + FileName + '"',
+       '',
+       SW_HIDE,
+       ewWaitUntilTerminated,
+       ResultCode);
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  KillProcessByName('SX3.AnnouncementServer.exe');
+  KillProcessByName('SX3 SCANER.exe');
+  Result := True;
+end;
 "@
 
 $IssContent | Out-File -FilePath $IssFile -Encoding UTF8

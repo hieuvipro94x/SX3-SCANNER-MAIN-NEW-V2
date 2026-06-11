@@ -15,7 +15,7 @@ namespace SX3_SCANER.Helper
         private const string ExecutableName = "SX3.AnnouncementServer.exe";
         private const string ReadyUrl = "http://127.0.0.1:5088/health";
         private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(10);
-        private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(2);
         private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
 
         private readonly object _syncRoot = new object();
@@ -35,10 +35,10 @@ namespace SX3_SCANER.Helper
                 Process existingProcess = FindExistingProcess();
                 if (existingProcess != null)
                 {
-                    _process = existingProcess;
                     StartupManager.Log(
-                        "[Announcement] Adopting existing server process. PID=" +
+                        "[Announcement] Server is already running. PID=" +
                         existingProcess.Id);
+                    existingProcess.Dispose();
                     WaitUntilReady();
                     return;
                 }
@@ -129,25 +129,32 @@ namespace SX3_SCANER.Helper
             if (process == null)
             {
                 DisposeShutdownEvent();
+                StopExistingProcesses();
                 return;
             }
 
+            TryStopProcess(process);
+            DisposeShutdownEvent();
+        }
+
+        private void TryStopProcess(Process process)
+        {
             try
             {
                 if (!process.HasExited)
                 {
                     StartupManager.Log(
                         "[Announcement] Stopping server. PID=" + process.Id);
+                    process.CloseMainWindow();
                     _shutdownEvent?.Set();
 
                     if (!process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds))
                     {
                         StartupManager.Log(
-                            "[Announcement] Graceful shutdown timed out; killing process tree.");
-                        KillProcessTree(process);
+                            "[Announcement] Graceful shutdown timed out; killing process.");
+                        process.Kill();
+                        process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds);
                     }
-
-                    process.WaitForExit();
                 }
 
                 StartupManager.Log("[Announcement] Server stopped.");
@@ -160,34 +167,37 @@ namespace SX3_SCANER.Helper
             {
                 StartupManager.Log(
                     "[Announcement] Failed to stop server cleanly: " + ex);
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill();
+                }
+                catch
+                {
+                }
             }
             finally
             {
                 process.Dispose();
-                DisposeShutdownEvent();
             }
         }
 
-        private static void KillProcessTree(Process process)
+        private void StopExistingProcesses()
         {
-            if (process.HasExited)
+            Process[] processes;
+            try
+            {
+                processes = Process.GetProcessesByName(ProcessName);
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "[Announcement] Failed to find server processes: " + ex);
                 return;
-
-            using (var taskKill = Process.Start(new ProcessStartInfo
-            {
-                FileName = "taskkill.exe",
-                Arguments = "/PID " + process.Id + " /T /F",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            }))
-            {
-                if (taskKill != null)
-                    taskKill.WaitForExit();
             }
 
-            if (!process.HasExited)
-                process.Kill();
+            foreach (Process existingProcess in processes)
+                TryStopProcess(existingProcess);
         }
 
         private void DisposeShutdownEvent()

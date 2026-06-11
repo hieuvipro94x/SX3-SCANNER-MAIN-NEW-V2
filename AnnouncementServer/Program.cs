@@ -7,141 +7,163 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Channels;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.WebHost.UseUrls(
-    builder.Configuration["AnnouncementServer:Urls"] ??
-    "http://0.0.0.0:5088");
-builder.Services.AddSingleton<AnnouncementBroker>();
-builder.Services.AddHostedService<AnnouncementFileWatcherService>();
-builder.Services.AddHostedService<AnnouncementShutdownService>();
-builder.Services.AddHostedService<ParentProcessMonitorService>();
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+    AnnouncementServerErrorLog.Write(
+        "AppDomain.UnhandledException",
+        eventArgs.ExceptionObject as Exception ??
+        new Exception(eventArgs.ExceptionObject?.ToString() ?? "Unknown error"));
 
-var app = builder.Build();
-app.Lifetime.ApplicationStarted.Register(
-    () => app.Logger.LogInformation("Server started"));
-app.Lifetime.ApplicationStopping.Register(
-    () => app.Logger.LogInformation("Server stopping"));
-app.Lifetime.ApplicationStopped.Register(
-    () => app.Logger.LogInformation("Server stopped"));
-
-app.UseWebSockets(new WebSocketOptions
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
 {
-    KeepAliveInterval = TimeSpan.FromSeconds(20)
-});
+    AnnouncementServerErrorLog.Write(
+        "TaskScheduler.UnobservedTaskException",
+        eventArgs.Exception);
+    eventArgs.SetObserved();
+};
 
-app.MapGet("/health", () => Results.Ok(new
+try
 {
-    status = "ok",
-    utc = DateTimeOffset.UtcNow
-}));
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+    builder.WebHost.UseUrls(
+        builder.Configuration["AnnouncementServer:Urls"] ??
+        "http://0.0.0.0:5088");
+    builder.Services.AddSingleton<AnnouncementBroker>();
+    builder.Services.AddHostedService<AnnouncementFileWatcherService>();
+    builder.Services.AddHostedService<AnnouncementShutdownService>();
+    builder.Services.AddHostedService<ParentProcessMonitorService>();
 
-app.MapGet(
-    "/api/announcements/current",
-    (AnnouncementBroker broker) =>
-        Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+    var app = builder.Build();
+    app.Lifetime.ApplicationStarted.Register(
+        () => app.Logger.LogInformation("Server started"));
+    app.Lifetime.ApplicationStopping.Register(
+        () => app.Logger.LogInformation("Server stopping"));
+    app.Lifetime.ApplicationStopped.Register(
+        () => app.Logger.LogInformation("Server stopped"));
 
-app.MapGet(
-    "/api/announcements",
-    (AnnouncementBroker broker) =>
-        Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
-
-app.MapPost(
-    "/api/announcements",
-    async (
-        HttpRequest request,
-        AnnouncementBroker broker,
-        IConfiguration configuration,
-        CancellationToken token) =>
+    app.UseWebSockets(new WebSocketOptions
     {
-        string expectedToken =
-            Environment.GetEnvironmentVariable(
-                "SX3_ANNOUNCEMENT_ADMIN_TOKEN") ??
-            configuration["AnnouncementServer:AdminToken"] ??
-            string.Empty;
-
-        if (string.IsNullOrWhiteSpace(expectedToken))
-        {
-            return Results.Problem(
-                "Announcement publishing is disabled because no admin token is configured.",
-                statusCode: StatusCodes.Status503ServiceUnavailable);
-        }
-
-        string authorization = request.Headers.Authorization.ToString();
-        const string bearerPrefix = "Bearer ";
-        if (!authorization.StartsWith(
-                bearerPrefix,
-                StringComparison.OrdinalIgnoreCase) ||
-            !TokensEqual(
-                authorization.Substring(bearerPrefix.Length).Trim(),
-                expectedToken))
-        {
-            return Results.Unauthorized();
-        }
-
-        try
-        {
-            using var reader = new StreamReader(
-                request.Body,
-                new UTF8Encoding(false, true),
-                detectEncodingFromByteOrderMarks: true,
-                bufferSize: 8192,
-                leaveOpen: true);
-            string json = await reader.ReadToEndAsync(token);
-            string normalized = AnnouncementBroker.ValidateAndNormalize(json);
-            await broker.PublishAsync(normalized, token);
-            return Results.Ok(new
-            {
-                published = true,
-                clients = broker.ConnectedClientCount,
-                utc = DateTimeOffset.UtcNow
-            });
-        }
-        catch (JsonException ex)
-        {
-            return Results.BadRequest(new
-            {
-                error = "Invalid announcement JSON.",
-                detail = ex.Message
-            });
-        }
-        catch (InvalidDataException ex)
-        {
-            return Results.BadRequest(new
-            {
-                error = ex.Message
-            });
-        }
-        catch (DecoderFallbackException)
-        {
-            return Results.BadRequest(new
-            {
-                error = "Announcement payload is not valid UTF-8."
-            });
-        }
+        KeepAliveInterval = TimeSpan.FromSeconds(20)
     });
 
-app.Map(
-    "/ws/announcements",
-    async (
-        HttpContext context,
-        AnnouncementBroker broker,
-        CancellationToken token) =>
+    app.MapGet("/health", () => Results.Ok(new
     {
-        if (!context.WebSockets.IsWebSocketRequest)
+        status = "ok",
+        utc = DateTimeOffset.UtcNow
+    }));
+
+    app.MapGet(
+        "/api/announcements/current",
+        (AnnouncementBroker broker) =>
+            Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+
+    app.MapGet(
+        "/api/announcements",
+        (AnnouncementBroker broker) =>
+            Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+
+    app.MapPost(
+        "/api/announcements",
+        async (
+            HttpRequest request,
+            AnnouncementBroker broker,
+            IConfiguration configuration,
+            CancellationToken token) =>
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            return;
-        }
+            string expectedToken =
+                Environment.GetEnvironmentVariable(
+                    "SX3_ANNOUNCEMENT_ADMIN_TOKEN") ??
+                configuration["AnnouncementServer:AdminToken"] ??
+                string.Empty;
 
-        using WebSocket socket =
-            await context.WebSockets.AcceptWebSocketAsync();
-        await broker.RunClientAsync(socket, token);
-    });
+            if (string.IsNullOrWhiteSpace(expectedToken))
+            {
+                return Results.Problem(
+                    "Announcement publishing is disabled because no admin token is configured.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
 
-app.Run();
+            string authorization = request.Headers.Authorization.ToString();
+            const string bearerPrefix = "Bearer ";
+            if (!authorization.StartsWith(
+                    bearerPrefix,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !TokensEqual(
+                    authorization.Substring(bearerPrefix.Length).Trim(),
+                    expectedToken))
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                using var reader = new StreamReader(
+                    request.Body,
+                    new UTF8Encoding(false, true),
+                    detectEncodingFromByteOrderMarks: true,
+                    bufferSize: 8192,
+                    leaveOpen: true);
+                string json = await reader.ReadToEndAsync(token);
+                string normalized = AnnouncementBroker.ValidateAndNormalize(json);
+                await broker.PublishAsync(normalized, token);
+                return Results.Ok(new
+                {
+                    published = true,
+                    clients = broker.ConnectedClientCount,
+                    utc = DateTimeOffset.UtcNow
+                });
+            }
+            catch (JsonException ex)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Invalid announcement JSON.",
+                    detail = ex.Message
+                });
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.BadRequest(new
+                {
+                    error = ex.Message
+                });
+            }
+            catch (DecoderFallbackException)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Announcement payload is not valid UTF-8."
+                });
+            }
+        });
+
+    app.Map(
+        "/ws/announcements",
+        async (
+            HttpContext context,
+            AnnouncementBroker broker,
+            CancellationToken token) =>
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
+            using WebSocket socket =
+                await context.WebSockets.AcceptWebSocketAsync();
+            await broker.RunClientAsync(socket, token);
+        });
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    AnnouncementServerErrorLog.Write("Startup", ex);
+    Environment.ExitCode = 1;
+}
 
 static bool TokensEqual(string actual, string expected)
 {
@@ -149,6 +171,58 @@ static bool TokensEqual(string actual, string expected)
     byte[] expectedBytes = Encoding.UTF8.GetBytes(expected ?? string.Empty);
     return actualBytes.Length == expectedBytes.Length &&
         CryptographicOperations.FixedTimeEquals(actualBytes, expectedBytes);
+}
+
+internal static class AnnouncementServerErrorLog
+{
+    private static readonly object SyncRoot = new();
+
+    public static void Write(string source, Exception exception)
+    {
+        try
+        {
+            string logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+            Directory.CreateDirectory(logDirectory);
+            string logPath = Path.Combine(
+                logDirectory,
+                "announcement-server-error.log");
+
+            var message = new StringBuilder()
+                .AppendLine("==================================================")
+                .AppendLine("Time: " + DateTimeOffset.Now.ToString("O"))
+                .AppendLine("Source: " + source);
+
+            AppendException(message, exception, 0);
+
+            lock (SyncRoot)
+            {
+                File.AppendAllText(
+                    logPath,
+                    message.ToString(),
+                    new UTF8Encoding(false));
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static void AppendException(
+        StringBuilder message,
+        Exception exception,
+        int level)
+    {
+        string label = level == 0
+            ? "Exception"
+            : "Inner exception " + level;
+        message
+            .AppendLine(label + " message: " + exception.Message)
+            .AppendLine(label + " stack trace:")
+            .AppendLine(exception.StackTrace ?? "(no stack trace)");
+
+        if (exception.InnerException != null)
+            AppendException(message, exception.InnerException, level + 1);
+    }
 }
 
 internal sealed class AnnouncementBroker
