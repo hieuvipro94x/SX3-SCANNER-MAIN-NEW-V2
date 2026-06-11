@@ -112,7 +112,7 @@ namespace SX3_SCANER.ViewModel
             {
                 return !string.IsNullOrWhiteSpace(_CurrentBoxName) &&
                     SelectedQuantity > 0 &&
-                    CurrentScanProgress == SelectedQuantity;
+                    CurrentScanProgress >= SelectedQuantity;
             }
         }
 
@@ -178,7 +178,13 @@ namespace SX3_SCANER.ViewModel
                 if (_ClosePartialBoxCMD == null)
                 {
                     _ClosePartialBoxCMD = new RelayCommand<object>(
-                        o => CurrentScanProgress > 0,
+                        o => CurrentScanProgress > 0 &&
+                            (SelectedQuantity <= 0 ||
+                             CurrentScanProgress < SelectedQuantity) &&
+                            !string.IsNullOrWhiteSpace(_CurrentBoxName) &&
+                            ScanHistorySource != null &&
+                            ScanHistorySource.Count > 0 &&
+                            !_isScanBusy,
                         async o => await ClosePartialBoxAsync());
                 }
 
@@ -204,6 +210,7 @@ namespace SX3_SCANER.ViewModel
         private ScanHistory _CurrentScanHistory;
 
         private string _CurrentBoxName;
+        private DateTime? _currentBoxCreatedDate;
 
         private string _ScanMess;
 
@@ -236,8 +243,11 @@ namespace SX3_SCANER.ViewModel
 
             bool allocatedBoxName = string.IsNullOrWhiteSpace(_CurrentBoxName);
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
+            {
+                _currentBoxCreatedDate = SelectedDate.Date;
                 _CurrentBoxName = await Task.Run(
                     () => _boxProductRepository.GetNextBoxName(SelectedDate));
+            }
 
             ResetScanStatus();
 
@@ -247,6 +257,7 @@ namespace SX3_SCANER.ViewModel
                 ProductPartNumber = SelectedPartNumber,
                 ProductPartName = PNameExpected,
                 BoxName = _CurrentBoxName,
+                SealNo = SelectedDate.ToString("yyMMdd"),
                 ScanData = inputScanCode,
                 ScanWorker = Worker ?? string.Empty
             };
@@ -279,7 +290,7 @@ namespace SX3_SCANER.ViewModel
                     BoxName = _CurrentBoxName,
                     ProductPartName = PNameExpected,
                     ProductPartNumber = SelectedPartNumber,
-                    BoxSealNo = SelectedDate.ToString("yyMMdd"),
+                    BoxSealNo = GetCurrentBoxCreatedDate().ToString("yyMMdd"),
                     BoxQuantity = SelectedQuantity,
                     BoxProgress = persistedProgress,
                     BoxComplete = false,
@@ -353,6 +364,7 @@ namespace SX3_SCANER.ViewModel
                 if (allocatedBoxName)
                 {
                     _CurrentBoxName = null;
+                    _currentBoxCreatedDate = null;
                     OnPropertyChanged(nameof(HasOpenScanSession));
                 }
                 _CurrentScanHistory = null;
@@ -392,7 +404,7 @@ namespace SX3_SCANER.ViewModel
                 ApplyPersistedBox(persistedBox, persistedProgress);
             }
 
-            if (isPass && SelectedQuantity > 0 && CurrentScanProgress == SelectedQuantity)
+            if (isPass && SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
             {
                 await CompleteBoxAsync(false);
             }
@@ -412,7 +424,10 @@ namespace SX3_SCANER.ViewModel
             await _scanWriteLock.WaitAsync();
             try
             {
-                if (CurrentScanProgress <= 0 ||
+                if (string.IsNullOrWhiteSpace(_CurrentBoxName) ||
+                    ScanHistorySource == null ||
+                    ScanHistorySource.Count == 0 ||
+                    CurrentScanProgress <= 0 ||
                     (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity))
                 {
                     return;
@@ -466,7 +481,7 @@ namespace SX3_SCANER.ViewModel
                 if (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
                     return;
             }
-            else if (SelectedQuantity <= 0 || CurrentScanProgress != SelectedQuantity)
+            else if (SelectedQuantity <= 0 || CurrentScanProgress < SelectedQuantity)
             {
                 return;
             }
@@ -476,7 +491,7 @@ namespace SX3_SCANER.ViewModel
 
             string completedBoxName = _CurrentBoxName;
             string completedProductCode = SelectedPartNumber;
-            DateTime completedSessionDate = GetCurrentBoxSessionDate();
+            DateTime completedBoxCreatedDate = GetCurrentBoxCreatedDate();
             string boxType = isPartial ? "PARTIAL" : "FULL";
 
             try
@@ -504,7 +519,7 @@ namespace SX3_SCANER.ViewModel
                             transaction);
                         _scanSessionService.RemoveSession(
                             completedProductCode,
-                            completedSessionDate,
+                            completedBoxCreatedDate,
                             connection,
                             transaction);
                         transaction.Commit();
@@ -547,6 +562,7 @@ namespace SX3_SCANER.ViewModel
             ScanHistorySource = new ObservableCollection<ScanHistory>();
             InputScanCode = string.Empty;
             _CurrentBoxName = null;
+            _currentBoxCreatedDate = null;
             ResetScanStatus();
             OnPropertyChanged(nameof(HasOpenScanSession));
             OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
@@ -832,7 +848,7 @@ namespace SX3_SCANER.ViewModel
             {
                 string cancelledBoxName = _CurrentBoxName;
                 string cancelledProductCode = SelectedPartNumber;
-                DateTime cancelledSessionDate = GetCurrentBoxSessionDate();
+                DateTime cancelledBoxCreatedDate = GetCurrentBoxCreatedDate();
 
                 await Task.Run(() =>
                 {
@@ -853,7 +869,7 @@ namespace SX3_SCANER.ViewModel
                             transaction);
                         _scanSessionService.RemoveSession(
                             cancelledProductCode,
-                            cancelledSessionDate,
+                            cancelledBoxCreatedDate,
                             connection,
                             transaction);
                         transaction.Commit();
@@ -874,6 +890,7 @@ namespace SX3_SCANER.ViewModel
                 CurrentScanProgress = 0;
                 InputScanCode = string.Empty;
                 _CurrentBoxName = null;
+                _currentBoxCreatedDate = null;
                 ResetScanStatus();
                 ScanTextResult = string.Empty;
                 InJob = false;
@@ -930,7 +947,9 @@ namespace SX3_SCANER.ViewModel
                 }
             }
 
-            _scanSessionService.RemoveSession(SelectedPartNumber, GetCurrentBoxSessionDate());
+            _scanSessionService.RemoveSession(
+                SelectedPartNumber,
+                GetCurrentBoxCreatedDate());
             ScanHistorySource?.Clear();
 
             CurrentScanProgress = 0;
@@ -938,6 +957,7 @@ namespace SX3_SCANER.ViewModel
             InputScanCode = string.Empty;
 
             _CurrentBoxName = null;
+            _currentBoxCreatedDate = null;
 
             ResetScanStatus();
 
@@ -1095,12 +1115,30 @@ namespace SX3_SCANER.ViewModel
                 ScanHistoryItems = historyItems ?? new List<ScanHistory>(),
                 IsInJob = isInJob,
                 Worker = Worker ?? string.Empty,
-                SessionDate = GetCurrentBoxSessionDate()
+                SessionDate = GetCurrentBoxCreatedDate()
             };
         }
 
-        private DateTime GetCurrentBoxSessionDate()
+        private DateTime GetCurrentBoxCreatedDate()
         {
+            if (_currentBoxCreatedDate.HasValue)
+            {
+                return _currentBoxCreatedDate.Value.Date;
+            }
+
+            if (string.IsNullOrWhiteSpace(_CurrentBoxName))
+            {
+                return SelectedDate.Date;
+            }
+
+            DateTime? persistedBoxCreatedDate =
+                _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
+            if (persistedBoxCreatedDate.HasValue)
+            {
+                _currentBoxCreatedDate = persistedBoxCreatedDate.Value.Date;
+                return _currentBoxCreatedDate.Value;
+            }
+
             if (!string.IsNullOrWhiteSpace(_CurrentBoxName) &&
                 _CurrentBoxName.Length >= 7 &&
                 _CurrentBoxName.StartsWith("P"))
@@ -1113,11 +1151,24 @@ namespace SX3_SCANER.ViewModel
                     System.Globalization.DateTimeStyles.None,
                     out DateTime boxDate))
                 {
-                    return boxDate;
+                    _currentBoxCreatedDate = boxDate.Date;
+                    return _currentBoxCreatedDate.Value;
                 }
             }
 
-            return SelectedDate;
+            DateTime? firstScanDate = ScanHistorySource?
+                .Where(item => item.ScanTime.HasValue)
+                .Select(item => (DateTime?)item.ScanTime.Value.Date)
+                .OrderBy(date => date)
+                .FirstOrDefault();
+            if (firstScanDate.HasValue)
+            {
+                _currentBoxCreatedDate = firstScanDate.Value;
+                return _currentBoxCreatedDate.Value;
+            }
+
+            throw new InvalidOperationException(
+                "Khong xac dinh duoc ngay tao thung " + _CurrentBoxName + ".");
         }
 
         private bool RestoreScanSession(string productCode)
@@ -1129,6 +1180,8 @@ namespace SX3_SCANER.ViewModel
             }
 
             _CurrentBoxName = state.BoxCode;
+            _currentBoxCreatedDate =
+                _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
             CurrentScanProgress = state.ScannedCount;
             if (state.TargetCount > 0)
             {

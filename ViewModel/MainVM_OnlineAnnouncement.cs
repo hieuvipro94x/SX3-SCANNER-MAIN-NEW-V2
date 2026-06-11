@@ -266,11 +266,15 @@ namespace SX3_SCANER.ViewModel
             {
                 _onlineAnnouncementPlaylist.AddRange(announcement.Messages);
                 _onlineAnnouncementPlaylistSettings = announcement;
-                _onlineAnnouncementRotateTimer.Interval =
-                    TimeSpan.FromSeconds(announcement.RotateSeconds);
 
                 ShowOnlineAnnouncementPlaylistItem(0);
-                _onlineAnnouncementRotateTimer.Start();
+                if (!announcement.MarqueeEnabled &&
+                    announcement.Messages.Count > 1)
+                {
+                    _onlineAnnouncementRotateTimer.Interval =
+                        TimeSpan.FromSeconds(announcement.RotateSeconds);
+                    _onlineAnnouncementRotateTimer.Start();
+                }
                 System.Diagnostics.Debug.WriteLine(
                     "[Announcement] Playlist restarted.");
 
@@ -305,11 +309,17 @@ namespace SX3_SCANER.ViewModel
 
             if (_onlineAnnouncementWaitingToRepeat)
             {
+                _onlineAnnouncementRotateTimer.Stop();
                 _onlineAnnouncementWaitingToRepeat = false;
-                _onlineAnnouncementRotateTimer.Interval =
-                    TimeSpan.FromSeconds(
-                        _onlineAnnouncementPlaylistSettings.RotateSeconds);
                 ShowOnlineAnnouncementPlaylistItem(0);
+                if (!_onlineAnnouncementPlaylistSettings.MarqueeEnabled &&
+                    _onlineAnnouncementPlaylist.Count > 1)
+                {
+                    _onlineAnnouncementRotateTimer.Interval =
+                        TimeSpan.FromSeconds(
+                            _onlineAnnouncementPlaylistSettings.RotateSeconds);
+                    _onlineAnnouncementRotateTimer.Start();
+                }
                 System.Diagnostics.Debug.WriteLine(
                     "[Announcement] Playlist restarted.");
                 return;
@@ -322,16 +332,44 @@ namespace SX3_SCANER.ViewModel
                 return;
             }
 
+            ScheduleOnlineAnnouncementPlaylistRepeat();
+        }
+
+        public bool CompleteOnlineAnnouncementMarqueeCycle()
+        {
+            if (_onlineAnnouncementPlaylistSettings == null ||
+                _onlineAnnouncementPlaylist.Count <= 1)
+            {
+                return false;
+            }
+
+            int nextIndex = _onlineAnnouncementPlaylistIndex + 1;
+            if (nextIndex < _onlineAnnouncementPlaylist.Count)
+            {
+                ShowOnlineAnnouncementPlaylistItem(nextIndex);
+                return true;
+            }
+
+            ScheduleOnlineAnnouncementPlaylistRepeat();
+            return true;
+        }
+
+        private void ScheduleOnlineAnnouncementPlaylistRepeat()
+        {
             HideOnlineAnnouncement();
             _onlineAnnouncementWaitingToRepeat = true;
-            _onlineAnnouncementRotateTimer.Interval =
-                TimeSpan.FromSeconds(
-                    _onlineAnnouncementPlaylistSettings.RepeatSeconds);
 
             if (_onlineAnnouncementPlaylistSettings.RepeatSeconds == 0)
             {
-                OnlineAnnouncementRotateTimer_Tick(sender, e);
+                _onlineAnnouncementWaitingToRepeat = false;
+                ShowOnlineAnnouncementPlaylistItem(0);
+                return;
             }
+
+            _onlineAnnouncementRotateTimer.Interval =
+                TimeSpan.FromSeconds(
+                    _onlineAnnouncementPlaylistSettings.RepeatSeconds);
+            _onlineAnnouncementRotateTimer.Start();
         }
 
         private void ShowOnlineAnnouncementPlaylistItem(int index)
@@ -385,7 +423,8 @@ namespace SX3_SCANER.ViewModel
             _onlineAnnouncementAutoHideTimer.Stop();
 
             bool isVisible = !string.IsNullOrWhiteSpace(message);
-            bool shouldAutoHide = isVisible && autoHideSeconds > 0;
+            bool shouldAutoHide =
+                isVisible && autoHideSeconds > 0 && !marqueeEnabled;
 
             OnlineAnnouncementText = isVisible ? message : string.Empty;
             OnlineAnnouncementTitle = string.IsNullOrWhiteSpace(title)

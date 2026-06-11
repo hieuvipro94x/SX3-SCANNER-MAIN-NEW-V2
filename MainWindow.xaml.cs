@@ -33,6 +33,8 @@ namespace SX3_SCANER
             DataContextChanged += MainWindow_DataContextChanged;
             StartupManager.StatusChanged += StartupStatus_Changed;
             Closed += MainWindow_Closed;
+            AnnouncementMarqueeHost.SizeChanged +=
+                AnnouncementMarqueeHost_SizeChanged;
             txtStartupStatus.Text = StartupManager.CurrentStatus;
             AttachAnnouncementViewModel(DataContext as INotifyPropertyChanged);
 
@@ -145,7 +147,20 @@ namespace SX3_SCANER
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            RestartAnnouncementMarquee();
             await RefreshUpdateStatusAsync(false);
+        }
+
+        private void AnnouncementMarqueeHost_SizeChanged(
+            object sender,
+            SizeChangedEventArgs e)
+        {
+            if (!e.WidthChanged || !IsLoaded)
+            {
+                return;
+            }
+
+            RestartAnnouncementMarquee();
         }
 
         private void StartupStatus_Changed(string message)
@@ -157,6 +172,8 @@ namespace SX3_SCANER
         {
             DataContextChanged -= MainWindow_DataContextChanged;
             StartupManager.StatusChanged -= StartupStatus_Changed;
+            AnnouncementMarqueeHost.SizeChanged -=
+                AnnouncementMarqueeHost_SizeChanged;
             timer.Stop();
             StopOnlineAnnouncementAnimation();
             AttachAnnouncementViewModel(null);
@@ -295,20 +312,11 @@ namespace SX3_SCANER
                 }
             }
 
-            bool leftToRight = string.Equals(
-                viewModel.OnlineAnnouncementMarqueeDirection,
-                "leftToRight",
-                StringComparison.OrdinalIgnoreCase);
-            double from = leftToRight
-                ? -textWidth
-                : hostWidth;
-            double to = leftToRight
-                ? hostWidth
-                : -textWidth;
-            double distance = Math.Abs(to - from);
-            double seconds = Math.Max(
-                4.0,
-                distance / Math.Max(1, viewModel.OnlineAnnouncementMarqueeSpeed));
+            double from = hostWidth;
+            double to = -textWidth;
+            double seconds =
+                (hostWidth + textWidth) /
+                Math.Max(1, viewModel.OnlineAnnouncementMarqueeSpeed);
             var animation = new DoubleAnimation
             {
                 From = from,
@@ -329,12 +337,14 @@ namespace SX3_SCANER
 
                 if (AnnouncementMarqueeTransform != null)
                 {
-                    AnnouncementMarqueeTransform.X = from;
+                    AnnouncementMarqueeTransform.BeginAnimation(
+                        TranslateTransform.XProperty,
+                        null);
+                    AnnouncementMarqueeTransform.X = to;
                 }
 
-                int delaySeconds = viewModel.OnlineAnnouncementMarqueeDelaySeconds > 0
-                    ? viewModel.OnlineAnnouncementMarqueeDelaySeconds
-                    : 10;
+                int delaySeconds =
+                    Math.Max(0, viewModel.OnlineAnnouncementMarqueeDelaySeconds);
 
                 try
                 {
@@ -361,7 +371,10 @@ namespace SX3_SCANER
                     return;
                 }
 
-                RestartAnnouncementMarquee();
+                if (!currentViewModel.CompleteOnlineAnnouncementMarqueeCycle())
+                {
+                    RestartAnnouncementMarquee();
+                }
             };
 
             if (AnnouncementMarqueeTransform != null)
@@ -400,6 +413,14 @@ namespace SX3_SCANER
         {
             hostWidth = AnnouncementMarqueeHost?.ActualWidth ?? 0;
             textWidth = AnnouncementMarqueeText?.ActualWidth ?? 0;
+
+            if (textWidth <= 0 && AnnouncementMarqueeText != null)
+            {
+                AnnouncementMarqueeText.Measure(
+                    new Size(double.PositiveInfinity, double.PositiveInfinity));
+                textWidth = AnnouncementMarqueeText.DesiredSize.Width;
+            }
+
             return hostWidth > 0 && textWidth > 0;
         }
 
