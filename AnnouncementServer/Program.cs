@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,13 +8,25 @@ using System.Text.Json;
 using System.Threading.Channels;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 builder.WebHost.UseUrls(
     builder.Configuration["AnnouncementServer:Urls"] ??
     "http://0.0.0.0:5088");
 builder.Services.AddSingleton<AnnouncementBroker>();
 builder.Services.AddHostedService<AnnouncementFileWatcherService>();
+builder.Services.AddHostedService<AnnouncementShutdownService>();
+builder.Services.AddHostedService<ParentProcessMonitorService>();
 
 var app = builder.Build();
+app.Lifetime.ApplicationStarted.Register(
+    () => app.Logger.LogInformation("Server started"));
+app.Lifetime.ApplicationStopping.Register(
+    () => app.Logger.LogInformation("Server stopping"));
+app.Lifetime.ApplicationStopped.Register(
+    () => app.Logger.LogInformation("Server stopped"));
+
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromSeconds(20)
@@ -196,6 +209,10 @@ internal sealed class AnnouncementBroker
             {
                 _clients[clientId] = client;
                 await client.SendAsync(CurrentJson, token);
+                _logger.LogInformation(
+                    "Client connected. ClientId={ClientId}, ConnectedClients={ConnectedClients}",
+                    clientId,
+                    ConnectedClientCount);
             }
             finally
             {
@@ -223,6 +240,10 @@ internal sealed class AnnouncementBroker
         finally
         {
             _clients.TryRemove(clientId, out _);
+            _logger.LogInformation(
+                "Client disconnected. ClientId={ClientId}, ConnectedClients={ConnectedClients}",
+                clientId,
+                ConnectedClientCount);
             if (socket.State == WebSocketState.Open ||
                 socket.State == WebSocketState.CloseReceived)
             {
@@ -238,6 +259,22 @@ internal sealed class AnnouncementBroker
                 }
             }
         }
+    }
+
+    public async Task CloseAllClientsAsync(CancellationToken token)
+    {
+        KeyValuePair<Guid, AnnouncementClient>[] clients = _clients.ToArray();
+        if (clients.Length == 0)
+            return;
+
+        _logger.LogInformation(
+            "Closing {ConnectedClients} WebSocket client(s).",
+            clients.Length);
+
+        Task[] closeTasks = clients
+            .Select(client => CloseClientAsync(client, token))
+            .ToArray();
+        await Task.WhenAll(closeTasks);
     }
 
     public async Task PublishAsync(string json, CancellationToken token)
@@ -468,6 +505,41 @@ internal sealed class AnnouncementBroker
         }
     }
 
+    private async Task CloseClientAsync(
+        KeyValuePair<Guid, AnnouncementClient> client,
+        CancellationToken token)
+    {
+        try
+        {
+            if (client.Value.Socket.State == WebSocketState.Open ||
+                client.Value.Socket.State == WebSocketState.CloseReceived)
+            {
+                await client.Value.Socket.CloseAsync(
+                    WebSocketCloseStatus.EndpointUnavailable,
+                    "Server shutting down",
+                    token);
+            }
+        }
+        catch (Exception ex) when (
+            ex is WebSocketException or
+            OperationCanceledException or
+            ObjectDisposedException or
+            InvalidOperationException)
+        {
+            try
+            {
+                client.Value.Socket.Abort();
+            }
+            catch
+            {
+            }
+        }
+        finally
+        {
+            _clients.TryRemove(client.Key, out _);
+        }
+    }
+
     private sealed class AnnouncementClient
     {
         private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -501,6 +573,7 @@ internal sealed class AnnouncementBroker
                 _sendLock.Release();
             }
         }
+
     }
 }
 
@@ -638,5 +711,146 @@ internal sealed class AnnouncementFileWatcherService : BackgroundService
         using var timer = new PeriodicTimer(SafetyPollInterval);
         while (await timer.WaitForNextTickAsync(token))
             SignalReload();
+    }
+}
+
+internal sealed class AnnouncementShutdownService : IHostedService
+{
+    private static readonly TimeSpan ClientShutdownTimeout =
+        TimeSpan.FromSeconds(3);
+
+    private readonly AnnouncementBroker _broker;
+    private readonly ILogger<AnnouncementShutdownService> _logger;
+
+    public AnnouncementShutdownService(
+        AnnouncementBroker broker,
+        ILogger<AnnouncementShutdownService> logger)
+    {
+        _broker = broker;
+        _logger = logger;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Closing announcement clients.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        timeout.CancelAfter(ClientShutdownTimeout);
+
+        try
+        {
+            await _broker.CloseAllClientsAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "Timed out while closing announcement clients.");
+        }
+    }
+}
+
+internal sealed class ParentProcessMonitorService : BackgroundService
+{
+    private static readonly TimeSpan PollInterval =
+        TimeSpan.FromMilliseconds(500);
+
+    private readonly IConfiguration _configuration;
+    private readonly IHostApplicationLifetime _lifetime;
+    private readonly ILogger<ParentProcessMonitorService> _logger;
+
+    public ParentProcessMonitorService(
+        IConfiguration configuration,
+        IHostApplicationLifetime lifetime,
+        ILogger<ParentProcessMonitorService> logger)
+    {
+        _configuration = configuration;
+        _lifetime = lifetime;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            _logger.LogWarning(
+                "Parent process monitoring requires Windows and is disabled.");
+            return;
+        }
+
+        if (!int.TryParse(
+                _configuration["ParentProcessId"],
+                out int parentProcessId) ||
+            string.IsNullOrWhiteSpace(
+                _configuration["ShutdownEventName"]))
+        {
+            _logger.LogInformation(
+                "No parent process configured; lifecycle monitoring is disabled.");
+            return;
+        }
+
+        string shutdownEventName = _configuration["ShutdownEventName"]!;
+        using EventWaitHandle shutdownEvent =
+            EventWaitHandle.OpenExisting(shutdownEventName);
+
+        try
+        {
+            await Task.Delay(
+                Timeout.InfiniteTimeSpan,
+                _lifetime.ApplicationStarted);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        if (stoppingToken.IsCancellationRequested)
+            return;
+
+        Process? parentProcess;
+        try
+        {
+            parentProcess = Process.GetProcessById(parentProcessId);
+        }
+        catch (ArgumentException)
+        {
+            _lifetime.StopApplication();
+            _logger.LogWarning(
+                "Parent process {ParentProcessId} is no longer running.",
+                parentProcessId);
+            return;
+        }
+
+        using (parentProcess)
+        {
+            _logger.LogInformation(
+                "Monitoring parent process {ParentProcessId}.",
+                parentProcessId);
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                if (shutdownEvent.WaitOne(TimeSpan.Zero))
+                {
+                    _lifetime.StopApplication();
+                    _logger.LogInformation(
+                        "Shutdown requested by parent process.");
+                    return;
+                }
+
+                if (parentProcess.HasExited)
+                {
+                    _lifetime.StopApplication();
+                    _logger.LogWarning(
+                        "Parent process {ParentProcessId} exited; stopping server.",
+                        parentProcessId);
+                    return;
+                }
+
+                await Task.Delay(PollInterval, stoppingToken);
+            }
+        }
     }
 }
