@@ -267,16 +267,20 @@
                                 </Grid>
                             </Border>
 
-                            <ScrollViewer Grid.Row="1"
-                                          Padding="20"
-                                          VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled">
-                                <TextBlock x:Name="txtReleaseNotes"
-                                           TextWrapping="Wrap"
-                                           FontSize="15"
-                                           Foreground="#1F2937"
-                                           LineHeight="25"/>
-                            </ScrollViewer>
+                            <FlowDocumentScrollViewer x:Name="releaseNotesViewer"
+                                                      Grid.Row="1"
+                                                      Padding="20"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      IsToolBarVisible="False"
+                                                      Background="Transparent">
+                                <FlowDocument x:Name="releaseNotesDocument"
+                                              FontFamily="Segoe UI"
+                                              FontSize="15"
+                                              Foreground="#1F2937"
+                                              PagePadding="0"
+                                              LineHeight="25"/>
+                            </FlowDocumentScrollViewer>
                         </Grid>
                     </Border>
                 </Grid>
