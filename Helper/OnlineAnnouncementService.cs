@@ -1,10 +1,13 @@
 using Newtonsoft.Json;
 using SX3_SCANER.Model;
+using SX3_SCANER.Model.Respository;
 using System;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -15,20 +18,43 @@ namespace SX3_SCANER.Helper
 {
     internal sealed class OnlineAnnouncementService : IDisposable
     {
-        private const string AnnouncementApiUrl =
+        private enum AnnouncementSource
+        {
+            Cache,
+            Snapshot,
+            Realtime
+        }
+
+        private const string DefaultRealtimeUrl =
+            "ws://127.0.0.1:5088/ws/announcements";
+        private const string DefaultSnapshotUrl =
             "https://raw.githubusercontent.com/hieuvipro94x/sx3-scanner-release/main/announcement.json";
 
         private readonly HttpClient _httpClient;
-        private readonly DispatcherTimer _refreshTimer;
         private readonly Dispatcher _dispatcher;
-        private int _isChecking;
+        private readonly CancellationTokenSource _lifetimeCts =
+            new CancellationTokenSource();
+        private readonly string _realtimeUrl;
+        private readonly string _snapshotUrl;
+        private readonly string _cachePath;
         private bool _isStarted;
         private bool _isDisposed;
         private string _lastAnnouncementFingerprint;
+        private DateTime _lastSnapshotAttemptUtc = DateTime.MinValue;
 
         public OnlineAnnouncementService()
         {
             _dispatcher = Dispatcher.CurrentDispatcher;
+            _realtimeUrl = ReadSetting(
+                "AnnouncementRealtimeUrl",
+                DefaultRealtimeUrl);
+            _snapshotUrl = ReadSetting(
+                "AnnouncementSnapshotUrl",
+                DefaultSnapshotUrl);
+            _cachePath = Path.Combine(
+                DatabaseRepository.AppDataDirectory,
+                "cache",
+                "announcement.json");
 
             _httpClient = new HttpClient
             {
@@ -36,17 +62,7 @@ namespace SX3_SCANER.Helper
             };
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("SX3Scanner");
             _httpClient.DefaultRequestHeaders.CacheControl =
-                new CacheControlHeaderValue
-                {
-                    NoCache = true,
-                    NoStore = true
-                };
-
-            _refreshTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(5)
-            };
-            _refreshTimer.Tick += RefreshTimer_Tick;
+                new CacheControlHeaderValue { NoCache = true };
         }
 
         public event EventHandler<AnnouncementInfo> AnnouncementChanged;
@@ -54,289 +70,333 @@ namespace SX3_SCANER.Helper
         public async void Start()
         {
             if (_isDisposed || _isStarted)
-            {
                 return;
-            }
 
             _isStarted = true;
-            await LoadAnnouncementAsync();
-
-            if (!_isDisposed)
-            {
-                _refreshTimer.Start();
-            }
+            await LoadCachedAnnouncementAsync();
+            await LoadSnapshotAsync();
+            _ = RunRealtimeLoopAsync(_lifetimeCts.Token);
         }
 
-        private async void RefreshTimer_Tick(object sender, EventArgs e)
+        private async Task RunRealtimeLoopAsync(CancellationToken token)
         {
-            await LoadAnnouncementAsync();
-        }
+            int retrySeconds = 1;
 
-        public async Task LoadAnnouncementAsync()
-        {
-            if (_isDisposed ||
-                Interlocked.CompareExchange(ref _isChecking, 1, 0) != 0)
+            while (!token.IsCancellationRequested && !_isDisposed)
             {
-                return;
-            }
-
-            try
-            {
-                Debug.WriteLine("[Announcement] Downloading configuration...");
-
-                string requestUrl = AnnouncementApiUrl + "?t=" +
-                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-                Debug.WriteLine(
-                    "[Announcement] URL = " + requestUrl);
-
-                StartupManager.Log(
-                    "[Announcement] URL = " + requestUrl);
-
-                using (HttpResponseMessage response =
-                    await _httpClient.GetAsync(requestUrl).ConfigureAwait(false))
+                try
                 {
-                    if (!response.IsSuccessStatusCode)
+                    using (var socket = new ClientWebSocket())
                     {
-                        LogNetworkUnavailable();
-                        return;
-                    }
+                        socket.Options.KeepAliveInterval =
+                            TimeSpan.FromSeconds(20);
+                        await socket.ConnectAsync(
+                            new Uri(_realtimeUrl),
+                            token).ConfigureAwait(false);
 
-                    string announcementJson =
-                        await response.Content.ReadAsStringAsync()
-                            .ConfigureAwait(false);
+                        retrySeconds = 1;
+                        StartupManager.Log(
+                            "[Announcement] Realtime connected: " +
+                            _realtimeUrl);
 
-                    Debug.WriteLine(
-                        "========== ANNOUNCEMENT RAW BEGIN ==========");
-
-                    Debug.WriteLine(announcementJson);
-
-                    Debug.WriteLine(
-                        "========== ANNOUNCEMENT RAW END ==========");
-
-                    StartupManager.Log(
-                        "ANNOUNCEMENT RAW BEGIN\r\n" +
-                        announcementJson +
-                        "\r\nANNOUNCEMENT RAW END");
-
-                    try
-                    {
-                        string desktopFile =
-                            Path.Combine(
-                                Environment.GetFolderPath(
-                                    Environment.SpecialFolder.Desktop),
-                                "announcement_debug.txt");
-
-                        File.WriteAllText(
-                            desktopFile,
-                            announcementJson);
-                    }
-                    catch
-                    {
-                    }
-
-                    string trimmed =
-                        announcementJson.TrimStart();
-
-                    if (trimmed.StartsWith("<"))
-                    {
-                        throw new JsonException(
-                            "GitHub returned HTML instead of JSON.");
-                    }
-
-                    if (trimmed.StartsWith("```"))
-                    {
-                        throw new JsonException(
-                            "GitHub JSON contains markdown code fences.");
-                    }
-
-                    AnnouncementInfo announcement =
-                        JsonConvert.DeserializeObject<AnnouncementInfo>(
-                            announcementJson);
-
-                    if (announcement == null)
-                    {
-                        throw new JsonException(
-                            "Decoded announcement JSON is empty.");
-                    }
-
-                    NormalizeAnnouncement(announcement);
-
-                    if (_isDisposed)
-                    {
-                        return;
-                    }
-
-                    string fingerprint = BuildFingerprint(announcementJson);
-                    bool announcementChanged =
-                        !string.Equals(
-                            _lastAnnouncementFingerprint,
-                            fingerprint,
-                            StringComparison.Ordinal);
-
-                    await _dispatcher.InvokeAsync(
-                        () =>
+                        while (socket.State == WebSocketState.Open &&
+                               !token.IsCancellationRequested)
                         {
-                            if (_isDisposed)
-                            {
-                                return;
-                            }
+                            string json = await ReceiveTextAsync(
+                                socket,
+                                token).ConfigureAwait(false);
+                            if (json == null)
+                                break;
 
-                            _refreshTimer.Interval =
-                                TimeSpan.FromSeconds(announcement.PollSeconds);
+                            await ProcessAnnouncementJsonAsync(
+                                json,
+                                saveCache: true,
+                                source: AnnouncementSource.Realtime)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(
+                        "[Announcement] Realtime unavailable: " + ex.Message);
+                    StartupManager.Log(
+                        "[Announcement] Realtime unavailable. " + ex.Message);
+                }
 
-                            if (!announcementChanged)
-                            {
-                                return;
-                            }
-
-                            Debug.WriteLine(
-                                "[Announcement] Configuration changed.");
-                            _lastAnnouncementFingerprint = fingerprint;
-                            AnnouncementChanged?.Invoke(this, announcement);
-                        })
-                        .Task.ConfigureAwait(false);
+                try
+                {
+                    if (DateTime.UtcNow - _lastSnapshotAttemptUtc >=
+                        TimeSpan.FromMinutes(15))
+                    {
+                        await LoadSnapshotAsync().ConfigureAwait(false);
+                    }
+                    await Task.Delay(
+                        TimeSpan.FromSeconds(retrySeconds),
+                        token).ConfigureAwait(false);
+                    retrySeconds = Math.Min(retrySeconds * 2, 60);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
             }
-            catch (JsonException ex)
+        }
+
+        private async Task LoadCachedAnnouncementAsync()
+        {
+            try
             {
-                Debug.WriteLine(
-                    "[Announcement] Invalid JSON.");
+                if (!File.Exists(_cachePath))
+                    return;
 
-                Debug.WriteLine(ex);
-
-                StartupManager.Log(
-                    "[Announcement] Invalid JSON. " +
-                    ex);
-
-                return;
+                string json = await Task.Run(
+                    () => File.ReadAllText(_cachePath, Encoding.UTF8))
+                    .ConfigureAwait(false);
+                await ProcessAnnouncementJsonAsync(
+                    json,
+                    saveCache: false,
+                    source: AnnouncementSource.Cache).ConfigureAwait(false);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
-                Debug.WriteLine(
-                    "[Announcement] Network unavailable.");
-
                 StartupManager.Log(
-                    "[Announcement] Network unavailable. " +
-                    ex);
+                    "[Announcement] Invalid cached encoding, cache ignored. " +
+                    ex.Message);
+                TryDeleteCache();
+            }
+        }
 
+        public async Task LoadSnapshotAsync()
+        {
+            if (_isDisposed || string.IsNullOrWhiteSpace(_snapshotUrl))
                 return;
+
+            _lastSnapshotAttemptUtc = DateTime.UtcNow;
+            try
+            {
+                string requestUrl = _snapshotUrl +
+                    (_snapshotUrl.Contains("?") ? "&" : "?") +
+                    "t=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+                using (HttpResponseMessage response =
+                    await _httpClient.GetAsync(requestUrl)
+                        .ConfigureAwait(false))
+                {
+                    if (!response.IsSuccessStatusCode)
+                        return;
+
+                    byte[] bytes = await response.Content.ReadAsByteArrayAsync()
+                        .ConfigureAwait(false);
+                    string json = Encoding.UTF8.GetString(bytes);
+                    await ProcessAnnouncementJsonAsync(
+                        json,
+                        saveCache: true,
+                        source: AnnouncementSource.Snapshot)
+                        .ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(
-                    "[Announcement] Unexpected error.");
-
-                StartupManager.Log(
-                    "[Announcement] Unexpected error. " +
-                    ex);
+                    "[Announcement] Snapshot unavailable: " + ex.Message);
             }
-            finally
+        }
+
+        private async Task ProcessAnnouncementJsonAsync(
+            string json,
+            bool saveCache,
+            AnnouncementSource source)
+        {
+            AnnouncementInfo announcement;
+            try
             {
-                Interlocked.Exchange(ref _isChecking, 0);
+                announcement = ParseAnnouncement(json);
+            }
+            catch (Exception ex)
+            {
+                LogInvalidPayload(source, ex.Message);
+                return;
+            }
+
+            if (ContainsInvalidEncoding(json) ||
+                ContainsInvalidEncoding(announcement))
+            {
+                LogInvalidPayload(source, null);
+                return;
+            }
+
+            string fingerprint = BuildFingerprint(json);
+
+            if (string.Equals(
+                _lastAnnouncementFingerprint,
+                fingerprint,
+                StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (saveCache)
+            {
+                try
+                {
+                    string directory = Path.GetDirectoryName(_cachePath);
+                    Directory.CreateDirectory(directory);
+                    File.WriteAllText(_cachePath, json, new UTF8Encoding(false));
+                }
+                catch (Exception ex)
+                {
+                    StartupManager.Log(
+                        "[Announcement] Could not save cache. " + ex.Message);
+                }
+            }
+
+            await _dispatcher.InvokeAsync(() =>
+            {
+                if (_isDisposed)
+                    return;
+
+                _lastAnnouncementFingerprint = fingerprint;
+                AnnouncementChanged?.Invoke(this, announcement);
+            }).Task.ConfigureAwait(false);
+        }
+
+        private static AnnouncementInfo ParseAnnouncement(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                throw new JsonException("Announcement JSON is empty.");
+
+            string trimmed = json.TrimStart();
+            if (trimmed.StartsWith("<") || trimmed.StartsWith("```"))
+                throw new JsonException("Announcement response is not JSON.");
+
+            AnnouncementInfo announcement =
+                JsonConvert.DeserializeObject<AnnouncementInfo>(json);
+            if (announcement == null)
+                throw new JsonException("Announcement JSON is empty.");
+
+            NormalizeAnnouncement(announcement);
+            return announcement;
+        }
+
+        private static async Task<string> ReceiveTextAsync(
+            ClientWebSocket socket,
+            CancellationToken token)
+        {
+            var buffer = new byte[8192];
+            using (var stream = new MemoryStream())
+            {
+                while (true)
+                {
+                    WebSocketReceiveResult result = await socket.ReceiveAsync(
+                        new ArraySegment<byte>(buffer),
+                        token).ConfigureAwait(false);
+
+                    if (result.MessageType == WebSocketMessageType.Close)
+                        return null;
+                    if (result.MessageType != WebSocketMessageType.Text)
+                        continue;
+
+                    stream.Write(buffer, 0, result.Count);
+                    if (result.EndOfMessage)
+                        return Encoding.UTF8.GetString(stream.ToArray());
+                }
             }
         }
 
         private static void NormalizeAnnouncement(AnnouncementInfo announcement)
         {
             announcement.Level = NormalizeLevel(announcement.Level);
-            announcement.Mode =
-                string.IsNullOrWhiteSpace(announcement.Mode)
-                    ? "single"
-                    : announcement.Mode.Trim().ToLowerInvariant();
-            announcement.Title =
-                string.IsNullOrWhiteSpace(announcement.Title)
-                    ? "THÔNG BÁO HỆ THỐNG"
-                    : announcement.Title.Trim();
-            announcement.Message = announcement.Message?.Trim() ?? string.Empty;
-            announcement.UpdatedAt = announcement.UpdatedAt?.Trim() ?? string.Empty;
-            announcement.Version = announcement.Version?.Trim() ?? string.Empty;
-            announcement.BackgroundColor = announcement.BackgroundColor?.Trim() ?? string.Empty;
-            announcement.ForegroundColor = announcement.ForegroundColor?.Trim() ?? string.Empty;
-            announcement.CreatedBy = announcement.CreatedBy?.Trim() ?? string.Empty;
-            announcement.AutoHideSeconds = Math.Max(0, announcement.AutoHideSeconds);
+            announcement.Mode = string.IsNullOrWhiteSpace(announcement.Mode)
+                ? "single"
+                : announcement.Mode.Trim().ToLowerInvariant();
+            announcement.Title = string.IsNullOrWhiteSpace(announcement.Title)
+                ? "THÔNG BÁO HỆ THỐNG"
+                : announcement.Title.Trim();
+            announcement.Message =
+                announcement.Message?.Trim() ?? string.Empty;
+            announcement.UpdatedAt =
+                announcement.UpdatedAt?.Trim() ?? string.Empty;
+            announcement.Version =
+                announcement.Version?.Trim() ?? string.Empty;
+            announcement.BackgroundColor =
+                announcement.BackgroundColor?.Trim() ?? string.Empty;
+            announcement.ForegroundColor =
+                announcement.ForegroundColor?.Trim() ?? string.Empty;
+            announcement.CreatedBy =
+                announcement.CreatedBy?.Trim() ?? string.Empty;
+            announcement.AutoHideSeconds =
+                Math.Max(0, announcement.AutoHideSeconds);
             announcement.Priority = Math.Max(0, announcement.Priority);
-            announcement.PollSeconds = NormalizePollSeconds(announcement.PollSeconds);
-            announcement.RotateSeconds = NormalizeRotateSeconds(announcement.RotateSeconds);
-            announcement.RepeatSeconds = Math.Max(0, announcement.RepeatSeconds);
-            announcement.MarqueeDirection =
-                string.Equals(
-                    announcement.MarqueeDirection,
-                    "leftToRight",
-                    StringComparison.OrdinalIgnoreCase)
+            announcement.RotateSeconds =
+                announcement.RotateSeconds < 3
+                    ? 10
+                    : announcement.RotateSeconds;
+            announcement.RepeatSeconds =
+                Math.Max(0, announcement.RepeatSeconds);
+            announcement.MarqueeDirection = string.Equals(
+                announcement.MarqueeDirection,
+                "leftToRight",
+                StringComparison.OrdinalIgnoreCase)
                     ? "leftToRight"
                     : "rightToLeft";
             announcement.MarqueeSpeed =
-                announcement.MarqueeSpeed <= 0 ? 80 : announcement.MarqueeSpeed;
+                announcement.MarqueeSpeed <= 0
+                    ? 80
+                    : announcement.MarqueeSpeed;
             announcement.MarqueeDelaySeconds =
                 Math.Max(0, announcement.MarqueeDelaySeconds);
             NormalizeMessages(announcement);
-        }
-
-        private static int NormalizePollSeconds(int pollSeconds)
-        {
-            return pollSeconds < 5 ? 5 : pollSeconds;
-        }
-
-        private static int NormalizeRotateSeconds(int rotateSeconds)
-        {
-            return rotateSeconds < 3 ? 10 : rotateSeconds;
         }
 
         private static void NormalizeMessages(AnnouncementInfo announcement)
         {
             if (announcement.Messages == null)
             {
-                announcement.Messages = new System.Collections.Generic.List<AnnouncementMessageInfo>();
+                announcement.Messages =
+                    new System.Collections.Generic.List<AnnouncementMessageInfo>();
                 return;
             }
 
-            for (int index = announcement.Messages.Count - 1; index >= 0; index--)
+            for (int index = announcement.Messages.Count - 1;
+                 index >= 0;
+                 index--)
             {
-                AnnouncementMessageInfo message = announcement.Messages[index];
-                if (message == null || string.IsNullOrWhiteSpace(message.Message))
+                AnnouncementMessageInfo message =
+                    announcement.Messages[index];
+                if (message == null ||
+                    string.IsNullOrWhiteSpace(message.Message))
                 {
                     announcement.Messages.RemoveAt(index);
                     continue;
                 }
 
                 message.Level = NormalizeLevel(message.Level);
-                message.Title =
-                    string.IsNullOrWhiteSpace(message.Title)
-                        ? "THÔNG BÁO HỆ THỐNG"
-                        : message.Title.Trim();
+                message.Title = string.IsNullOrWhiteSpace(message.Title)
+                    ? "THÔNG BÁO HỆ THỐNG"
+                    : message.Title.Trim();
                 message.Message = message.Message.Trim();
-                message.BackgroundColor = message.BackgroundColor?.Trim() ?? string.Empty;
-                message.ForegroundColor = message.ForegroundColor?.Trim() ?? string.Empty;
+                message.BackgroundColor =
+                    message.BackgroundColor?.Trim() ?? string.Empty;
+                message.ForegroundColor =
+                    message.ForegroundColor?.Trim() ?? string.Empty;
                 if (message.AutoHideSeconds.HasValue)
                 {
-                    message.AutoHideSeconds = Math.Max(0, message.AutoHideSeconds.Value);
+                    message.AutoHideSeconds = Math.Max(
+                        0,
+                        message.AutoHideSeconds.Value);
                 }
-            }
-        }
-
-        private static string BuildFingerprint(string announcementJson)
-        {
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                byte[] hash = sha256.ComputeHash(
-                    Encoding.UTF8.GetBytes(announcementJson ?? string.Empty));
-                return BitConverter.ToString(hash).Replace("-", string.Empty);
-            }
-        }
-
-        private void LogNetworkUnavailable()
-        {
-            Debug.WriteLine("[Announcement] Network unavailable.");
-            if (!string.IsNullOrEmpty(_lastAnnouncementFingerprint))
-            {
-                Debug.WriteLine("[Announcement] Using cached configuration.");
             }
         }
 
         private static string NormalizeLevel(string level)
         {
-            string normalized = (level ?? string.Empty).Trim().ToLowerInvariant();
+            string normalized =
+                (level ?? string.Empty).Trim().ToLowerInvariant();
             switch (normalized)
             {
                 case "warning":
@@ -348,16 +408,139 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        public void Dispose()
+        private static bool ContainsInvalidEncoding(
+            AnnouncementInfo announcement)
         {
-            if (_isDisposed)
+            if (announcement == null)
+                return true;
+
+            if (ContainsInvalidEncoding(announcement.Title) ||
+                ContainsInvalidEncoding(announcement.Message))
             {
+                return true;
+            }
+
+            if (announcement.Messages == null)
+                return false;
+
+            foreach (AnnouncementMessageInfo message in announcement.Messages)
+            {
+                if (message != null &&
+                    (ContainsInvalidEncoding(message.Title) ||
+                     ContainsInvalidEncoding(message.Message)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsInvalidEncoding(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return false;
+
+            string[] markers =
+            {
+                "\uFFFD",
+                "THÃ",
+                "Sáº",
+                "áº",
+                "á»",
+                "Ä‘",
+                "Ä\u0090",
+                "Æ°",
+                "Æ¡",
+                "Ã´",
+                "Ã¡",
+                "Ã¢",
+                "Ãª",
+                "Ã©",
+                "Ã¨",
+                "ðŸ"
+            };
+
+            foreach (char character in value)
+            {
+                if (character >= '\u0080' && character <= '\u009F')
+                    return true;
+            }
+
+            foreach (string marker in markers)
+            {
+                if (value.IndexOf(marker, StringComparison.Ordinal) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void LogInvalidPayload(
+            AnnouncementSource source,
+            string detail)
+        {
+            if (source == AnnouncementSource.Cache)
+            {
+                StartupManager.Log(
+                    "[Announcement] Invalid cached encoding, cache ignored." +
+                    (string.IsNullOrWhiteSpace(detail)
+                        ? string.Empty
+                        : " " + detail));
+                TryDeleteCache();
                 return;
             }
 
+            StartupManager.Log(
+                "[Announcement] Invalid " +
+                source.ToString().ToLowerInvariant() +
+                " encoding, payload ignored." +
+                (string.IsNullOrWhiteSpace(detail)
+                    ? string.Empty
+                    : " " + detail));
+        }
+
+        private void TryDeleteCache()
+        {
+            try
+            {
+                if (File.Exists(_cachePath))
+                    File.Delete(_cachePath);
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "[Announcement] Could not delete invalid cache. " +
+                    ex.Message);
+            }
+        }
+
+        private static string BuildFingerprint(string json)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hash = sha256.ComputeHash(
+                    Encoding.UTF8.GetBytes(json ?? string.Empty));
+                return BitConverter.ToString(hash).Replace("-", string.Empty);
+            }
+        }
+
+        private static string ReadSetting(string key, string defaultValue)
+        {
+            string value = ConfigurationManager.AppSettings[key];
+            return string.IsNullOrWhiteSpace(value)
+                ? defaultValue
+                : value.Trim();
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed)
+                return;
+
             _isDisposed = true;
-            _refreshTimer.Stop();
-            _refreshTimer.Tick -= RefreshTimer_Tick;
+            _lifetimeCts.Cancel();
+            _lifetimeCts.Dispose();
             _httpClient.Dispose();
         }
     }

@@ -53,6 +53,11 @@ namespace SX3_SCANER.ViewModel
             set
             {
                 if (string.IsNullOrWhiteSpace(value) || value == _SelectedPartNumber) return;
+                if (HasOpenScanSession &&
+                    !string.IsNullOrWhiteSpace(_SelectedPartNumber))
+                {
+                    return;
+                }
 
                 string previousPartNumber = _SelectedPartNumber;
                 bool wasInJob = InJob;
@@ -93,6 +98,7 @@ namespace SX3_SCANER.ViewModel
                 ScanHistorySource = new ObservableCollection<ScanHistory>();
                 CurrentScanProgress = 0;
                 OnPropertyChanged(nameof(HasOpenScanSession));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
                 return;
             }
 
@@ -102,6 +108,9 @@ namespace SX3_SCANER.ViewModel
             CurrentScanProgress = ScanHistorySource?.Count(x => x.ScanResult == true) ?? 0;
             SaveCurrentScanSession(false);
             OnPropertyChanged(nameof(HasOpenScanSession));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private ICommand _OpenBoxCMD;
@@ -134,7 +143,12 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_SetSelectedBoxOnJobCMD == null)
                 {
-                    _SetSelectedBoxOnJobCMD = new RelayCommand<object>(ob => SelectedTodayBox != null && !SelectedTodayBox.BoxComplete, ob => SetBoxOnJob(SelectedTodayBox));
+                    _SetSelectedBoxOnJobCMD = new RelayCommand<object>(
+                        ob => SelectedTodayBox != null &&
+                            !SelectedTodayBox.BoxComplete &&
+                            !HasOpenScanSession &&
+                            !_isScanBusy,
+                        ob => SetBoxOnJob(SelectedTodayBox));
                 }
                 return _SetSelectedBoxOnJobCMD;
             }
@@ -156,6 +170,11 @@ namespace SX3_SCANER.ViewModel
                 DateTime previousDate = _SelectedDate;
                 bool dateChanged = previousDate != default(DateTime) && previousDate.Date != value.Date;
                 bool hasOpenBox = HasOpenScanSession && !string.IsNullOrWhiteSpace(_CurrentBoxName);
+                if (dateChanged && hasOpenBox)
+                {
+                    OnPropertyChanged();
+                    return;
+                }
                 if (dateChanged && !hasOpenBox && !string.IsNullOrWhiteSpace(SelectedPartNumber))
                 {
                     SaveCurrentScanSession(false);
@@ -240,7 +259,13 @@ namespace SX3_SCANER.ViewModel
         public int SelectedQuantity
         {
             get { return _SelectedQuantity; }
-            set { _SelectedQuantity = value; OnPropertyChanged(); }
+            set
+            {
+                _SelectedQuantity = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+                CommandManager.InvalidateRequerySuggested();
+            }
         }
 
         private string _FullCodeExpected;
@@ -360,6 +385,8 @@ namespace SX3_SCANER.ViewModel
                 ScanHistoryView = value == null ? null : CollectionViewSource.GetDefaultView(value);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasOpenScanSession));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 CommandManager.InvalidateRequerySuggested();
             }
         }

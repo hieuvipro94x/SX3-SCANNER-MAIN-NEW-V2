@@ -8,7 +8,7 @@ namespace SX3_SCANER.Model
 {
     internal class DatabaseInitialize
     {
-        private const int MainDatabaseSchemaVersion = 2;
+        private const int MainDatabaseSchemaVersion = 3;
         private const int ProductDatabaseSchemaVersion = 1;
         private const string LastIntegrityCheckKey = "LastIntegrityCheckUtc";
         private static readonly TimeSpan IntegrityCheckInterval = TimeSpan.FromDays(7);
@@ -34,12 +34,17 @@ namespace SX3_SCANER.Model
             int mainVersion = GetUserVersion(DatabaseRepository.CreateConnection);
             if (mainVersion < MainDatabaseSchemaVersion)
             {
+                DatabaseRepository.BackupDatabaseFile(
+                    DatabaseRepository.DatabasePath,
+                    "main schema " + mainVersion + " -> " +
+                    MainDatabaseSchemaVersion);
                 StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc database.db...");
                 BoxProductRepository.CreateTableIfNotExists();
                 ScanHistoryRepository.CreateTableIfNotExists();
                 ScanSessionService.CreateTableIfNotExists();
                 SyncHistoryBoxTypes();
                 CreateMainIndexes();
+                CreateDataIntegrityTriggers();
                 SetUserVersion(
                     DatabaseRepository.CreateConnection,
                     MainDatabaseSchemaVersion);
@@ -48,6 +53,10 @@ namespace SX3_SCANER.Model
             int productVersion = GetUserVersion(DatabaseRepository.CreateProductConnection);
             if (productVersion < ProductDatabaseSchemaVersion)
             {
+                DatabaseRepository.BackupDatabaseFile(
+                    DatabaseRepository.ProductDatabasePath,
+                    "product schema " + productVersion + " -> " +
+                    ProductDatabaseSchemaVersion);
                 StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc product.db...");
                 LabelProductInfoRepository.CreateTableIfNotExists();
                 CreateProductIndexes();
@@ -164,6 +173,78 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxName ON BoxProduct(BoxName);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
+        }
+
+        private static void CreateDataIntegrityTriggers()
+        {
+            TryExecute(@"
+                CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Insert
+                BEFORE INSERT ON BoxProduct
+                WHEN NEW.BoxName IS NOT NULL
+                  AND NEW.BoxName <> ''
+                  AND EXISTS (
+                      SELECT 1
+                      FROM BoxProduct
+                      WHERE BoxName = NEW.BoxName COLLATE NOCASE
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'DUPLICATE_BOX_NAME');
+                END;");
+
+            TryExecute(@"
+                CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Update
+                BEFORE UPDATE OF BoxName ON BoxProduct
+                WHEN NEW.BoxName IS NOT NULL
+                  AND NEW.BoxName <> ''
+                  AND EXISTS (
+                      SELECT 1
+                      FROM BoxProduct
+                      WHERE BoxName = NEW.BoxName COLLATE NOCASE
+                        AND ID <> OLD.ID
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'DUPLICATE_BOX_NAME');
+                END;");
+
+            TryExecute(@"
+                CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassLot_Insert
+                BEFORE INSERT ON ScanHistoryView
+                WHEN NEW.ScanResult = 1
+                  AND NEW.ProductPartNumber IS NOT NULL
+                  AND NEW.SealNo IS NOT NULL
+                  AND NEW.LotNo IS NOT NULL
+                  AND EXISTS (
+                      SELECT 1
+                      FROM ScanHistoryView
+                      WHERE ScanResult = 1
+                        AND ProductPartNumber = NEW.ProductPartNumber COLLATE NOCASE
+                        AND SealNo = NEW.SealNo COLLATE NOCASE
+                        AND LotNo = NEW.LotNo COLLATE NOCASE
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'DUPLICATE_PASS_LOT');
+                END;");
+
+            TryExecute(@"
+                CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassLot_Update
+                BEFORE UPDATE OF ProductPartNumber, SealNo, LotNo, ScanResult
+                ON ScanHistoryView
+                WHEN NEW.ScanResult = 1
+                  AND NEW.ProductPartNumber IS NOT NULL
+                  AND NEW.SealNo IS NOT NULL
+                  AND NEW.LotNo IS NOT NULL
+                  AND EXISTS (
+                      SELECT 1
+                      FROM ScanHistoryView
+                      WHERE ScanResult = 1
+                        AND ProductPartNumber = NEW.ProductPartNumber COLLATE NOCASE
+                        AND SealNo = NEW.SealNo COLLATE NOCASE
+                        AND LotNo = NEW.LotNo COLLATE NOCASE
+                        AND ID <> OLD.ID
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'DUPLICATE_PASS_LOT');
+                END;");
         }
 
         private static void CreateProductIndexes()

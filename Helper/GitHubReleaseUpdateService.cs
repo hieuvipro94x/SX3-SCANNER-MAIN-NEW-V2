@@ -357,7 +357,7 @@ namespace SX3_SCANER.Helper
                     (int)response.StatusCode == 429)
                 {
                     _manualRateLimitBackoffUntilUtc =
-                        DateTime.UtcNow.Add(ManualRateLimitBackoff);
+                        GetRateLimitBackoffUntilUtc(response);
                 }
 
                 if (response.StatusCode == HttpStatusCode.NotFound)
@@ -380,6 +380,41 @@ namespace SX3_SCANER.Helper
                 GitHubRelease release = JsonConvert.DeserializeObject<GitHubRelease>(json);
                 return BuildUpdateInfo(release);
             }
+        }
+
+        private static DateTime GetRateLimitBackoffUntilUtc(
+            HttpResponseMessage response)
+        {
+            if (response.Headers.RetryAfter != null)
+            {
+                if (response.Headers.RetryAfter.Date.HasValue)
+                {
+                    return response.Headers.RetryAfter.Date.Value.UtcDateTime;
+                }
+
+                if (response.Headers.RetryAfter.Delta.HasValue)
+                {
+                    return DateTime.UtcNow.Add(
+                        response.Headers.RetryAfter.Delta.Value);
+                }
+            }
+
+            IEnumerable<string> resetValues;
+            if (response.Headers.TryGetValues(
+                    "X-RateLimit-Reset",
+                    out resetValues))
+            {
+                long unixSeconds;
+                if (long.TryParse(
+                    resetValues.FirstOrDefault(),
+                    out unixSeconds))
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(
+                        unixSeconds).UtcDateTime.AddSeconds(5);
+                }
+            }
+
+            return DateTime.UtcNow.Add(ManualRateLimitBackoff);
         }
 
         private static GitHubReleaseUpdateInfo BuildUpdateInfo(UpdateManifest manifest)

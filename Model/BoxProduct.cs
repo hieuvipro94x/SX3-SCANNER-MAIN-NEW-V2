@@ -18,6 +18,14 @@ namespace SX3_SCANER.Model
         {
             get
             {
+                if (string.Equals(
+                    BoxType,
+                    "CANCELLED",
+                    System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return "ĐÃ HỦY";
+                }
+
                 if (!BoxComplete) return string.Empty;
                 return IsPartialBox ? "TH\u00D9NG L\u1EBA" : "TH\u00D9NG \u0110\u1EE6";
             }

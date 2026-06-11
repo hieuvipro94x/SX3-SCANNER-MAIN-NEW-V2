@@ -250,6 +250,7 @@ namespace SX3_SCANER.Model.Respository
                 return;
             }
 
+            CheckpointDatabaseBeforeBackup(databasePath);
             Directory.CreateDirectory(BackupDirectory);
 
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -258,6 +259,23 @@ namespace SX3_SCANER.Model.Respository
 
             File.Copy(databasePath, destinationPath, overwrite: false);
             StartupManager.Log("Da backup database truoc migration/schema update. Reason=" + reason + ". " + databasePath + " -> " + destinationPath);
+        }
+
+        private static void CheckpointDatabaseBeforeBackup(string databasePath)
+        {
+            Func<SQLiteConnection> connectionFactory = string.Equals(
+                Path.GetFullPath(databasePath),
+                Path.GetFullPath(ProductDatabasePath),
+                StringComparison.OrdinalIgnoreCase)
+                    ? (Func<SQLiteConnection>)CreateProductConnection
+                    : CreateConnection;
+
+            using (SQLiteConnection connection = connectionFactory())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA wal_checkpoint(FULL);";
+                command.ExecuteNonQuery();
+            }
         }
 
         private static string GetUniqueBackupPath(string destinationPath)

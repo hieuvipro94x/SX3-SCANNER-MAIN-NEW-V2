@@ -81,6 +81,8 @@ namespace SX3_SCANER.ViewModel
                 _CurrentScanProgress = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasOpenScanSession));
+                OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -97,6 +99,21 @@ namespace SX3_SCANER.ViewModel
         public bool CanSwitchProduct
         {
             get { return !_isScanBusy; }
+        }
+
+        public bool CanModifySessionSelection
+        {
+            get { return !_isScanBusy && !HasOpenScanSession; }
+        }
+
+        public bool IsFullBoxReadyToComplete
+        {
+            get
+            {
+                return !string.IsNullOrWhiteSpace(_CurrentBoxName) &&
+                    SelectedQuantity > 0 &&
+                    CurrentScanProgress == SelectedQuantity;
+            }
         }
 
         private string _Worker;
@@ -124,7 +141,9 @@ namespace SX3_SCANER.ViewModel
                 if (_InputScanCodeCMD == null)
                 {
                     _InputScanCodeCMD = new RelayCommand<object>(
-                        o => InJob && !string.IsNullOrWhiteSpace(InputScanCode),
+                        o => InJob &&
+                            !string.IsNullOrWhiteSpace(InputScanCode) &&
+                            !IsFullBoxReadyToComplete,
                         async o => await ScanDataAsync(InputScanCode));
                 }
 
@@ -141,8 +160,8 @@ namespace SX3_SCANER.ViewModel
                 if (_CancelBoxCMD == null)
                 {
                     _CancelBoxCMD = new RelayCommand<object>(
-                        o => HasOpenScanSession,
-                        o => CancelCurrentBox());
+                        o => HasOpenScanSession && !_isScanBusy,
+                        async o => await CancelCurrentBoxAsync());
                 }
 
                 return _CancelBoxCMD;
@@ -150,6 +169,7 @@ namespace SX3_SCANER.ViewModel
         }
 
         private ICommand _ClosePartialBoxCMD;
+        private ICommand _CompleteFullBoxCMD;
 
         public ICommand ClosePartialBoxCMD
         {
@@ -166,6 +186,21 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
+        public ICommand CompleteFullBoxCMD
+        {
+            get
+            {
+                if (_CompleteFullBoxCMD == null)
+                {
+                    _CompleteFullBoxCMD = new RelayCommand<object>(
+                        o => IsFullBoxReadyToComplete && !_isScanBusy,
+                        async o => await CompleteFullBoxWithLockAsync());
+                }
+
+                return _CompleteFullBoxCMD;
+            }
+        }
+
         private ScanHistory _CurrentScanHistory;
 
         private string _CurrentBoxName;
@@ -177,12 +212,24 @@ namespace SX3_SCANER.ViewModel
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
             OnPropertyChanged(nameof(CanSwitchProduct));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            CommandManager.InvalidateRequerySuggested();
             try
             {
             inputScanCode = inputScanCode?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(inputScanCode))
                 return;
+
+            if (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
+            {
+                MessageBox.Show(
+                    "Thùng đã đủ số lượng. Vui lòng xác nhận đóng thùng trước khi scan tiếp.",
+                    "THÙNG ĐÃ ĐỦ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
 
             if (ScanHistorySource == null)
                 ScanHistorySource = new ObservableCollection<ScanHistory>();
@@ -336,6 +383,9 @@ namespace SX3_SCANER.ViewModel
 
             ScanHistorySource.Insert(0, _CurrentScanHistory);
             RefreshScanHistoryDisplayIndex();
+            OnPropertyChanged(nameof(HasOpenScanSession));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            CommandManager.InvalidateRequerySuggested();
 
             if (isPass)
             {
@@ -351,6 +401,8 @@ namespace SX3_SCANER.ViewModel
             {
                 _isScanBusy = false;
                 OnPropertyChanged(nameof(CanSwitchProduct));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                CommandManager.InvalidateRequerySuggested();
                 _scanWriteLock.Release();
             }
         }
@@ -379,6 +431,27 @@ namespace SX3_SCANER.ViewModel
             }
             finally
             {
+                _scanWriteLock.Release();
+            }
+        }
+
+        private async Task CompleteFullBoxWithLockAsync()
+        {
+            await _scanWriteLock.WaitAsync();
+            _isScanBusy = true;
+            OnPropertyChanged(nameof(CanSwitchProduct));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            CommandManager.InvalidateRequerySuggested();
+            try
+            {
+                await CompleteBoxAsync(false);
+            }
+            finally
+            {
+                _isScanBusy = false;
+                OnPropertyChanged(nameof(CanSwitchProduct));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                CommandManager.InvalidateRequerySuggested();
                 _scanWriteLock.Release();
             }
         }
@@ -476,6 +549,9 @@ namespace SX3_SCANER.ViewModel
             _CurrentBoxName = null;
             ResetScanStatus();
             OnPropertyChanged(nameof(HasOpenScanSession));
+            OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            CommandManager.InvalidateRequerySuggested();
 
             string message = isPartial
                 ? "HO\u00C0N TH\u00C0NH TH\u00D9NG L\u1EBA"
@@ -501,7 +577,7 @@ namespace SX3_SCANER.ViewModel
 
             return await Task.Run(
                 () => _scanHistoryRepository.CheckExist(
-                    PNameExpected,
+                    SelectedPartNumber,
                     SealNoExpected,
                     lotNo));
         }
@@ -735,6 +811,103 @@ namespace SX3_SCANER.ViewModel
             SaveCurrentScanSession(true);
         }
 
+        private async Task CancelCurrentBoxAsync()
+        {
+            MessageBoxResult result = MessageBox.Show(
+                "Bạn có chắc chắn muốn HỦY THÙNG đang scan dở không?\n" +
+                "Lịch sử scan sẽ được giữ lại và đánh dấu ĐÃ HỦY để truy vết.",
+                "XÁC NHẬN HỦY THÙNG",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            await _scanWriteLock.WaitAsync();
+            _isScanBusy = true;
+            OnPropertyChanged(nameof(CanSwitchProduct));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            CommandManager.InvalidateRequerySuggested();
+            try
+            {
+                string cancelledBoxName = _CurrentBoxName;
+                string cancelledProductCode = SelectedPartNumber;
+                DateTime cancelledSessionDate = GetCurrentBoxSessionDate();
+
+                await Task.Run(() =>
+                {
+                    using (SQLiteConnection connection =
+                        DatabaseRepository.CreateConnection())
+                    using (SQLiteTransaction transaction =
+                        connection.BeginTransaction())
+                    {
+                        _scanHistoryRepository.CancelBoxByBoxName(
+                            cancelledBoxName,
+                            Worker,
+                            connection,
+                            transaction);
+                        _boxProductRepository.CancelBox(
+                            cancelledBoxName,
+                            Worker,
+                            connection,
+                            transaction);
+                        _scanSessionService.RemoveSession(
+                            cancelledProductCode,
+                            cancelledSessionDate,
+                            connection,
+                            transaction);
+                        transaction.Commit();
+                    }
+                });
+
+                BoxProduct cancelledBox = ToDayBoxSource?.FirstOrDefault(
+                    x => x.BoxName == cancelledBoxName);
+                if (cancelledBox != null)
+                {
+                    cancelledBox.BoxComplete = true;
+                    cancelledBox.BoxType = "CANCELLED";
+                    cancelledBox.IsPartialBox = false;
+                    cancelledBox.BoxWorker = Worker ?? string.Empty;
+                }
+
+                ScanHistorySource?.Clear();
+                CurrentScanProgress = 0;
+                InputScanCode = string.Empty;
+                _CurrentBoxName = null;
+                ResetScanStatus();
+                ScanTextResult = string.Empty;
+                InJob = false;
+                ToDayBoxView?.Refresh();
+                OnPropertyChanged(nameof(HasOpenScanSession));
+                OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+
+                MessageBox.Show(
+                    "ĐÃ HỦY THÙNG HIỆN TẠI",
+                    "THÔNG BÁO",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "Khong huy duoc thung " + _CurrentBoxName + ". Chi tiet: " + ex);
+                MessageBox.Show(
+                    "Không hủy được thùng trong database. Dữ liệu hiện tại vẫn được giữ nguyên.",
+                    "LỖI HỦY THÙNG",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isScanBusy = false;
+                OnPropertyChanged(nameof(CanSwitchProduct));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                CommandManager.InvalidateRequerySuggested();
+                _scanWriteLock.Release();
+            }
+        }
+
         private void CancelCurrentBox()
         {
             MessageBoxResult result = MessageBox.Show(
@@ -749,9 +922,6 @@ namespace SX3_SCANER.ViewModel
             string cancelledBoxName = _CurrentBoxName;
             if (!string.IsNullOrWhiteSpace(cancelledBoxName))
             {
-                _scanHistoryRepository.DeleteByBoxName(cancelledBoxName);
-                _boxProductRepository.DeleteByBoxName(cancelledBoxName);
-
                 BoxProduct cancelledBox = ToDayBoxSource?.FirstOrDefault(x => x.BoxName == cancelledBoxName);
                 if (cancelledBox != null)
                 {
@@ -977,6 +1147,9 @@ namespace SX3_SCANER.ViewModel
             ResetScanStatus();
             InJob = false;
             OnPropertyChanged(nameof(HasOpenScanSession));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+            CommandManager.InvalidateRequerySuggested();
             StartupManager.SetStatus("Đã khôi phục phiên quét mã " + productCode + ".");
             return true;
         }

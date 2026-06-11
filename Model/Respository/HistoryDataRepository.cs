@@ -263,6 +263,10 @@ namespace SX3_SCANER.Model.Respository
                 "IsPartialBox",
                 "IsOddBox") ?? false;
             string boxType = ReadString(reader, columns, "BoxType");
+            bool isCancelled = string.Equals(
+                boxType,
+                "CANCELLED",
+                StringComparison.OrdinalIgnoreCase);
             if (string.Equals(
                 boxType,
                 "PARTIAL",
@@ -271,7 +275,9 @@ namespace SX3_SCANER.Model.Respository
                 isPartialBox = true;
             }
 
-            string resultText = scanResult.HasValue
+            string resultText = isCancelled
+                ? "CANCELLED"
+                : scanResult.HasValue
                 ? (scanResult.Value ? "PASS" : "NG")
                 : string.Empty;
 
@@ -482,6 +488,14 @@ namespace SX3_SCANER.Model.Respository
             string boxType,
             bool isPartialBox)
         {
+            if (string.Equals(
+                boxType,
+                "CANCELLED",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return "ĐÃ HỦY";
+            }
+
             if (isPartialBox ||
                 string.Equals(
                     boxType,

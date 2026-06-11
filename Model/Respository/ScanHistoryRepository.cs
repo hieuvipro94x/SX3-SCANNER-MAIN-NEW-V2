@@ -313,7 +313,7 @@ namespace SX3_SCANER.Model
             return notCompleteScans;
         }
 
-        public bool CheckExist(string productname, string sealno, string lotno)
+        public bool CheckExist(string productPartNumber, string sealno, string lotno)
         {
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
@@ -321,14 +321,14 @@ namespace SX3_SCANER.Model
                 string query = @"
                     SELECT 1
                     FROM ScanHistoryView
-                    WHERE ProductPartName = @ProductPartName
+                    WHERE ProductPartNumber = @ProductPartNumber COLLATE NOCASE
                       AND SealNo = @SealNo
                       AND LotNo = @LotNo
                       AND ScanResult = 1
                     LIMIT 1";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@ProductPartName", productname);
+                    command.Parameters.AddWithValue("@ProductPartNumber", productPartNumber);
                     command.Parameters.AddWithValue("@SealNo", sealno);
                     command.Parameters.AddWithValue("@LotNo", lotno);
                     return command.ExecuteScalar() != null;
@@ -906,6 +906,32 @@ namespace SX3_SCANER.Model
             {
                 command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
                 command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        internal void CancelBoxByBoxName(
+            string boxName,
+            string worker,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+                return;
+
+            const string sql = @"
+                UPDATE ScanHistoryView
+                SET BoxType = 'CANCELLED',
+                    IsPartialBox = 0,
+                    ScanWorker = CASE
+                        WHEN @ScanWorker = '' THEN ScanWorker
+                        ELSE @ScanWorker
+                    END
+                WHERE BoxName = @BoxName";
+            using (SQLiteCommand command = new SQLiteCommand(sql, connection, transaction))
+            {
+                command.Parameters.AddWithValue("@ScanWorker", (worker ?? string.Empty).Trim());
                 command.Parameters.AddWithValue("@BoxName", boxName);
                 command.ExecuteNonQuery();
             }

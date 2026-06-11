@@ -103,6 +103,22 @@ function Publish-GitHubRelease(
 ) {
     $tag = "v$Version"
     $title = "SX3 Scanner $Version"
+    $installerFileName = Split-Path -Leaf $InstallerFile
+    $manifestPath = Join-Path $GitRoot "version.json"
+    $downloadUrl =
+        "https://github.com/$Repository/releases/download/$tag/$installerFileName"
+    $releaseNotes = Get-Content -LiteralPath $ReleaseNoteFile -Raw -Encoding UTF8
+    $manifest = [ordered]@{
+        version = $Version
+        tagName = $tag
+        fileName = $installerFileName
+        downloadUrl = $downloadUrl
+        releaseNotes = $releaseNotes.Trim()
+    } | ConvertTo-Json -Depth 5
+    [IO.File]::WriteAllText(
+        $manifestPath,
+        $manifest + [Environment]::NewLine,
+        [Text.UTF8Encoding]::new($false))
 
     Info "`n[5/9] Commit source code..."
     & git -C $GitRoot add .
@@ -156,6 +172,7 @@ function Publish-GitHubRelease(
     & $GitHubCLI release create $tag `
         $InstallerFile `
         $ReleaseNoteFile `
+        $manifestPath `
         --repo $Repository `
         --title $title `
         --notes-file $ReleaseNoteFile

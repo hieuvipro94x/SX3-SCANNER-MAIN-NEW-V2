@@ -306,7 +306,7 @@
                   HorizontalAlignment="Stretch"
                   ItemsSource="{Binding PartNumberList}"
                   SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  IsEnabled="{Binding CanSwitchProduct}" />
+                  IsEnabled="{Binding CanModifySessionSelection}" />
 
                                     <DatePicker Grid.Row="1"
                     Grid.Column="1"
@@ -315,7 +315,7 @@
                     FontSize="13"
                     HorizontalAlignment="Stretch"
                     SelectedDate="{Binding SelectedDate}"
-                    IsEnabled="{Binding CanSwitchProduct}" />
+                    IsEnabled="{Binding CanModifySessionSelection}" />
 
                                     <TextBox Grid.Row="2"
                  Grid.Column="1"
@@ -332,6 +332,8 @@
           Margin="5,0,0,0"
           VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="8" />
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="8" />
                                         <ColumnDefinition Width="Auto" />
@@ -447,6 +449,36 @@
                                             </ControlTemplate>
                                         </Button.Template>
 
+                                    </Button>
+
+                                    <Button Grid.Column="6"
+                Width="76"
+                Height="50"
+                FontSize="10"
+                FontWeight="Bold"
+                Foreground="White"
+                Background="#16A34A"
+                BorderBrush="#166534"
+                BorderThickness="3"
+                Command="{Binding CompleteFullBoxCMD}"
+                Visibility="{Binding IsFullBoxReadyToComplete, Converter={StaticResource BooleanToVisibilityConverter}}"
+                Cursor="Hand">
+                                        <TextBlock Text="ĐÓNG&#x0a;THÙNG ĐỦ"
+                       TextAlignment="Center"
+                       Foreground="White"
+                       FontWeight="Bold"/>
+
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="12"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                                                    <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
                                     </Button>
                                 </Grid>
                             </Grid>
@@ -2395,6 +2427,7 @@ Width="58" />
                                        Margin="3,0,8,0"
                                        Text="{Binding OnlineAnnouncementTitle, StringFormat={}{0}:}"
                                        Foreground="{Binding OnlineAnnouncementForeground}"
+                                       FontFamily="Segoe UI"
                                        FontSize="12"
                                        FontWeight="ExtraBold"
                                        VerticalAlignment="Center"
@@ -2407,6 +2440,7 @@ Width="58" />
                                   VerticalAlignment="Center">
                                 <TextBlock x:Name="AnnouncementMarqueeText"
                                            Text="{Binding OnlineAnnouncementText}"
+                                           FontFamily="Segoe UI"
                                            FontSize="13"
                                            FontWeight="Bold"
                                            Foreground="{Binding OnlineAnnouncementForeground}"

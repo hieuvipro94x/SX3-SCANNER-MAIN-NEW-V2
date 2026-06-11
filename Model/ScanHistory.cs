@@ -108,6 +108,14 @@ namespace SX3_SCANER.Model
         {
             get
             {
+                if (string.Equals(
+                    BoxType,
+                    "CANCELLED",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return "ĐÃ HỦY";
+                }
+
                 if (IsPartialBox ||
                     string.Equals(BoxType, "PARTIAL", StringComparison.OrdinalIgnoreCase))
                 {

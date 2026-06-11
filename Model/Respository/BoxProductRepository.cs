@@ -234,7 +234,15 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string query = "SELECT BoxName FROM BoxProduct WHERE ProductPartNumber = @PartNumber AND BoxComplete = 0 AND BoxSealNo = @BoxSealNo";
+                string query = @"
+                    SELECT BoxName
+                    FROM BoxProduct
+                    WHERE ProductPartNumber = @PartNumber
+                      AND BoxComplete = 0
+                      AND BoxSealNo = @BoxSealNo
+                      AND COALESCE(BoxType, 'OPEN') = 'OPEN'
+                    ORDER BY ID DESC
+                    LIMIT 1";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@PartNumber", partnumber);
@@ -350,8 +358,12 @@ namespace SX3_SCANER.Model
             SQLiteConnection connection,
             SQLiteTransaction transaction)
         {
-            const string updateQuery =
-                "UPDATE BoxProduct SET BoxProgress = BoxProgress + 1 WHERE BoxName = @BoxName";
+            const string updateQuery = @"
+                UPDATE BoxProduct
+                SET BoxProgress = BoxProgress + 1
+                WHERE BoxName = @BoxName
+                  AND BoxComplete = 0
+                  AND COALESCE(BoxType, 'OPEN') = 'OPEN'";
             using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
             {
                 command.Parameters.AddWithValue("@BoxName", boxName);
@@ -398,6 +410,33 @@ namespace SX3_SCANER.Model
                     throw new InvalidOperationException(
                         "Khong tim thay thung dang mo de hoan tat: " + boxName);
                 }
+            }
+        }
+
+        internal void CancelBox(
+            string boxName,
+            string worker,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            const string updateQuery = @"
+                UPDATE BoxProduct
+                SET BoxComplete = 1,
+                    BoxType = 'CANCELLED',
+                    IsPartialBox = 0,
+                    BoxWorker = @BoxWorker
+                WHERE BoxName = @BoxName
+                  AND BoxComplete = 0";
+            using (SQLiteCommand command = new SQLiteCommand(
+                updateQuery,
+                connection,
+                transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.Parameters.AddWithValue(
+                    "@BoxWorker",
+                    (worker ?? string.Empty).Trim());
+                command.ExecuteNonQuery();
             }
         }
     }
