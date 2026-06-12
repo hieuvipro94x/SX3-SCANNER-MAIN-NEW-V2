@@ -9,6 +9,7 @@ function Info($Text) { Write-Host $Text -ForegroundColor Cyan }
 function Ok($Text) { Write-Host $Text -ForegroundColor Green }
 function Warn($Text) { Write-Host $Text -ForegroundColor Yellow }
 function Fail($Text) { Write-Host $Text -ForegroundColor Red; throw $Text }
+function Write-Step($Text) { Info "`n$Text" }
 
 function Assert-LastExitCode($StepName) {
     if ($LASTEXITCODE -ne 0) {
@@ -144,11 +145,43 @@ function Publish-GitHubRelease(
     & git -C $GitRoot push origin $tag --force
     Assert-LastExitCode "git push origin $tag --force"
 
-    Info "`n[8/9] Xoa GitHub Release cu neu da ton tai..."
-    $releaseViewOutput = & $GitHubCLI release view $tag --repo $Repository 2>&1
-    $releaseViewExitCode = $LASTEXITCODE
+    Write-Step "[8/9] Xoa GitHub Release cu neu da ton tai..."
 
-    if ($releaseViewExitCode -eq 0) {
+    $releaseExists = $false
+    $releaseViewOutput = $null
+
+    try {
+        $releaseViewOutput = & $GitHubCLI release view $tag --repo $Repository 2>&1
+        $releaseViewExitCode = $LASTEXITCODE
+
+        if ($releaseViewExitCode -eq 0) {
+            $releaseExists = $true
+        }
+        else {
+            $releaseViewText = ($releaseViewOutput | Out-String)
+
+            if ($releaseViewText -notmatch "release not found" -and
+                $releaseViewText -notmatch "Not Found" -and
+                $releaseViewText -notmatch "could not resolve to a Release") {
+                Fail "Khong kiem tra duoc GitHub Release $tag. Chi tiet: $releaseViewText"
+            }
+        }
+    }
+    catch {
+        $errorMessage = $_.Exception.Message
+        $releaseViewText = (($releaseViewOutput | Out-String) + $errorMessage)
+
+        if ($releaseViewText -match "release not found" -or
+            $releaseViewText -match "Not Found" -or
+            $releaseViewText -match "could not resolve to a Release") {
+            $releaseExists = $false
+        }
+        else {
+            throw
+        }
+    }
+
+    if ($releaseExists) {
         Write-Host "Da tim thay GitHub Release cu: $tag. Dang xoa..." -ForegroundColor Yellow
 
         & $GitHubCLI release delete $tag --repo $Repository --yes
@@ -159,16 +192,7 @@ function Publish-GitHubRelease(
         Write-Host "Da xoa GitHub Release cu: $tag" -ForegroundColor Green
     }
     else {
-        $releaseViewText = ($releaseViewOutput | Out-String)
-
-        if ($releaseViewText -match "release not found" -or
-            $releaseViewText -match "Not Found" -or
-            $releaseViewText -match "could not resolve to a Release") {
-            Write-Host "GitHub Release $tag chua ton tai, bo qua buoc xoa." -ForegroundColor Yellow
-        }
-        else {
-            Fail "Khong kiem tra duoc GitHub Release $tag. Chi tiet: $releaseViewText"
-        }
+        Write-Host "GitHub Release $tag chua ton tai, bo qua buoc xoa." -ForegroundColor Yellow
     }
 
     Info "`n[9/9] Tao GitHub Release va upload assets..."
