@@ -2,17 +2,18 @@ using System.Windows;
 
 namespace SX3_SCANER.View
 {
-    public partial class ConfirmDeleteBoxWD : Window
+    public partial class ConfirmPartialBoxWD : Window
     {
-        public ConfirmDeleteBoxWD()
+        public bool IsConfirmed { get; private set; }
+
+        public ConfirmPartialBoxWD(int currentQuantity, int targetQuantity)
         {
             InitializeComponent();
             IsConfirmed = false;
+            txtQuantity.Text = currentQuantity + "/" + targetQuantity;
         }
 
-        public bool IsConfirmed { get; private set; }
-
-        private void BtnDelete_Click(object sender, RoutedEventArgs e)
+        private void BtnConfirm_Click(object sender, RoutedEventArgs e)
         {
             IsConfirmed = true;
             DialogResult = true;

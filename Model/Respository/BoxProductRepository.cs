@@ -442,13 +442,14 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             using (SQLiteTransaction transaction = connection.BeginTransaction())
             {
-                UpdateBoxProgress(boxname, connection, transaction);
+                UpdateBoxProgress(boxname, null, connection, transaction);
                 transaction.Commit();
             }
         }
 
         internal void UpdateBoxProgress(
             string boxName,
+            DateTime? scanLabelDate,
             SQLiteConnection connection,
             SQLiteTransaction transaction)
         {
@@ -456,12 +457,18 @@ namespace SX3_SCANER.Model
                 UPDATE BoxProduct
                 SET BoxProgress = BoxProgress + 1
                     , ActualQty = ActualQty + 1
+                    , ScanLabelDate = COALESCE(@ScanLabelDate, ScanLabelDate)
                 WHERE BoxName = @BoxName
                   AND BoxComplete = 0
                   AND COALESCE(BoxType, 'OPEN') = 'OPEN'";
             using (SQLiteCommand command = new SQLiteCommand(updateQuery, connection, transaction))
             {
                 command.Parameters.AddWithValue("@BoxName", boxName);
+                command.Parameters.AddWithValue(
+                    "@ScanLabelDate",
+                    scanLabelDate.HasValue
+                        ? (object)scanLabelDate.Value.Date
+                        : DBNull.Value);
                 if (command.ExecuteNonQuery() == 0)
                 {
                     throw new InvalidOperationException(

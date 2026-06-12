@@ -86,13 +86,14 @@ namespace SX3_SCANER
                 {
                     Margin = new Thickness(
                         0,
-                        heading.Level == 1 ? 0 : 18,
+                        heading.Level == 1 ? 0 : 20,
                         0,
-                        heading.Level <= 2 ? 10 : 7),
+                        heading.Level <= 2 ? 12 : 9),
                     FontWeight = FontWeights.Bold,
                     Foreground = HeadingBrush,
                     FontSize = GetHeadingSize(heading.Level),
-                    LineHeight = GetHeadingSize(heading.Level) + 9
+                    LineHeight = GetHeadingSize(heading.Level) + 10,
+                    TextAlignment = TextAlignment.Left
                 };
                 AddInlineContent(paragraph.Inlines, heading.Inline);
                 return paragraph;
@@ -102,8 +103,9 @@ namespace SX3_SCANER
             {
                 var paragraph = new Paragraph
                 {
-                    Margin = new Thickness(0, 0, 0, 10),
-                    LineHeight = 26
+                    Margin = new Thickness(0, 0, 0, 12),
+                    LineHeight = 30,
+                    TextAlignment = TextAlignment.Left
                 };
                 AddInlineContent(paragraph.Inlines, paragraphBlock.Inline);
                 return paragraph;
@@ -186,7 +188,7 @@ namespace SX3_SCANER
             {
                 var item = new ListItem
                 {
-                    Margin = new Thickness(0, 0, 0, 5)
+                    Margin = new Thickness(0, 4, 0, 4)
                 };
 
                 foreach (Markdig.Syntax.Block child in itemBlock)
@@ -331,13 +333,13 @@ namespace SX3_SCANER
             switch (level)
             {
                 case 1:
-                    return 27;
+                    return 30;
                 case 2:
-                    return 22;
+                    return 25;
                 case 3:
-                    return 18;
+                    return 21;
                 default:
-                    return 16;
+                    return 19;
             }
         }
 

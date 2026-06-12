@@ -37,6 +37,31 @@ namespace SX3_SCANER.Model
             }
         }
 
+        public string BoxCompleteText
+        {
+            get
+            {
+                if (string.Equals(
+                    BoxType,
+                    "CANCELLED",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return "\u0110\u00E3 h\u1EE7y";
+                }
+
+                if (BoxComplete) return "\u0110\u00E3 \u0111\u00F3ng";
+
+                int requiredQuantity = TargetQty > 0 ? TargetQty : BoxQuantity;
+                int currentQuantity = ActualQty > 0 ? ActualQty : BoxProgress;
+
+                if (currentQuantity <= 0) return "\u0110ang m\u1EDF";
+                if (requiredQuantity > 0 && currentQuantity >= requiredQuantity)
+                    return "\u0110\u1EE7 SL";
+
+                return "Thi\u1EBFu h\u00E0ng";
+            }
+        }
+
         public string ProgressText
         {
             get

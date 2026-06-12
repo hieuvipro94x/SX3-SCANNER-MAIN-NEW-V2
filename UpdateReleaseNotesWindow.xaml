@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SX3 Scanner - Chi tiết bản cập nhật"
-        Width="1120"
-        Height="840"
-        MinWidth="900"
-        MinHeight="680"
+        Width="1280"
+        Height="900"
+        MinWidth="1100"
+        MinHeight="760"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResizeWithGrip"
         Background="#EEF2F7"
@@ -52,7 +52,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Grid Margin="14">
         <Border Background="White"
                 BorderBrush="#DCE3EC"
                 BorderThickness="1"
@@ -77,7 +77,7 @@
                         Background="#2563EB"
                         CornerRadius="18,18,0,0"/>
 
-                <Grid Grid.Row="0" Margin="28,25,28,18">
+                <Grid Grid.Row="0" Margin="22,22,22,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -121,7 +121,7 @@
                 </Grid>
 
                 <Border Grid.Row="1"
-                        Margin="28,0,28,18"
+                        Margin="22,0,22,16"
                         Padding="18"
                         Background="#F8FAFC"
                         BorderBrush="#E2E8F0"
@@ -203,7 +203,7 @@
                 </Border>
 
                 <Border Grid.Row="2"
-                        Margin="28,0,28,0"
+                        Margin="22,0,22,0"
                         Background="White"
                         BorderBrush="#CBD5E1"
                         BorderThickness="1"
@@ -248,7 +248,7 @@
 
                         <FlowDocumentScrollViewer x:Name="releaseNotesViewer"
                                                   Grid.Row="1"
-                                                  Padding="24,20"
+                                                  Padding="34,26"
                                                   Background="Transparent"
                                                   BorderThickness="0"
                                                   HorizontalScrollBarVisibility="Disabled"
@@ -259,14 +259,15 @@
                                           PagePadding="0"
                                           ColumnWidth="100000"
                                           FontFamily="Segoe UI"
-                                          FontSize="15"
+                                          FontSize="17"
                                           Foreground="#1E293B"
-                                          LineHeight="25"/>
+                                          LineHeight="30"
+                                          TextAlignment="Left"/>
                         </FlowDocumentScrollViewer>
                     </Grid>
                 </Border>
 
-                <Grid Grid.Row="3" Margin="28,18,28,24">
+                <Grid Grid.Row="3" Margin="22,14,22,18">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>

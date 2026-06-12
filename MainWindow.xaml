@@ -401,23 +401,24 @@
                                             </Style>
                                         </Button.Style>
                                     </Button>
-
                                     <Button Grid.Column="2"
-                Width="50"
-                Height="50"
-                FontSize="11"
-                FontWeight="Bold"
-                Foreground="White"
-                Background="#DC2626"
-                BorderBrush="#7F1D1D"
-                BorderThickness="3"
-                Command="{Binding CancelBoxCMD}"
-                Cursor="Hand">
+        Width="66"
+        Height="56"
+        FontSize="13"
+        FontWeight="Bold"
+        Foreground="White"
+        Background="#DC2626"
+        BorderBrush="#7F1D1D"
+        BorderThickness="3"
+        Command="{Binding CancelBoxCMD}"
+        Cursor="Hand">
                                         <TextBlock Text="HỦY&#x0a;THÙNG"
-                       TextAlignment="Center"
-                       Foreground="White"
-                       FontWeight="Bold"/>
-
+               TextAlignment="Center"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Foreground="White"
+               FontWeight="Bold"
+               TextWrapping="Wrap"/>
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
                                                 <Border CornerRadius="100"
@@ -472,35 +473,6 @@
 
                                     </Button>
 
-                                    <Button Grid.Column="6"
-                Width="76"
-                Height="50"
-                FontSize="10"
-                FontWeight="Bold"
-                Foreground="White"
-                Background="#16A34A"
-                BorderBrush="#166534"
-                BorderThickness="3"
-                Command="{Binding CompleteFullBoxCMD}"
-                Visibility="{Binding IsFullBoxReadyToComplete, Converter={StaticResource BooleanToVisibilityConverter}}"
-                Cursor="Hand">
-                                        <TextBlock Text="ĐÓNG&#x0a;THÙNG ĐỦ"
-                       TextAlignment="Center"
-                       Foreground="White"
-                       FontWeight="Bold"/>
-
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="12"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                          VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
                                 </Grid>
                             </Grid>
                         </materialDesign:Card>
@@ -773,7 +745,7 @@
                                     <!-- SUFFIX -->
                                     <TextBlock Grid.Row="8"
                    Grid.Column="0"
-                   Text="Suffix"
+                   Text="Số Cuối"
                    FontWeight="Bold"
                    VerticalAlignment="Center"/>
 
@@ -1549,7 +1521,7 @@
 
                                     <TextBlock Grid.Row="1"
                                                Margin="0,6,0,0"
-                                               FontSize="58"
+                                               FontSize="40"
                                                FontWeight="ExtraBold"
                                                Foreground="#FFFFFF"
                                                HorizontalAlignment="Center"
@@ -1566,10 +1538,10 @@
                                             <Style TargetType="TextBlock">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding ScanTextResult}" Value="OK">
-                                                        <Setter Property="Text" Value="OK"/>
+                                                         <Setter Property="Text" Value="KẾT QUẢ SCAN: OK"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding ScanTextResult}" Value="NG">
-                                                        <Setter Property="Text" Value="NG"/>
+                                                         <Setter Property="Text" Value="KẾT QUẢ SCAN: NG"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -1578,14 +1550,15 @@
 
                                     <TextBlock Grid.Row="2"
                                                Text="{Binding ScanResultDetailText}"
-                                               Margin="0,8,0,0"
-                                               FontSize="20"
+                                               Margin="8,14,8,0"
+                                               FontSize="23"
                                                FontWeight="SemiBold"
                                                Foreground="#FFFFFF"
-                                               HorizontalAlignment="Center"
-                                               TextAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Left"
                                                TextWrapping="Wrap"
-                                               MaxWidth="360"
+                                               LineHeight="32"
+                                               LineStackingStrategy="BlockLineHeight"
                                                Opacity="0.95"/>
                                 </Grid>
                             </Border>
@@ -1723,13 +1696,15 @@
                                     </DataGridTemplateColumn>
 
                                     <!-- DONE -->
-                                    <DataGridCheckBoxColumn Header="Kết quả"
-                                Binding="{Binding BoxComplete}"
-Width="58" />
+                                    <DataGridTextColumn Header="Trạng thái"
+                                Binding="{Binding BoxCompleteText}"
+                                Width="120"
+                                IsReadOnly="True" />
 
-                                    <DataGridTextColumn Header="Lo&#x1EA1;i"
+                                    <DataGridTextColumn Header="Loại thùng"
                                 Binding="{Binding BoxTypeText}"
-                                Width="92" />
+                                Width="120"
+                                IsReadOnly="True" />
 
                                 </DataGrid.Columns>
 

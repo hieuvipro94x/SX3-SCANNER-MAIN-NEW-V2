@@ -3,26 +3,24 @@
 #define MyAppPublisher "JBZVN"
 #define MyAppExeName "SX3 SCANER.exe"
 #define MySourceDir "..\ReleaseOutput"
+#define MyRepository "hieuvipro94x/sx3-scanner-release"
 
 [Setup]
 AppId={{A6E812B1-9F30-4D3C-A9E2-0A0B0C0D0E0F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL=https://github.com/hieuvipro94x/sx3-scanner-release
-AppSupportURL=https://github.com/hieuvipro94x/sx3-scanner-release/issues
-AppUpdatesURL=https://github.com/hieuvipro94x/sx3-scanner-release/releases
-
+AppPublisherURL=https://github.com/{#MyRepository}
+AppSupportURL=https://github.com/{#MyRepository}/issues
+AppUpdatesURL=https://github.com/{#MyRepository}/releases
 DefaultDirName={autopf}\JBZVN\SX3 Scanner
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
-
 OutputDir=..\InstallerOutput
 OutputBaseFilename=SX3ScannerSetup-{#MyAppVersion}
-
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -31,10 +29,8 @@ UsedUserAreasWarning=no
 CloseApplications=yes
 RestartApplications=no
 SetupLogging=yes
-
 UninstallDisplayName={#MyAppName}
-UninstallDisplayIcon={app}{#MyAppExeName}
-
+UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName}
@@ -64,8 +60,9 @@ Source: "{#MySourceDir}\x86\*"; DestDir: "{app}\x86"; Flags: ignoreversion recur
 Source: "{#MySourceDir}\AnnouncementServer\*"; DestDir: "{app}\AnnouncementServer"; Flags: ignoreversion onlyifdoesntexist recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\SX3 Scanner"; Filename: "{app}{#MyAppExeName}"
-Name: "{commondesktop}\SX3 Scanner"; Filename: "{app}{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Release note"; Filename: "{app}\release-note.txt"
+Name: "{commondesktop}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{sys}\schtasks.exe"; Parameters: "/Create /F /TN ""SX3 Scanner"" /TR ""{app}\{#MyAppExeName}"" /SC ONLOGON /RL HIGHEST"; Flags: runhidden waituntilterminated
@@ -88,10 +85,7 @@ procedure StopAnnouncementServer;
 var
   ShutdownEvent: THandle;
 begin
-  ShutdownEvent := OpenEvent(
-    EVENT_MODIFY_STATE,
-    False,
-    AnnouncementShutdownEvent);
+  ShutdownEvent := OpenEvent(EVENT_MODIFY_STATE, False, AnnouncementShutdownEvent);
   if ShutdownEvent <> 0 then
   begin
     SetEvent(ShutdownEvent);
@@ -104,13 +98,7 @@ procedure KillProcessByName(FileName: string);
 var
   ResultCode: Integer;
 begin
-  Exec(
-    ExpandConstant('{sys}\taskkill.exe'),
-    '/F /IM "' + FileName + '"',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM "' + FileName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 function InitializeSetup(): Boolean;

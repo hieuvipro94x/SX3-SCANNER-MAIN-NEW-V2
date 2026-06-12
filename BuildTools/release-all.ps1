@@ -1,6 +1,7 @@
-﻿param(
+param(
     [string]$Configuration = "Release",
-    [string]$Platform = "x64"
+    [string]$Platform = "x64",
+    [string]$Repository = "hieuvipro94x/sx3-scanner-release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,8 +25,11 @@ function Find-InnoSetup {
     )
 
     foreach ($p in $paths) {
-        if (Test-Path $p) { return $p }
+        if (Test-Path -LiteralPath $p) { return $p }
     }
+
+    $cmd = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
 
     Fail "Khong tim thay Inno Setup 6. Hay cai Inno Setup 6 truoc."
 }
@@ -41,17 +45,18 @@ function Find-MSBuild {
     )
 
     foreach ($p in $paths) {
-        if (Test-Path $p) { return $p }
+        if (Test-Path -LiteralPath $p) { return $p }
     }
+
+    $cmd = Get-Command "MSBuild.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
 
     Fail "Khong tim thay MSBuild. Hay cai Visual Studio/Build Tools voi .NET desktop build tools."
 }
 
 function Find-GitHubCLI {
-    $command = Get-Command "gh.exe" -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
-    }
+    $cmd = Get-Command "gh.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
 
     $paths = @(
         (Join-Path $env:ProgramFiles "GitHub CLI\gh.exe"),
@@ -61,32 +66,34 @@ function Find-GitHubCLI {
     )
 
     foreach ($p in $paths) {
-        if ($p -and (Test-Path $p)) {
-            return $p
-        }
+        if ($p -and (Test-Path -LiteralPath $p)) { return $p }
     }
 
     Fail "Khong tim thay GitHub CLI (gh.exe). Hay cai GitHub CLI truoc."
 }
 
+function Find-Git {
+    $cmd = Get-Command "git.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    Fail "Khong tim thay Git. Hay cai Git truoc."
+}
+
 function Get-ProjectRoot {
     $scriptDir = $PSScriptRoot
+
     if ((Split-Path -Leaf $scriptDir) -ieq "kịch bản") {
         $scriptDir = Split-Path -Parent $scriptDir
     }
+
     if ((Split-Path -Leaf $scriptDir) -ieq "BuildTools") {
         return Split-Path -Parent $scriptDir
     }
+
     return $scriptDir
 }
 
-function Get-GitRoot($ProjectRoot) {
-    $gitCommand = Get-Command "git.exe" -ErrorAction SilentlyContinue
-    if (-not $gitCommand) {
-        Fail "Khong tim thay Git. Hay cai Git truoc."
-    }
-
-    $gitRoot = & $gitCommand.Source -C $ProjectRoot rev-parse --show-toplevel 2>$null
+function Get-GitRoot($ProjectRoot, $GitExe) {
+    $gitRoot = & $GitExe -C $ProjectRoot rev-parse --show-toplevel 2>$null
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($gitRoot)) {
         Fail "Thu muc project khong phai Git repository: $ProjectRoot"
     }
@@ -94,131 +101,19 @@ function Get-GitRoot($ProjectRoot) {
     return $gitRoot.Trim()
 }
 
-function Publish-GitHubRelease(
-    $GitRoot,
-    $GitHubCLI,
-    $Repository,
-    $Version,
-    $InstallerFile,
-    $ReleaseNoteFile
-) {
-    $tag = "v$Version"
-    $title = "SX3 Scanner $Version"
-    $installerFileName = Split-Path -Leaf $InstallerFile
-    $releaseNotes = Get-Content -LiteralPath $ReleaseNoteFile -Raw -Encoding UTF8
-
-    Info "`n[5/9] Commit source code..."
-    & git -C $GitRoot add .
-    Assert-LastExitCode "git add"
-
-    & git -C $GitRoot diff --cached --quiet
-    $diffExitCode = $LASTEXITCODE
-    if ($diffExitCode -eq 0) {
-        Warn "Khong co thay doi de commit. Tiep tuc tao release."
-    }
-    elseif ($diffExitCode -eq 1) {
-        & git -C $GitRoot commit -m "Release $tag"
-        Assert-LastExitCode "git commit"
-    }
-    else {
-        Fail "Khong kiem tra duoc thay doi Git. ExitCode=$diffExitCode"
-    }
-
-    Info "`n[6/9] Push source code..."
-    & git -C $GitRoot push
-    Assert-LastExitCode "git push"
-
-    Info "`n[7/9] Tao lai tag $tag..."
-    & git -C $GitRoot show-ref --verify --quiet "refs/tags/$tag"
-    $localTagExitCode = $LASTEXITCODE
-    if ($localTagExitCode -eq 0) {
-        & git -C $GitRoot tag -d $tag
-        Assert-LastExitCode "git tag -d $tag"
-    }
-    elseif ($localTagExitCode -ne 1) {
-        Fail "Khong kiem tra duoc local tag $tag. ExitCode=$localTagExitCode"
-    }
-
-    & git -C $GitRoot tag $tag
-    Assert-LastExitCode "git tag $tag"
-
-    & git -C $GitRoot push origin $tag --force
-    Assert-LastExitCode "git push origin $tag --force"
-
-    Write-Step "[8/9] Xoa GitHub Release cu neu da ton tai..."
-
-    $releaseExists = $false
-    $releaseViewOutput = $null
-
-    try {
-        $releaseViewOutput = & $GitHubCLI release view $tag --repo $Repository 2>&1
-        $releaseViewExitCode = $LASTEXITCODE
-
-        if ($releaseViewExitCode -eq 0) {
-            $releaseExists = $true
-        }
-        else {
-            $releaseViewText = ($releaseViewOutput | Out-String)
-
-            if ($releaseViewText -notmatch "release not found" -and
-                $releaseViewText -notmatch "Not Found" -and
-                $releaseViewText -notmatch "could not resolve to a Release") {
-                Fail "Khong kiem tra duoc GitHub Release $tag. Chi tiet: $releaseViewText"
-            }
-        }
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-        $releaseViewText = (($releaseViewOutput | Out-String) + $errorMessage)
-
-        if ($releaseViewText -match "release not found" -or
-            $releaseViewText -match "Not Found" -or
-            $releaseViewText -match "could not resolve to a Release") {
-            $releaseExists = $false
-        }
-        else {
-            throw
-        }
-    }
-
-    if ($releaseExists) {
-        Write-Host "Da tim thay GitHub Release cu: $tag. Dang xoa..." -ForegroundColor Yellow
-
-        & $GitHubCLI release delete $tag --repo $Repository --yes
-        if ($LASTEXITCODE -ne 0) {
-            Fail "Khong xoa duoc GitHub Release cu: $tag"
-        }
-
-        Write-Host "Da xoa GitHub Release cu: $tag" -ForegroundColor Green
-    }
-    else {
-        Write-Host "GitHub Release $tag chua ton tai, bo qua buoc xoa." -ForegroundColor Yellow
-    }
-
-    Info "`n[9/9] Tao GitHub Release va upload assets..."
-    & $GitHubCLI release create $tag `
-        $InstallerFile `
-        $ReleaseNoteFile `
-        $manifestPath `
-        --repo $Repository `
-        --title $title `
-        --notes-file $ReleaseNoteFile
-    Assert-LastExitCode "gh release create $tag"
-}
-
 function Read-VersionFromAssemblyInfo($ProjectRoot) {
     $assemblyInfo = Get-ChildItem -Path $ProjectRoot -Recurse -File -Filter "AssemblyInfo.cs" |
-        Where-Object { $_.FullName -notmatch "\\bin\\|\\obj\\|\\InstallerOutput\\|\\ReleasePackages\\" } |
+        Where-Object { $_.FullName -notmatch "\\bin\\|\\obj\\|\\InstallerOutput\\|\\ReleasePackages\\|\\ReleaseOutput\\" } |
         Select-Object -First 1
 
     if (-not $assemblyInfo) {
         Fail "Khong tim thay Properties\AssemblyInfo.cs de doc version."
     }
 
-    $text = Get-Content -Path $assemblyInfo.FullName -Raw -Encoding UTF8
+    $text = Get-Content -LiteralPath $assemblyInfo.FullName -Raw -Encoding UTF8
 
     $patterns = @(
-        'AssemblyInformationalVersion\("([^"]+)"\)',
+        'AssemblyInformationalVersion\("([^"+]+)(?:\+[^"+]+)?"\)',
         'AssemblyFileVersion\("([^"]+)"\)',
         'AssemblyVersion\("([^"]+)"\)'
     )
@@ -227,7 +122,6 @@ function Read-VersionFromAssemblyInfo($ProjectRoot) {
         $match = [regex]::Match($text, $pattern)
         if ($match.Success) {
             $raw = $match.Groups[1].Value.Trim()
-            $raw = $raw.Split("+")[0]
             $parts = $raw.Split(".")
             if ($parts.Length -ge 3) {
                 return "$($parts[0]).$($parts[1]).$($parts[2])"
@@ -241,7 +135,7 @@ function Read-VersionFromAssemblyInfo($ProjectRoot) {
 function Get-ReleaseNote($BuildToolsDir, $Version) {
     $notePath = Join-Path $BuildToolsDir "release-note.txt"
 
-    if (-not (Test-Path $notePath)) {
+    if (-not (Test-Path -LiteralPath $notePath)) {
         $defaultText = @"
 SX3 SCANNER RELEASE NOTE
 
@@ -257,11 +151,11 @@ Huong dan cai dat:
 3. Chon Next de cai dat.
 "@
         New-Item -ItemType Directory -Force -Path $BuildToolsDir | Out-Null
-        $defaultText | Out-File -FilePath $notePath -Encoding UTF8
+        $defaultText | Out-File -LiteralPath $notePath -Encoding UTF8
         Ok "Da tao file release-note.txt: $notePath"
     }
 
-    $noteText = Get-Content -Path $notePath -Raw -Encoding UTF8
+    $noteText = Get-Content -LiteralPath $notePath -Raw -Encoding UTF8
     if ([string]::IsNullOrWhiteSpace($noteText)) {
         Fail "BuildTools\release-note.txt dang rong. Hay nhap noi dung release note."
     }
@@ -270,6 +164,120 @@ Huong dan cai dat:
         Path = $notePath
         Text = $noteText.Trim()
     }
+}
+
+function Test-GitHubReleaseExists($GitHubCLI, $Repository, $Tag) {
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & $GitHubCLI release view $Tag --repo $Repository *> $null
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    return $exitCode -eq 0
+}
+
+function Test-RemoteTagExists($GitExe, $GitRoot, $Tag) {
+    $output = & $GitExe -C $GitRoot ls-remote --tags origin "refs/tags/$Tag" 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ne 0) {
+        Fail "Khong kiem tra duoc remote tag $Tag. Chi tiet: $($output | Out-String)"
+    }
+
+    return -not [string]::IsNullOrWhiteSpace(($output | Out-String))
+}
+
+function New-ReleaseManifest($InstallerFile, $ManifestFile, $Version, $Repository) {
+    $sha256 = (Get-FileHash -LiteralPath $InstallerFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    $installerName = Split-Path -Leaf $InstallerFile
+
+    $manifest = @"
+SX3 Scanner Release Manifest
+Version: $Version
+Repository: $Repository
+Installer: $installerName
+SHA256: $sha256
+Build time: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+"@
+
+    $manifest | Out-File -LiteralPath $ManifestFile -Encoding UTF8
+    return $sha256
+}
+
+function Publish-GitHubDraftRelease(
+    $GitRoot,
+    $GitExe,
+    $GitHubCLI,
+    $Repository,
+    $Version,
+    $InstallerFile,
+    $ReleaseNoteFile,
+    $ManifestFile
+) {
+    $tag = "v$Version"
+    $title = "SX3 Scanner $Version"
+
+    Write-Step "[5/9] Kiem tra release/tag da ton tai..."
+
+    if (Test-GitHubReleaseExists -GitHubCLI $GitHubCLI -Repository $Repository -Tag $tag) {
+        Fail "Release $tag da ton tai. Hay tang version trong app."
+    }
+
+    if (Test-RemoteTagExists -GitExe $GitExe -GitRoot $GitRoot -Tag $tag) {
+        Fail "Git tag $tag da ton tai tren origin. Script KHONG ghi de tag cu. Hay tang version app truoc khi dong goi."
+    }
+
+    & $GitExe -C $GitRoot show-ref --verify --quiet "refs/tags/$tag"
+    $localTagExitCode = $LASTEXITCODE
+    if ($localTagExitCode -eq 0) {
+        Fail "Local tag $tag da ton tai. Script KHONG xoa tag cu. Hay tang version app hoac xoa tag local thu cong neu chac chan."
+    }
+    elseif ($localTagExitCode -ne 1) {
+        Fail "Khong kiem tra duoc local tag $tag. ExitCode=$localTagExitCode"
+    }
+
+    Write-Step "[6/9] Commit source code neu co thay doi..."
+    & $GitExe -C $GitRoot add .
+    Assert-LastExitCode "git add"
+
+    & $GitExe -C $GitRoot diff --cached --quiet
+    $diffExitCode = $LASTEXITCODE
+    if ($diffExitCode -eq 0) {
+        Warn "Khong co thay doi de commit. Tiep tuc tao draft release."
+    }
+    elseif ($diffExitCode -eq 1) {
+        & $GitExe -C $GitRoot commit -m "Release $tag"
+        Assert-LastExitCode "git commit"
+    }
+    else {
+        Fail "Khong kiem tra duoc thay doi Git. ExitCode=$diffExitCode"
+    }
+
+    Write-Step "[7/9] Push source code..."
+    & $GitExe -C $GitRoot push
+    Assert-LastExitCode "git push"
+
+    Write-Step "[8/9] Tao tag moi $tag..."
+    & $GitExe -C $GitRoot tag -a $tag -m "Release $tag"
+    Assert-LastExitCode "git tag -a $tag"
+
+    & $GitExe -C $GitRoot push origin $tag
+    Assert-LastExitCode "git push origin $tag"
+
+    Write-Step "[9/9] Tao GitHub Draft Release va upload assets..."
+    & $GitHubCLI release create $tag `
+        $InstallerFile `
+        $ReleaseNoteFile `
+        $ManifestFile `
+        --repo $Repository `
+        --title $title `
+        --notes-file $ReleaseNoteFile `
+        --draft
+    Assert-LastExitCode "gh release create $tag --draft"
 }
 
 $ProjectRoot = Get-ProjectRoot
@@ -286,12 +294,19 @@ $ReleaseNote = Get-ReleaseNote -BuildToolsDir $BuildToolsDir -Version $Version
 $InstallerFileName = "SX3ScannerSetup-$Version.exe"
 $InstallerFile = Join-Path $OutputDir $InstallerFileName
 $ReleaseNoteOutputFile = Join-Path $OutputDir "release-note.txt"
+$ManifestFile = Join-Path $OutputDir "release-manifest.txt"
 $IssFile = Join-Path $OutputDir "SX3ScannerSetup.iss"
-$GitHubRepository = "hieuvipro94x/sx3-scanner-release"
-$ReleaseUrl = "https://github.com/$GitHubRepository/releases/tag/v$Version"
+$ReleaseUrl = "https://github.com/$Repository/releases/tag/v$Version"
 
+$GitExe = Find-Git
 $GitHubCLI = Find-GitHubCLI
+$MSBuild = Find-MSBuild
+$InnoCompiler = Find-InnoSetup
+
+Ok "Git: $GitExe"
 Ok "GitHub CLI: $GitHubCLI"
+Ok "MSBuild: $MSBuild"
+Ok "Inno Setup: $InnoCompiler"
 
 Info "Kiem tra dang nhap GitHub CLI..."
 & $GitHubCLI auth status
@@ -299,69 +314,54 @@ if ($LASTEXITCODE -ne 0) {
     Fail "Chua dang nhap GitHub CLI. Hay chay: gh auth login"
 }
 
-$GitRoot = Get-GitRoot $ProjectRoot
+$GitRoot = Get-GitRoot -ProjectRoot $ProjectRoot -GitExe $GitExe
 Ok "Git repository: $GitRoot"
 
 Info "====================================="
 Info " SX3 SCANNER X64 BUILD + PACKAGE"
 Info " Version from AssemblyInfo: $Version"
+Info " GitHub release mode: DRAFT, no delete, no force"
 Info "====================================="
 Info "ProjectRoot: $ProjectRoot"
 Info "Release source: $BinRelease"
 Info "Output: $OutputDir"
-
-$MSBuild = Find-MSBuild
-Ok "MSBuild: $MSBuild"
+Info "Repository: $Repository"
 
 Info "`nDon artifact cu truoc khi build..."
-if (Test-Path -LiteralPath $ReleaseOutputDir) {
-    $resolvedReleaseOutput = [IO.Path]::GetFullPath($ReleaseOutputDir)
-    $resolvedProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\')
-    if (-not $resolvedReleaseOutput.StartsWith(
-        $resolvedProjectRoot + '\',
-        [StringComparison]::OrdinalIgnoreCase)) {
-        Fail "Tu choi xoa thu muc ngoai project: $resolvedReleaseOutput"
+foreach ($dir in @($ReleaseOutputDir, $OutputDir)) {
+    if (Test-Path -LiteralPath $dir) {
+        $resolvedDir = [IO.Path]::GetFullPath($dir)
+        $resolvedProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\')
+        if (-not $resolvedDir.StartsWith($resolvedProjectRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            Fail "Tu choi xoa thu muc ngoai project: $resolvedDir"
+        }
+        Remove-Item -LiteralPath $resolvedDir -Recurse -Force
     }
-    Remove-Item -LiteralPath $resolvedReleaseOutput -Recurse -Force
-}
-
-if (Test-Path -LiteralPath $OutputDir) {
-    $resolvedOutputDir = [IO.Path]::GetFullPath($OutputDir)
-    $resolvedProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\')
-    if (-not $resolvedOutputDir.StartsWith(
-        $resolvedProjectRoot + '\',
-        [StringComparison]::OrdinalIgnoreCase)) {
-        Fail "Tu choi xoa thu muc ngoai project: $resolvedOutputDir"
-    }
-    Remove-Item -LiteralPath $resolvedOutputDir -Recurse -Force
 }
 
 if (Test-Path -LiteralPath $BinRelease) {
-    Get-ChildItem -LiteralPath $BinRelease -Filter "SX3.AnnouncementServer.*" -File |
+    Get-ChildItem -LiteralPath $BinRelease -Filter "SX3.AnnouncementServer.*" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force
 }
 
-Info "`n[0/5] Build $Configuration|$Platform..."
+Write-Step "[1/9] Build $Configuration|$Platform..."
 & $MSBuild $ProjectFile /t:Rebuild /p:Configuration=$Configuration /p:Platform=$Platform /m
 Assert-LastExitCode "MSBuild $Configuration|$Platform"
 
 if (Test-Path -LiteralPath $BinRelease) {
-    Get-ChildItem -LiteralPath $BinRelease -Filter "SX3.AnnouncementServer.*" -File |
+    Get-ChildItem -LiteralPath $BinRelease -Filter "SX3.AnnouncementServer.*" -File -ErrorAction SilentlyContinue |
         Remove-Item -Force
 }
 
 $Exe = Join-Path $BinRelease "SX3 SCANER.exe"
-if (-not (Test-Path $Exe)) {
+if (-not (Test-Path -LiteralPath $Exe)) {
     Fail "Khong tim thay file EXE x64: $Exe."
 }
-
-$InnoCompiler = Find-InnoSetup
-Ok "Inno Setup: $InnoCompiler"
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $PackageDir | Out-Null
 
-Info "`n[1/5] Copy bin\Release vao PackageFiles..."
+Write-Step "[2/9] Copy bin\$Platform\$Configuration vao PackageFiles..."
 Copy-Item -Path (Join-Path $BinRelease "*") -Destination $PackageDir -Recurse -Force
 
 $PackagedServer = Join-Path $PackageDir "AnnouncementServer\SX3.AnnouncementServer.exe"
@@ -373,15 +373,15 @@ if (Test-Path -LiteralPath $UnexpectedRootServer) {
     Fail "Package khong hop le: Announcement Server khong duoc nam o root."
 }
 
-Info "`n[2/5] Copy release-note.txt..."
-Copy-Item -Path $ReleaseNote.Path -Destination (Join-Path $PackageDir "release-note.txt") -Force
-Copy-Item -Path $ReleaseNote.Path -Destination (Join-Path $PackageDir "RELEASE_NOTES.txt") -Force
-Copy-Item -Path $ReleaseNote.Path -Destination $ReleaseNoteOutputFile -Force
+Write-Step "[3/9] Copy release-note.txt..."
+Copy-Item -LiteralPath $ReleaseNote.Path -Destination (Join-Path $PackageDir "release-note.txt") -Force
+Copy-Item -LiteralPath $ReleaseNote.Path -Destination (Join-Path $PackageDir "RELEASE_NOTES.txt") -Force
+Copy-Item -LiteralPath $ReleaseNote.Path -Destination $ReleaseNoteOutputFile -Force
 
-Info "`n[3/4] Tao Inno Setup script..."
+Write-Step "[4/9] Tao Inno Setup script va dong goi installer..."
 $IconLine = ""
 $IconPath = Join-Path $ProjectRoot "scan.ico"
-if (Test-Path $IconPath) {
+if (Test-Path -LiteralPath $IconPath) {
     $IconLine = "SetupIconFile=$($IconPath.Replace('"', '""'))"
 }
 
@@ -399,36 +399,40 @@ AppId={{A6E812B1-9F30-4D3C-A9E2-0A0B0C0D0E0F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-AppPublisherURL=https://github.com/hieuvipro94x/sx3-scanner-release
-AppSupportURL=https://github.com/hieuvipro94x/sx3-scanner-release/issues
-AppUpdatesURL=https://github.com/hieuvipro94x/sx3-scanner-release/releases
+AppPublisherURL=https://github.com/$Repository
+AppSupportURL=https://github.com/$Repository/issues
+AppUpdatesURL=https://github.com/$Repository/releases
 DefaultDirName={autopf}\JBZVN\SX3 Scanner
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+DisableDirPage=no
 OutputDir=$EscapedOutputDir
-OutputBaseFilename=SX3ScannerSetup-$Version
+OutputBaseFilename=SX3ScannerSetup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 UsedUserAreasWarning=no
-DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
+SetupLogging=yes
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
+VersionInfoCopyright=Copyright © 2026 NAM
 $IconLine
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Dirs]
 Name: "{commonappdata}\JBZVN\SX3 Scanner"; Permissions: users-modify
@@ -471,10 +475,7 @@ procedure StopAnnouncementServer;
 var
   ShutdownEvent: THandle;
 begin
-  ShutdownEvent := OpenEvent(
-    EVENT_MODIFY_STATE,
-    False,
-    AnnouncementShutdownEvent);
+  ShutdownEvent := OpenEvent(EVENT_MODIFY_STATE, False, AnnouncementShutdownEvent);
   if ShutdownEvent <> 0 then
   begin
     SetEvent(ShutdownEvent);
@@ -487,13 +488,7 @@ procedure KillProcessByName(FileName: string);
 var
   ResultCode: Integer;
 begin
-  Exec(
-    ExpandConstant('{sys}\taskkill.exe'),
-    '/F /IM "' + FileName + '"',
-    '',
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM "' + FileName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
 function InitializeSetup(): Boolean;
@@ -520,35 +515,34 @@ begin
 end;
 "@
 
-$IssContent | Out-File -FilePath $IssFile -Encoding UTF8
+$IssContent | Out-File -LiteralPath $IssFile -Encoding UTF8
 
-Info "`n[4/4] Dong goi installer..."
 & $InnoCompiler $IssFile
 Assert-LastExitCode "Inno Setup build"
 
-if (-not (Test-Path $InstallerFile)) {
+if (-not (Test-Path -LiteralPath $InstallerFile)) {
     Fail "Khong tim thay installer: $InstallerFile"
 }
 
-$Sha256 = (Get-FileHash -Path $InstallerFile -Algorithm SHA256).Hash.ToLowerInvariant()
+$Sha256 = New-ReleaseManifest -InstallerFile $InstallerFile -ManifestFile $ManifestFile -Version $Version -Repository $Repository
 
-Publish-GitHubRelease `
+Publish-GitHubDraftRelease `
     -GitRoot $GitRoot `
+    -GitExe $GitExe `
     -GitHubCLI $GitHubCLI `
-    -Repository $GitHubRepository `
+    -Repository $Repository `
     -Version $Version `
     -InstallerFile $InstallerFile `
-    -ReleaseNoteFile $ReleaseNoteOutputFile
+    -ReleaseNoteFile $ReleaseNoteOutputFile `
+    -ManifestFile $ManifestFile
 
 Ok "`n====================================="
-Ok "RELEASE THANH CONG"
-Ok ""
+Ok "DRAFT RELEASE DA DUOC TAO THANH CONG"
 Ok "Version: $Version"
-Ok ""
-Ok "Release URL:"
-Ok $ReleaseUrl
-Ok ""
+Ok "Release URL: $ReleaseUrl"
 Ok "Assets:"
 Ok "- $InstallerFileName"
 Ok "- release-note.txt"
+Ok "- release-manifest.txt"
+Ok "SHA256: $Sha256"
 Ok "====================================="

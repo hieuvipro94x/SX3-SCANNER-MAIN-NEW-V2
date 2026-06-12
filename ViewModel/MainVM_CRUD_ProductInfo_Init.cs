@@ -63,7 +63,7 @@ namespace SX3_SCANER.ViewModel
 
         private void UpdateStringSample()
         {
-            CURR_SAMPLE = $"{CURR_PREFIX ?? string.Empty}{CURR_PARTNAME ?? string.Empty}yyMMdd####{CURR_SUFFIX ?? string.Empty}";
+            CURR_SAMPLE = $"{CURR_PREFIX ?? string.Empty}{CURR_PARTNAME ?? string.Empty}yyMMdd2###{CURR_SUFFIX ?? string.Empty}";
 
         }
         private int _CURR_LENGTH;

@@ -1,17 +1,119 @@
-# Release Notes
+# SX3 Scanner - Cập nhật tối ưu đóng thùng, scan bù và giao diện cảnh báo
 
-### ✨ Cải tiến trải nghiệm khởi động ứng dụng
+## Tổng quan
 
-* Loại bỏ cơ chế tạo file `startup.log`.
-* Thay thế bằng thanh trạng thái trực tiếp trên giao diện.
-* Hiển thị tiến trình khởi động theo thời gian thực:
+Bản cập nhật này tập trung tối ưu luồng vận hành scan thùng, đặc biệt là các trường hợp thiếu hàng, scan bù khác ngày, đóng thùng lẻ và cảnh báo lỗi. Giao diện thông báo cũng được làm rõ hơn để người vận hành dễ nhận biết đúng nguyên nhân lỗi.
 
-  * Kiểm tra dữ liệu
-  * Khởi tạo cơ sở dữ liệu
-  * Kiểm tra kết nối
-  * Tải cấu hình hệ thống
-* Giảm ghi log không cần thiết giúp ứng dụng khởi động gọn gàng hơn.
-* Tối ưu hiệu năng và giảm hoạt động đọc/ghi đĩa khi mở ứng dụng.
-* Cải thiện khả năng theo dõi trạng thái hệ thống cho người dùng.
+## Thay đổi chính
 
-✅ Kết quả: Ứng dụng khởi động sạch hơn, nhanh hơn và trực quan hơn.
+### 1. Tối ưu scan bù khác ngày vào cùng một thùng
+
+* Cho phép thùng tạo từ ngày A tiếp tục scan bù tem của ngày B khi thùng chưa đủ số lượng.
+* Khi đổi ngày trên app trong lúc thùng đang mở, hệ thống không reset thùng.
+* Box gốc vẫn giữ ngày tạo ban đầu.
+* Tem scan sau khi đổi ngày sẽ được kiểm tra theo ngày đang chọn mới.
+* Thời gian scan của tem bù được ghi theo ngày scan thực tế, không bị khóa theo ngày tạo thùng.
+
+Ví dụ:
+
+* Tạo thùng ngày 10/06, target 30 EA.
+* Scan được 20 EA.
+* Đổi ngày sang 11/06 để scan bù 10 EA.
+* Hệ thống cho phép scan tem ngày 11/06 vào cùng thùng ngày 10/06.
+* Khi đủ 30 EA, thùng được đóng thành công.
+
+### 2. Sửa rule LotNo
+
+* LotNo bắt buộc đúng 4 ký tự số.
+* LotNo bắt buộc nằm trong dải 2000 - 2999.
+* Các LotNo như 3000, 4000, 1000 hoặc ký tự không hợp lệ sẽ bị báo NG.
+* Mẫu hiển thị được cập nhật từ `yyMMdd####` thành `yyMMdd2###`.
+
+### 3. Tối ưu thông báo lỗi scan
+
+* Báo lỗi rõ ràng theo đúng nguyên nhân.
+* Không còn báo lỗi chung chung.
+* Bỏ các cụm từ “mong đợi”, “tên sản phẩm mong đợi”, “ngày mong đợi”.
+* Thay bằng cách hiển thị chuyên nghiệp hơn:
+
+```text
+Chi tiết lỗi
+Tiêu chuẩn
+Thực tế
+Hướng xử lý
+```
+
+Ví dụ lỗi LotNo:
+
+```text
+NG - Sai LotNo
+Tiêu chuẩn: LotNo từ 2000 đến 2999
+Thực tế: 3000
+Hướng xử lý: Kiểm tra lại LotNo trên tem.
+```
+
+### 4. Đồng bộ giao diện cảnh báo vận hành
+
+Các màn cảnh báo quan trọng được làm lớn hơn, rõ hơn và đồng bộ giao diện:
+
+* Kết quả scan NG
+* Xác nhận đóng thùng lẻ
+* Cảnh báo hủy thùng
+
+Cải tiến giao diện:
+
+* Font chữ lớn hơn, dễ nhìn hơn.
+* Popup cảnh báo rộng hơn, gần ngang màn hình.
+* Nội dung chia rõ theo trạng thái, chi tiết và hướng xử lý.
+* Nút thao tác lớn hơn, dễ bấm hơn trên máy scan.
+* Không dùng cảnh báo nhỏ khó nhìn cho các thao tác quan trọng.
+
+### 5. Tối ưu xác nhận đóng thùng lẻ
+
+* Thay hộp thoại nhỏ bằng màn xác nhận lớn.
+* Hiển thị rõ số lượng hiện tại và số lượng tiêu chuẩn.
+* Người vận hành dễ phân biệt giữa đóng thùng đủ và đóng thùng lẻ.
+* Giảm rủi ro bấm nhầm khi thùng chưa đủ số lượng.
+
+### 6. Tối ưu cảnh báo hủy thùng
+
+* Giao diện hủy thùng được đồng bộ với cảnh báo scan NG và đóng thùng lẻ.
+* Nội dung cảnh báo rõ ràng hơn:
+
+```text
+Trạng thái: Chuẩn bị hủy thùng đang mở
+Chi tiết: Dữ liệu scan của thùng hiện tại sẽ bị xóa khỏi phiên làm việc.
+Hướng xử lý: Chỉ xác nhận khi tạo nhầm thùng hoặc cần scan lại từ đầu.
+```
+
+### 7. Cải thiện hiển thị trạng thái thùng
+
+* Đổi cột “Kết quả” dạng checkbox sang trạng thái chữ dễ hiểu hơn.
+* Các trạng thái hiển thị rõ hơn:
+
+```text
+Đang mở
+Thiếu hàng
+Đủ SL
+Đã đóng
+```
+
+* Cột “Loại” được đổi thành “Loại thùng” và tăng độ rộng để dễ đọc.
+
+### 8. Tối ưu giao diện Release Notes
+
+* Tăng kích thước cửa sổ chi tiết bản cập nhật.
+* Mở rộng vùng nội dung thay đổi.
+* Release note dài vẫn hiển thị đẹp, dễ đọc.
+* Nội dung tự xuống dòng, có thanh cuộn dọc và không bị tràn ngang.
+* Tăng font và khoảng cách dòng để phù hợp màn hình vận hành.
+
+## Lợi ích sau cập nhật
+
+* Scan bù linh hoạt hơn khi thiếu hàng theo ngày.
+* Không còn lỗi sai ngày khi scan bù vào thùng đang mở.
+* Kiểm soát LotNo chặt chẽ hơn.
+* Người vận hành nhìn lỗi nhanh và chính xác hơn.
+* Giảm rủi ro đóng nhầm, hủy nhầm hoặc scan sai tem.
+* Giao diện cảnh báo đồng bộ và chuyên nghiệp hơn.
+

@@ -260,14 +260,16 @@ namespace SX3_SCANER.ViewModel
                         StringComparison.OrdinalIgnoreCase)))
             {
                 ShowDuplicateScanMessage(
-                    "Tem này đã được scan trong thùng hiện tại.");
+                    "Tem này đã được scan trong thùng hiện tại.",
+                    inputScanCode);
                 return;
             }
 
             if (await Task.Run(() => _scanHistoryRepository.ScanDataExists(inputScanCode)))
             {
                 ShowDuplicateScanMessage(
-                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.");
+                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
+                    inputScanCode);
                 return;
             }
 
@@ -393,6 +395,7 @@ namespace SX3_SCANER.ViewModel
                             {
                                 _boxProductRepository.UpdateBoxProgress(
                                     persistedBoxName,
+                                    ScanLabelDate,
                                     connection,
                                     transaction);
                             }
@@ -421,7 +424,8 @@ namespace SX3_SCANER.ViewModel
                 _duplicateLotForCurrentScan = false;
                 ResetScanStatus();
                 ShowDuplicateScanMessage(
-                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.");
+                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
+                    inputScanCode);
                 return;
             }
             catch (Exception ex)
@@ -454,11 +458,9 @@ namespace SX3_SCANER.ViewModel
             }
             else
             {
-                MessageBox.Show(
-                    BuildNgPopupMessage(inputScanCode),
-                    "K\u1EBET QU\u1EA2 SCAN: NG",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                ScanErrorPresentation error = BuildNgErrorPresentation(inputScanCode);
+                ScanResultDetailText = error.ToDisplayText();
+                ShowScanErrorWindow(error);
             }
 
             if (isPass)
@@ -506,15 +508,32 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                MessageBoxResult result = MessageBox.Show(
-                    "Thùng hiện tại chưa đủ số lượng. Bạn có chắc muốn đóng thùng lẻ không?",
-                    "X\u00C1C NH\u1EACN TH\u00D9NG L\u1EBA",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (result == MessageBoxResult.Yes)
+                try
                 {
-                    await CompleteBoxAsync(true);
+                    var dialog = new ConfirmPartialBoxWD(
+                        CurrentScanProgress,
+                        SelectedQuantity);
+                    Window owner = Application.Current?.MainWindow;
+                    if (owner != null && owner.IsVisible)
+                    {
+                        dialog.Owner = owner;
+                    }
+
+                    bool? result = dialog.ShowDialog();
+                    if (result == true)
+                    {
+                        await CompleteBoxAsync(true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StartupManager.Log(
+                        "Khong mo duoc man hinh xac nhan dong thung le. Chi tiet: " + ex);
+                    MessageBox.Show(
+                        "Không thể mở màn hình xác nhận đóng thùng lẻ.\n\n" + ex.Message,
+                        "Lỗi giao diện",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             }
             finally
@@ -712,19 +731,55 @@ namespace SX3_SCANER.ViewModel
 
         private DateTime GetBusinessScanTime()
         {
-            return BoxDate.Date.Add(DateTime.Now.TimeOfDay);
+            return ScanLabelDate.Date.Add(DateTime.Now.TimeOfDay);
         }
 
-        private void ShowDuplicateScanMessage(string message)
+        private void ShowDuplicateScanMessage(string message, string scanData)
         {
             ScanTextResult = NG;
-            ScanResultDetailText = message;
+            var error = new ScanErrorPresentation
+            {
+                Detail = "NG - Tr\u00F9ng tem",
+                Standard = "M\u1ED7i tem ch\u1EC9 \u0111\u01B0\u1EE3c scan m\u1ED9t l\u1EA7n",
+                Actual = DisplayActualValue(scanData),
+                Resolution = "Ki\u1EC3m tra l\u1EA1i tem v\u00E0 l\u1ECBch s\u1EED scan."
+            };
+            ScanResultDetailText = error.ToDisplayText();
             InputScanCode = string.Empty;
-            MessageBox.Show(
-                message,
-                "TRÙNG TEM",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            StartupManager.SetStatus(message);
+            ShowScanErrorWindow(error);
+        }
+
+        private void ShowScanErrorWindow(ScanErrorPresentation error)
+        {
+            if (error == null)
+                return;
+
+            try
+            {
+                var dialog = new ScanErrorWD(
+                    error.Detail,
+                    error.Standard,
+                    error.Actual,
+                    error.Resolution);
+                Window owner = Application.Current?.MainWindow;
+                if (owner != null && owner.IsVisible)
+                {
+                    dialog.Owner = owner;
+                }
+
+                dialog.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "Khong mo duoc man hinh ket qua scan NG. Chi tiet: " + ex);
+                MessageBox.Show(
+                    error.ToDisplayText() + "\n\nChi tiết lỗi giao diện: " + ex.Message,
+                    "KẾT QUẢ SCAN: NG",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private bool CheckLength(string input)
@@ -821,7 +876,9 @@ namespace SX3_SCANER.ViewModel
 
             string lotNo = input.Substring(0, 4);
 
-            if (!int.TryParse(lotNo, out int _))
+            if (lotNo.Length != 4 ||
+                !lotNo.StartsWith("2", StringComparison.Ordinal) ||
+                !int.TryParse(lotNo, out int _))
             {
                 LotNo_OK = 0;
 
@@ -884,25 +941,152 @@ namespace SX3_SCANER.ViewModel
             return input.Substring(lotStart, 4);
         }
 
-        private string BuildNgPopupMessage(string inputScanCode)
+        private ScanErrorPresentation BuildNgErrorPresentation(string inputScanCode)
         {
+            string normalizedMessage = ScanHistory.RemoveVietnameseSigns(
+                ScanHistory.NormalizeScanMessage(_ScanMess))
+                .ToUpperInvariant();
             string lotNo = !string.IsNullOrWhiteSpace(_CurrentScanHistory?.LotNo)
                 ? _CurrentScanHistory.LotNo
                 : TryExtractLotNo(inputScanCode);
+            string actualPartName = ExtractScanSegment(
+                inputScanCode,
+                PrefixExpected?.Length ?? 0,
+                PNameExpected?.Length ?? 0);
+            string actualSealNo = ExtractScanSegment(
+                inputScanCode,
+                (PrefixExpected?.Length ?? 0) + (PNameExpected?.Length ?? 0),
+                SealNoExpected?.Length ?? 0);
 
-            var builder = new StringBuilder();
-            builder.AppendLine("L\u1ED7i c\u1EE5 th\u1EC3: " + ScanHistory.NormalizeScanMessage(_ScanMess));
-            builder.AppendLine("M\u00E3 \u0111ang scan: " + (inputScanCode ?? string.Empty));
-            builder.AppendLine("PartNumber \u0111ang ch\u1ECDn: " + (SelectedPartNumber ?? string.Empty));
-            builder.AppendLine("T\u00EAn s\u1EA3n ph\u1EA9m mong \u0111\u1EE3i: " + (PNameExpected ?? string.Empty));
-            builder.AppendLine("SealNo/ng\u00E0y mong \u0111\u1EE3i: " + (SealNoExpected ?? string.Empty));
+            if (normalizedMessage.Contains("LOT"))
+            {
+                bool isDuplicate = normalizedMessage.Contains("TRUNG");
+                return new ScanErrorPresentation
+                {
+                    Detail = isDuplicate ? "NG - Tr\u00F9ng LotNo" : "NG - Sai LotNo",
+                    Standard = isDuplicate
+                        ? "LotNo ch\u01B0a \u0111\u01B0\u1EE3c scan trong th\u00F9ng ho\u1EB7c l\u1ECBch s\u1EED"
+                        : "LotNo t\u1EEB 2000 \u0111\u1EBFn 2999",
+                    Actual = DisplayActualValue(lotNo),
+                    Resolution = isDuplicate
+                        ? "Ki\u1EC3m tra l\u1EA1i tem, tr\u00E1nh scan tr\u00F9ng LotNo."
+                        : "Ki\u1EC3m tra l\u1EA1i LotNo tr\u00EAn tem."
+                };
+            }
 
-            if (!string.IsNullOrWhiteSpace(lotNo))
-                builder.AppendLine("LotNo \u0111\u1ECDc \u0111\u01B0\u1EE3c: " + lotNo);
+            if (normalizedMessage.Contains("NGAY") ||
+                normalizedMessage.Contains("SEAL"))
+            {
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai ng\u00E0y s\u1EA3n xu\u1EA5t",
+                    Standard = DisplayActualValue(SealNoExpected),
+                    Actual = DisplayActualValue(actualSealNo),
+                    Resolution = "Ki\u1EC3m tra l\u1EA1i ng\u00E0y \u0111ang ch\u1ECDn ho\u1EB7c tem \u0111ang scan."
+                };
+            }
 
-            builder.AppendLine();
-            builder.Append("G\u1EE3i \u00FD: Ki\u1EC3m tra l\u1EA1i tem ho\u1EB7c ch\u1ECDn \u0111\u00FAng m\u00E3 h\u00E0ng.");
-            return builder.ToString();
+            if (normalizedMessage.Contains("PARTNAME") ||
+                normalizedMessage.Contains("TEN SAN PHAM") ||
+                normalizedMessage.Contains("MA SAN PHAM"))
+            {
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai m\u00E3 s\u1EA3n ph\u1EA9m",
+                    Standard = DisplayActualValue(PNameExpected),
+                    Actual = DisplayActualValue(actualPartName),
+                    Resolution = "Ki\u1EC3m tra l\u1EA1i s\u1EA3n ph\u1EA9m \u0111ang ch\u1ECDn v\u00E0 tem scan."
+                };
+            }
+
+            if (normalizedMessage.Contains("DO DAI") ||
+                normalizedMessage.Contains("LENGTH"))
+            {
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai \u0111\u1ED9 d\u00E0i m\u00E3",
+                    Standard = CodeLengthExpected + " k\u00FD t\u1EF1",
+                    Actual = (inputScanCode?.Length ?? 0) + " k\u00FD t\u1EF1",
+                    Resolution = "Ki\u1EC3m tra tem c\u00F3 b\u1ECB thi\u1EBFu, th\u1EEBa ho\u1EB7c m\u1EDD k\u00FD t\u1EF1."
+                };
+            }
+
+            if (normalizedMessage.Contains("PREFIX") ||
+                normalizedMessage.Contains("DAU MA"))
+            {
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai \u0111\u1EA7u m\u00E3",
+                    Standard = DisplayActualValue(PrefixExpected),
+                    Actual = DisplayActualValue(ExtractScanSegment(
+                        inputScanCode,
+                        0,
+                        PrefixExpected?.Length ?? 0)),
+                    Resolution = "Ki\u1EC3m tra l\u1EA1i \u0111\u1EA7u m\u00E3 tr\u00EAn tem."
+                };
+            }
+
+            if (normalizedMessage.Contains("SUFFIX") ||
+                normalizedMessage.Contains("CUOI MA"))
+            {
+                int suffixLength = SuffixExpected?.Length ?? 0;
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai cu\u1ED1i m\u00E3",
+                    Standard = DisplayActualValue(SuffixExpected),
+                    Actual = DisplayActualValue(ExtractScanSegment(
+                        inputScanCode,
+                        Math.Max(0, (inputScanCode?.Length ?? 0) - suffixLength),
+                        suffixLength)),
+                    Resolution = "Ki\u1EC3m tra l\u1EA1i cu\u1ED1i m\u00E3 tr\u00EAn tem."
+                };
+            }
+
+            return new ScanErrorPresentation
+            {
+                Detail = ScanHistory.NormalizeScanMessage(_ScanMess),
+                Standard = DisplayActualValue(FullCodeExpected),
+                Actual = DisplayActualValue(inputScanCode),
+                Resolution = "Ki\u1EC3m tra l\u1EA1i tem v\u00E0 s\u1EA3n ph\u1EA9m \u0111ang ch\u1ECDn."
+            };
+        }
+
+        private static string ExtractScanSegment(string input, int startIndex, int length)
+        {
+            if (string.IsNullOrEmpty(input) ||
+                startIndex < 0 ||
+                length <= 0 ||
+                startIndex >= input.Length)
+            {
+                return string.Empty;
+            }
+
+            return input.Substring(startIndex, Math.Min(length, input.Length - startIndex));
+        }
+
+        private static string DisplayActualValue(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? "Kh\u00F4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c"
+                : value;
+        }
+
+        private sealed class ScanErrorPresentation
+        {
+            public string Detail { get; set; }
+            public string Standard { get; set; }
+            public string Actual { get; set; }
+            public string Resolution { get; set; }
+
+            public string ToDisplayText()
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine("Chi ti\u1EBFt l\u1ED7i: " + Detail);
+                builder.AppendLine("Ti\u00EAu chu\u1EA9n: " + Standard);
+                builder.AppendLine("Th\u1EF1c t\u1EBF: " + Actual);
+                builder.Append("H\u01B0\u1EDBng x\u1EED l\u00FD: " + Resolution);
+                return builder.ToString();
+            }
         }
 
         private void StartScaning(string selectedPartNumber)
@@ -917,15 +1101,30 @@ namespace SX3_SCANER.ViewModel
 
         private async Task CancelCurrentBoxAsync()
         {
-            MessageBoxResult result = MessageBox.Show(
-                "Bạn có chắc chắn muốn HỦY THÙNG đang scan dở không?\n" +
-                "Lịch sử scan sẽ được giữ lại và đánh dấu ĐÃ HỦY để truy vết.",
-                "XÁC NHẬN HỦY THÙNG",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            try
+            {
+                var dialog = new ConfirmDeleteBoxWD();
+                Window owner = Application.Current?.MainWindow;
+                if (owner != null && owner.IsVisible)
+                {
+                    dialog.Owner = owner;
+                }
 
-            if (result != MessageBoxResult.Yes)
+                bool? result = dialog.ShowDialog();
+                if (result != true)
+                    return;
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "Khong mo duoc man hinh xac nhan huy thung. Chi tiet: " + ex);
+                MessageBox.Show(
+                    "Không thể mở màn hình xác nhận hủy thùng.\n\n" + ex.Message,
+                    "Lỗi giao diện",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
                 return;
+            }
 
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
@@ -1015,14 +1214,30 @@ namespace SX3_SCANER.ViewModel
 
         private void CancelCurrentBox()
         {
-            MessageBoxResult result = MessageBox.Show(
-                "Bạn có chắc chắn muốn HỦY THÙNG đang scan dở không?\nToàn bộ dữ liệu hiển thị tạm thời của thùng hiện tại sẽ được xóa.",
-                "XÁC NHẬN HỦY THÙNG",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            try
+            {
+                var dialog = new ConfirmDeleteBoxWD();
+                Window owner = Application.Current?.MainWindow;
+                if (owner != null && owner.IsVisible)
+                {
+                    dialog.Owner = owner;
+                }
 
-            if (result != MessageBoxResult.Yes)
+                bool? result = dialog.ShowDialog();
+                if (result != true)
+                    return;
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "Khong mo duoc man hinh xac nhan huy thung. Chi tiet: " + ex);
+                MessageBox.Show(
+                    "Không thể mở màn hình xác nhận hủy thùng.\n\n" + ex.Message,
+                    "Lỗi giao diện",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
                 return;
+            }
 
             string cancelledBoxName = _CurrentBoxName;
             if (!string.IsNullOrWhiteSpace(cancelledBoxName))

@@ -179,6 +179,12 @@
     <Compile Include="View\ConfirmDeleteBoxWD.xaml.cs">
       <DependentUpon>ConfirmDeleteBoxWD.xaml</DependentUpon>
     </Compile>
+    <Compile Include="View\ConfirmPartialBoxWD.xaml.cs">
+      <DependentUpon>ConfirmPartialBoxWD.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="View\ScanErrorWD.xaml.cs">
+      <DependentUpon>ScanErrorWD.xaml</DependentUpon>
+    </Compile>
     <Compile Include="View\TodayBoxWD.xaml.cs">
       <DependentUpon>TodayBoxWD.xaml</DependentUpon>
     </Compile>
@@ -203,6 +209,14 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="View\ConfirmDeleteBoxWD.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="View\ConfirmPartialBoxWD.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="View\ScanErrorWD.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
