@@ -1,50 +1,29 @@
 {
   "enabled": true,
   "mode": "playlist",
-  "updatedAt": "2026-06-11T00:00:00+07:00",
-  "rotateSeconds": 35,
-  "repeatSeconds": 35,
+  "updatedAt": "2026-06-13T15:30:00+07:00",
+  "rotateSeconds": 10,
+  "repeatSeconds": 10,
   "autoHideSeconds": 300,
-  "showCountdown": false,
-  "showPopup": false,
-  "allowClose": false,
+  "showCountdown": true,
+  "showPopup": true,
+  "allowClose": true,
   "marqueeEnabled": true,
   "marqueeDirection": "rightToLeft",
-  "marqueeSpeed": 40,
-  "marqueeDelaySeconds": 5,
-  "version": "7.1.0",
+  "marqueeSpeed": 60,
+  "marqueeDelaySeconds": 1,
+  "version": "7.7.7",
   "forceUpdate": false,
-  "priority": 10,
-  "backgroundColor": "#0D47A1",
+  "priority": 99,
+  "backgroundColor": "#D50000",
   "foregroundColor": "#FFFFFF",
   "createdBy": "ADMIN",
   "messages": [
     {
-      "level": "info",
-      "title": "THÔNG BÁO SẢN XUẤT",
-      "message": "Vui lòng thực hiện đúng theo hướng dẫn thao tác chuẩn (SOP) đã được ban hành. Tuân thủ đầy đủ quy trình làm việc, kiểm tra kỹ từng công đoạn và báo ngay cho quản lý khi phát hiện bất thường để đảm bảo chất lượng sản phẩm.",
-      "backgroundColor": "#1565C0",
-      "foregroundColor": "#FFFFFF"
-    },
-    {
       "level": "warning",
-      "title": "KIỂM TRA QR CODE",
-      "message": "Trước khi thực hiện quét mã, bắt buộc đối chiếu chính xác QR Code với mã hàng, model và phiên bản thực tế. Không scan khi có dấu hiệu sai lệch thông tin nhằm tránh nhầm lẫn và phát sinh lỗi trong quá trình sản xuất.",
-      "backgroundColor": "#C62828",
-      "foregroundColor": "#FFFFFF"
-    },
-    {
-      "level": "success",
-      "title": "XÁC NHẬN THÔNG TIN ĐÓNG GÓI",
-      "message": "Kiểm tra đầy đủ mã hàng, model, phiên bản, số lượng, phụ kiện đi kèm và tình trạng ngoại quan sản phẩm trước khi đóng gói. Đảm bảo tất cả thông tin khớp với lệnh sản xuất và tiêu chuẩn chất lượng hiện hành.",
-      "backgroundColor": "#2E7D32",
-      "foregroundColor": "#FFFFFF"
-    },
-    {
-      "level": "warning",
-      "title": "AN TOÀN LAO ĐỘNG",
-      "message": "Luôn sử dụng đầy đủ trang bị bảo hộ lao động theo quy định. Tuân thủ nghiêm ngặt các quy trình an toàn, giữ khu vực làm việc gọn gàng, sạch sẽ và báo cáo ngay các nguy cơ mất an toàn để phòng ngừa tai nạn lao động.",
-      "backgroundColor": "#EF6C00",
+      "title": "TEST ONLINE 7.7.7",
+      "message": "Nếu bạn nhìn thấy thông báo này thì ứng dụng đã tải dữ liệu online mới nhất từ GitHub thành công lúc 15:30.",
+      "backgroundColor": "#D50000",
       "foregroundColor": "#FFFFFF"
     }
   ]
