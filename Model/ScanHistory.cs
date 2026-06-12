@@ -24,6 +24,10 @@ namespace SX3_SCANER.Model
 
         public DateTime? ScanTime { get; set; }
 
+        public DateTime? BoxDate { get; set; }
+
+        public DateTime? ScanLabelDate { get; set; }
+
         public string BoxName { get; set; }
 
         public string ProductPartNumber { get; set; }
@@ -53,6 +57,10 @@ namespace SX3_SCANER.Model
         public string BoxType { get; set; }
 
         public bool IsPartialBox { get; set; }
+
+        public int ActualQty { get; set; }
+
+        public int TargetQty { get; set; }
 
         public string ResultText
         {

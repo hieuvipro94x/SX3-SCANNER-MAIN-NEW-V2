@@ -1,3 +1,5 @@
+using System;
+
 namespace SX3_SCANER.Model
 {
     internal class BoxProduct
@@ -13,6 +15,10 @@ namespace SX3_SCANER.Model
         public string BoxWorker { get; set; } = string.Empty;
         public string BoxType { get; set; } = "OPEN";
         public bool IsPartialBox { get; set; }
+        public DateTime? BoxDate { get; set; }
+        public DateTime? ScanLabelDate { get; set; }
+        public int ActualQty { get; set; }
+        public int TargetQty { get; set; }
 
         public string BoxTypeText
         {

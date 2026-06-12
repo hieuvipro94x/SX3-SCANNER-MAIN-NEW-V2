@@ -31,10 +31,15 @@ namespace SX3_SCANER.Model.Respository
                         IsInJob INTEGER NOT NULL DEFAULT 0,
                         Worker TEXT NOT NULL DEFAULT '',
                         SessionDate TEXT NOT NULL,
+                        BoxDate TEXT,
+                        ScanLabelDate TEXT,
                         LastUpdated TEXT NOT NULL
                     );";
                 command.ExecuteNonQuery();
             }
+
+            EnsureColumn("BoxDate", "TEXT");
+            EnsureColumn("ScanLabelDate", "TEXT");
         }
 
         public void SaveCurrentSession(ScanSessionState state)
@@ -71,9 +76,9 @@ namespace SX3_SCANER.Model.Respository
                 command.Transaction = transaction;
                 command.CommandText = @"
                     INSERT OR REPLACE INTO ScanSessionDrafts
-                        (SessionKey, ProductCode, BoxCode, ScannedCount, TargetCount, ScanHistoryJson, IsInJob, Worker, SessionDate, LastUpdated)
+                        (SessionKey, ProductCode, BoxCode, ScannedCount, TargetCount, ScanHistoryJson, IsInJob, Worker, SessionDate, BoxDate, ScanLabelDate, LastUpdated)
                     VALUES
-                        (@SessionKey, @ProductCode, @BoxCode, @ScannedCount, @TargetCount, @ScanHistoryJson, @IsInJob, @Worker, @SessionDate, @LastUpdated);";
+                        (@SessionKey, @ProductCode, @BoxCode, @ScannedCount, @TargetCount, @ScanHistoryJson, @IsInJob, @Worker, @SessionDate, @BoxDate, @ScanLabelDate, @LastUpdated);";
                 AddStateParameters(command, state, historyJson);
                 command.ExecuteNonQuery();
             }
@@ -112,6 +117,8 @@ namespace SX3_SCANER.Model.Respository
                         IsInJob = Convert.ToInt32(reader["IsInJob"]) != 0,
                         Worker = Convert.ToString(reader["Worker"]),
                         SessionDate = DateTime.Parse(Convert.ToString(reader["SessionDate"])),
+                        BoxDate = ReadDate(reader, "BoxDate", "SessionDate"),
+                        ScanLabelDate = ReadDate(reader, "ScanLabelDate", "SessionDate"),
                         LastUpdated = DateTime.Parse(Convert.ToString(reader["LastUpdated"]))
                     };
                 }
@@ -126,6 +133,48 @@ namespace SX3_SCANER.Model.Respository
                 command.CommandText = "SELECT COUNT(1) FROM ScanSessionDrafts WHERE SessionKey = @SessionKey";
                 command.Parameters.AddWithValue("@SessionKey", BuildSessionKey(productCode, sessionDate));
                 return Convert.ToInt32(command.ExecuteScalar()) > 0;
+            }
+        }
+
+        public ScanSessionState LoadLatestSession(string productCode)
+        {
+            if (string.IsNullOrWhiteSpace(productCode))
+                return null;
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    SELECT *
+                    FROM ScanSessionDrafts
+                    WHERE ProductCode = @ProductCode COLLATE NOCASE
+                    ORDER BY LastUpdated DESC
+                    LIMIT 1";
+                command.Parameters.AddWithValue("@ProductCode", productCode.Trim());
+
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                        return null;
+
+                    string historyJson = Convert.ToString(reader["ScanHistoryJson"]);
+                    return new ScanSessionState
+                    {
+                        SessionKey = Convert.ToString(reader["SessionKey"]),
+                        ProductCode = Convert.ToString(reader["ProductCode"]),
+                        BoxCode = Convert.ToString(reader["BoxCode"]),
+                        ScannedCount = Convert.ToInt32(reader["ScannedCount"]),
+                        TargetCount = Convert.ToInt32(reader["TargetCount"]),
+                        ScanHistoryItems = JsonConvert.DeserializeObject<List<ScanHistory>>(historyJson)
+                            ?? new List<ScanHistory>(),
+                        IsInJob = Convert.ToInt32(reader["IsInJob"]) != 0,
+                        Worker = Convert.ToString(reader["Worker"]),
+                        SessionDate = DateTime.Parse(Convert.ToString(reader["SessionDate"])),
+                        BoxDate = ReadDate(reader, "BoxDate", "SessionDate"),
+                        ScanLabelDate = ReadDate(reader, "ScanLabelDate", "SessionDate"),
+                        LastUpdated = DateTime.Parse(Convert.ToString(reader["LastUpdated"]))
+                    };
+                }
             }
         }
 
@@ -181,7 +230,49 @@ namespace SX3_SCANER.Model.Respository
             command.Parameters.AddWithValue("@IsInJob", state.IsInJob ? 1 : 0);
             command.Parameters.AddWithValue("@Worker", state.Worker ?? string.Empty);
             command.Parameters.AddWithValue("@SessionDate", state.SessionDate.ToString("O"));
+            command.Parameters.AddWithValue("@BoxDate", state.BoxDate.ToString("O"));
+            command.Parameters.AddWithValue("@ScanLabelDate", state.ScanLabelDate.ToString("O"));
             command.Parameters.AddWithValue("@LastUpdated", state.LastUpdated.ToString("O"));
+        }
+
+        private static void EnsureColumn(string columnName, string definition)
+        {
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(ScanSessionDrafts)";
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (string.Equals(
+                            Convert.ToString(reader["name"]),
+                            columnName,
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                command.CommandText =
+                    "ALTER TABLE ScanSessionDrafts ADD COLUMN " +
+                    columnName + " " + definition;
+                command.ExecuteNonQuery();
+            }
+        }
+
+        private static DateTime ReadDate(
+            SQLiteDataReader reader,
+            string columnName,
+            string fallbackColumnName)
+        {
+            DateTime value;
+            string text = Convert.ToString(reader[columnName]);
+            if (DateTime.TryParse(text, out value))
+                return value.Date;
+
+            return DateTime.Parse(Convert.ToString(reader[fallbackColumnName])).Date;
         }
     }
 }

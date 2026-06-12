@@ -269,6 +269,8 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <Grid.ColumnDefinitions>
@@ -292,11 +294,19 @@
 
                                     <TextBlock Grid.Row="1"
                    Grid.Column="0"
-                   Text="Date" />
+                   Text="Ngày Box" />
 
                                     <TextBlock Grid.Row="2"
                    Grid.Column="0"
-                   Text="Qty" />
+                   Text="Ngày tem" />
+
+                                    <TextBlock Grid.Row="3"
+                   Grid.Column="0"
+                   Text="Số lượng" />
+
+                                    <TextBlock Grid.Row="4"
+                   Grid.Column="0"
+                   Text="Trạng thái" />
 
                                     <ComboBox Grid.Row="0"
                   Grid.Column="1"
@@ -304,27 +314,38 @@
                   Height="30"
                   FontSize="13"
                   HorizontalAlignment="Stretch"
-                  ItemsSource="{Binding PartNumberList}"
-                  SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  IsEnabled="{Binding CanModifySessionSelection}" />
+                   ItemsSource="{Binding PartNumberList}"
+                   SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   IsEnabled="{Binding CanSwitchProduct}" />
 
-                                    <DatePicker Grid.Row="1"
-                    Grid.Column="1"
+                                    <TextBlock Grid.Row="1"
+                     Grid.Column="1"
+                     Text="{Binding BoxDateText}"
+                     FontWeight="SemiBold"
+                     Foreground="#374151" />
+
+                                    <DatePicker Grid.Row="2"
+                     Grid.Column="1"
                     MinWidth="0"
                     Height="30"
                     FontSize="13"
                     HorizontalAlignment="Stretch"
-                    SelectedDate="{Binding SelectedDate}"
-                    IsEnabled="{Binding CanModifySessionSelection}" />
+                    SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                                    <TextBox Grid.Row="2"
+                                    <TextBox Grid.Row="3"
                  Grid.Column="1"
                  MinWidth="0"
                  Height="30"
                  FontSize="13"
                  HorizontalAlignment="Stretch"
-                 Text="{Binding SelectedQuantity}"
-                 IsEnabled="{Binding CanChangeProductInfo}" />
+                  Text="{Binding SelectedQuantity}"
+                  IsEnabled="{Binding CanChangeProductInfo}" />
+
+                                    <TextBlock Grid.Row="4"
+                     Grid.Column="1"
+                     Text="{Binding CurrentBoxStatusText}"
+                     FontWeight="SemiBold"
+                     Foreground="#2563EB" />
                                 </Grid>
 
                                 <!-- CỤM NÚT START / HỦY THÙNG -->
@@ -511,7 +532,7 @@
                        Foreground="#607D8B"
                        VerticalAlignment="Center"/>
 
-                                        <TextBlock Text="{Binding CurrentScanProgress}"
+                                        <TextBlock Text="{Binding ScanQuantityText}"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="#2563EB"
@@ -640,7 +661,7 @@
                                     <!-- DATE -->
                                     <TextBlock Grid.Row="4"
                    Grid.Column="0"
-                   Text="Date"
+                    Text="Ngày tem scan"
                    FontWeight="Bold"
                    VerticalAlignment="Center"/>
 

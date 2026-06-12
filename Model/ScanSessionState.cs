@@ -14,6 +14,8 @@ namespace SX3_SCANER.Model
         public bool IsInJob { get; set; }
         public string Worker { get; set; } = string.Empty;
         public DateTime SessionDate { get; set; }
+        public DateTime BoxDate { get; set; }
+        public DateTime ScanLabelDate { get; set; }
         public DateTime LastUpdated { get; set; }
     }
 }

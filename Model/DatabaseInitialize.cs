@@ -8,7 +8,7 @@ namespace SX3_SCANER.Model
 {
     internal class DatabaseInitialize
     {
-        private const int MainDatabaseSchemaVersion = 3;
+        private const int MainDatabaseSchemaVersion = 4;
         private const int ProductDatabaseSchemaVersion = 1;
         private const string LastIntegrityCheckKey = "LastIntegrityCheckUtc";
         private static readonly TimeSpan IntegrityCheckInterval = TimeSpan.FromDays(7);
@@ -164,6 +164,7 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime ON ScanHistoryView(ScanTime);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ID_ScanTime ON ScanHistoryView(ID DESC, ScanTime DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData ON ScanHistoryView(ScanData);");
+            TryExecute("CREATE UNIQUE INDEX IF NOT EXISTS UX_ScanHistoryView_PassScanData ON ScanHistoryView(ScanData COLLATE NOCASE) WHERE ScanResult = 1 AND ScanData IS NOT NULL AND TRIM(ScanData) <> '';");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanMessage ON ScanHistoryView(ScanMessage);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanWorker ON ScanHistoryView(ScanWorker);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxType ON ScanHistoryView(BoxType);");
@@ -177,6 +178,22 @@ PRAGMA busy_timeout = 5000;";
 
         private static void CreateDataIntegrityTriggers()
         {
+            TryExecute(@"
+                CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassScanData_Insert
+                BEFORE INSERT ON ScanHistoryView
+                WHEN NEW.ScanResult = 1
+                  AND NEW.ScanData IS NOT NULL
+                  AND TRIM(NEW.ScanData) <> ''
+                  AND EXISTS (
+                      SELECT 1
+                      FROM ScanHistoryView
+                      WHERE ScanResult = 1
+                        AND ScanData = NEW.ScanData COLLATE NOCASE
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'DUPLICATE_SCAN_DATA');
+                END;");
+
             TryExecute(@"
                 CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Insert
                 BEFORE INSERT ON BoxProduct

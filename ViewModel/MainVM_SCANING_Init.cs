@@ -53,23 +53,16 @@ namespace SX3_SCANER.ViewModel
             set
             {
                 if (string.IsNullOrWhiteSpace(value) || value == _SelectedPartNumber) return;
-                if (HasOpenScanSession &&
-                    !string.IsNullOrWhiteSpace(_SelectedPartNumber))
-                {
-                    return;
-                }
 
                 string previousPartNumber = _SelectedPartNumber;
                 bool wasInJob = InJob;
                 if (!string.IsNullOrWhiteSpace(previousPartNumber))
                 {
-                    SaveCurrentScanSession(false);
-                    InJob = false;
+                    SaveCurrentScanSession(wasInJob);
 
-                    if (wasInJob)
-                    {
-                        StartupManager.SetStatus("Đã lưu tạm phiên quét mã " + previousPartNumber + ".");
-                    }
+                    StartupManager.SetStatus(
+                        "Đã lưu phiên quét mã " + previousPartNumber +
+                        " để chuyển sang mã " + value + ".");
                 }
 
                 _SelectedPartNumber = value;
@@ -83,14 +76,33 @@ namespace SX3_SCANER.ViewModel
                     CheckLastJob(value);
                 }
 
-                OnPropertyChanged();
+                InJob = wasInJob;
+                InputScanCode = string.Empty;
+                ResetScanStatus();
+                ScanTextResult = string.Empty;
 
+                if (wasInJob)
+                {
+                    SaveCurrentScanSession(true);
+                    StartupManager.SetStatus(
+                        "Đã chuyển sang mã " + value +
+                        ". Phiên quét mã " + previousPartNumber +
+                        " vẫn được giữ nguyên.");
+                }
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CanSwitchProduct));
+                CommandManager.InvalidateRequerySuggested();
             }
         }
 
         private void CheckLastJob(string partNumber)
         {
             var notcompletebox = new BoxProductRepository().GetNotComplete(partNumber, SelectedDate);
+            if (string.IsNullOrEmpty(notcompletebox))
+            {
+                notcompletebox = _boxProductRepository.GetLatestNotComplete(partNumber);
+            }
 
             if (string.IsNullOrEmpty(notcompletebox))
             {
@@ -106,6 +118,9 @@ namespace SX3_SCANER.ViewModel
             _CurrentBoxName = notcompletebox;
             _currentBoxCreatedDate =
                 _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
+            OnPropertyChanged(nameof(BoxDate));
+            OnPropertyChanged(nameof(BoxDateText));
+            OnPropertyChanged(nameof(CurrentBoxStatusText));
             ScanHistorySource = new ScanHistoryRepository().GetNotComplete(notcompletebox);
             RefreshScanHistoryDisplayIndex();
             CurrentScanProgress = ScanHistorySource?.Count(x => x.ScanResult == true) ?? 0;
@@ -165,6 +180,47 @@ namespace SX3_SCANER.ViewModel
 
         private DateTime _SelectedDate;
 
+        public DateTime ScanLabelDate
+        {
+            get { return SelectedDate; }
+            set { SelectedDate = value; }
+        }
+
+        public DateTime BoxDate
+        {
+            get
+            {
+                return _currentBoxCreatedDate.HasValue
+                    ? _currentBoxCreatedDate.Value.Date
+                    : SelectedDate.Date;
+            }
+        }
+
+        public string BoxDateText
+        {
+            get { return BoxDate.ToString("dd/MM/yyyy"); }
+        }
+
+        public string ScanLabelDateText
+        {
+            get { return ScanLabelDate.ToString("dd/MM/yyyy"); }
+        }
+
+        public string ScanQuantityText
+        {
+            get { return CurrentScanProgress + " / " + SelectedQuantity; }
+        }
+
+        public string CurrentBoxStatusText
+        {
+            get
+            {
+                if (!HasOpenScanSession) return "Chưa mở thùng";
+                if (IsFullBoxReadyToComplete) return "Hoàn thành";
+                return "Đang scan";
+            }
+        }
+
         public DateTime SelectedDate
         {
             get { return _SelectedDate; }
@@ -188,10 +244,23 @@ namespace SX3_SCANER.ViewModel
                 }
 
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ScanLabelDate));
+                OnPropertyChanged(nameof(ScanLabelDateText));
+                OnPropertyChanged(nameof(BoxDate));
+                OnPropertyChanged(nameof(BoxDateText));
                 OnPropertyChanged(nameof(SealNoExpected));
 
                 if (hasOpenBox)
                 {
+                    _boxProductRepository.UpdateScanLabelDate(
+                        _CurrentBoxName,
+                        ScanLabelDate);
+                    SaveCurrentScanSession(InJob);
+                    string dateChangeMessage =
+                        "Đã đổi ngày tem scan sang " + ScanLabelDateText +
+                        ". Thùng hiện tại vẫn giữ ngày box " + BoxDateText + ".";
+                    ScanResultDetailText = dateChangeMessage;
+                    StartupManager.SetStatus(dateChangeMessage);
                     CommandManager.InvalidateRequerySuggested();
                     return;
                 }
@@ -265,6 +334,7 @@ namespace SX3_SCANER.ViewModel
             {
                 _SelectedQuantity = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ScanQuantityText));
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 CommandManager.InvalidateRequerySuggested();
             }

@@ -38,7 +38,11 @@ namespace SX3_SCANER.Model
                         ScanMessage TEXT,
                         ScanWorker TEXT,
                         BoxType TEXT NOT NULL DEFAULT 'OPEN',
-                        IsPartialBox INTEGER NOT NULL DEFAULT 0
+                        IsPartialBox INTEGER NOT NULL DEFAULT 0,
+                        BoxDate TEXT,
+                        ScanLabelDate TEXT,
+                        ActualQty INTEGER NOT NULL DEFAULT 0,
+                        TargetQty INTEGER NOT NULL DEFAULT 0
                     );";
                 using (SQLiteCommand command = new SQLiteCommand(createTableQuery, connection))
                 {
@@ -47,6 +51,10 @@ namespace SX3_SCANER.Model
 
                 EnsureColumn(connection, "BoxType", "TEXT NOT NULL DEFAULT 'OPEN'");
                 EnsureColumn(connection, "IsPartialBox", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumn(connection, "BoxDate", "TEXT");
+                EnsureColumn(connection, "ScanLabelDate", "TEXT");
+                EnsureColumn(connection, "ActualQty", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumn(connection, "TargetQty", "INTEGER NOT NULL DEFAULT 0");
             }
         }
 
@@ -98,7 +106,11 @@ namespace SX3_SCANER.Model
                                 ScanMessage = reader["ScanMessage"].ToString(),
                                 ScanWorker = reader["ScanWorker"].ToString(),
                                 BoxType = reader["BoxType"].ToString(),
-                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"]))
+                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"])),
+                                BoxDate = SafeDateTime(reader, "BoxDate") ?? SafeDateTime(reader, "ScanTime"),
+                                ScanLabelDate = SafeDateTime(reader, "ScanLabelDate") ?? ParseSealDate(reader["SealNo"].ToString()),
+                                ActualQty = SafeInt(reader, "ActualQty"),
+                                TargetQty = SafeInt(reader, "TargetQty")
                             });
                         }
                     }
@@ -135,7 +147,11 @@ namespace SX3_SCANER.Model
                                 ScanMessage = reader["ScanMessage"].ToString(),
                                 ScanWorker = reader["ScanWorker"].ToString(),
                                 BoxType = reader["BoxType"].ToString(),
-                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"]))
+                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"])),
+                                BoxDate = SafeDateTime(reader, "BoxDate") ?? SafeDateTime(reader, "ScanTime"),
+                                ScanLabelDate = SafeDateTime(reader, "ScanLabelDate") ?? ParseSealDate(reader["SealNo"].ToString()),
+                                ActualQty = SafeInt(reader, "ActualQty"),
+                                TargetQty = SafeInt(reader, "TargetQty")
                             });
                         }
                     }
@@ -181,14 +197,24 @@ namespace SX3_SCANER.Model
                 throw new ArgumentNullException(nameof(transaction));
 
             const string insertQuery = @"
-                INSERT INTO ScanHistoryView (ScanTime, BoxName, ProductPartNumber, ProductPartName, SealNo, LotNo, ScanData, ScanResult, ScanMessage, ScanWorker, BoxType, IsPartialBox)
-                VALUES (@ScanTime, @BoxName, @ProductPartNumber, @ProductPartName, @SealNo, @LotNo, @ScanData, @ScanResult, @ScanMessage, @ScanWorker, @BoxType, @IsPartialBox)";
+                INSERT INTO ScanHistoryView (ScanTime, BoxDate, ScanLabelDate, BoxName, ProductPartNumber, ProductPartName, SealNo, LotNo, ScanData, ScanResult, ScanMessage, ScanWorker, BoxType, IsPartialBox, ActualQty, TargetQty)
+                VALUES (@ScanTime, @BoxDate, @ScanLabelDate, @BoxName, @ProductPartNumber, @ProductPartName, @SealNo, @LotNo, @ScanData, @ScanResult, @ScanMessage, @ScanWorker, @BoxType, @IsPartialBox, @ActualQty, @TargetQty)";
             using (SQLiteCommand command = new SQLiteCommand(insertQuery, connection, transaction))
             {
                 command.Parameters.AddWithValue(
                     "@ScanTime",
                     scanHistory.ScanTime.HasValue
                         ? (object)scanHistory.ScanTime.Value
+                        : DBNull.Value);
+                command.Parameters.AddWithValue(
+                    "@BoxDate",
+                    scanHistory.BoxDate.HasValue
+                        ? (object)scanHistory.BoxDate.Value.Date
+                        : DBNull.Value);
+                command.Parameters.AddWithValue(
+                    "@ScanLabelDate",
+                    scanHistory.ScanLabelDate.HasValue
+                        ? (object)scanHistory.ScanLabelDate.Value.Date
                         : DBNull.Value);
                 command.Parameters.AddWithValue("@BoxName", scanHistory.BoxName);
                 command.Parameters.AddWithValue("@ProductPartNumber", scanHistory.ProductPartNumber);
@@ -201,8 +227,40 @@ namespace SX3_SCANER.Model
                 command.Parameters.AddWithValue("@ScanWorker", scanHistory.ScanWorker);
                 command.Parameters.AddWithValue("@BoxType", scanHistory.BoxType);
                 command.Parameters.AddWithValue("@IsPartialBox", scanHistory.IsPartialBox ? 1 : 0);
+                command.Parameters.AddWithValue("@ActualQty", scanHistory.ActualQty);
+                command.Parameters.AddWithValue("@TargetQty", scanHistory.TargetQty);
                 command.ExecuteNonQuery();
             }
+        }
+
+        public bool ScanDataExists(string scanData)
+        {
+            if (string.IsNullOrWhiteSpace(scanData))
+                return false;
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    SELECT 1
+                    FROM ScanHistoryView
+                    WHERE ScanResult = 1
+                      AND ScanData = @ScanData COLLATE NOCASE
+                    LIMIT 1";
+                command.Parameters.AddWithValue("@ScanData", scanData.Trim());
+                return command.ExecuteScalar() != null;
+            }
+        }
+
+        internal static bool IsUniqueScanDataViolation(SQLiteException exception)
+        {
+            if (exception == null)
+                return false;
+
+            string details = exception.ToString();
+            return exception.ResultCode == SQLiteErrorCode.Constraint ||
+                details.IndexOf("UX_ScanHistoryView_PassScanData", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                details.IndexOf("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public void UpdateScanHistory(ScanHistory scanHistory)
@@ -304,7 +362,11 @@ namespace SX3_SCANER.Model
                                 ScanMessage = reader["ScanMessage"].ToString(),
                                 ScanWorker = reader["ScanWorker"].ToString(),
                                 BoxType = reader["BoxType"].ToString(),
-                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"]))
+                                IsPartialBox = Convert.ToBoolean(Convert.ToInt32(reader["IsPartialBox"])),
+                                BoxDate = SafeDateTime(reader, "BoxDate") ?? SafeDateTime(reader, "ScanTime"),
+                                ScanLabelDate = SafeDateTime(reader, "ScanLabelDate") ?? ParseSealDate(reader["SealNo"].ToString()),
+                                ActualQty = SafeInt(reader, "ActualQty"),
+                                TargetQty = SafeInt(reader, "TargetQty")
                             });
                         }
                     }
@@ -659,7 +721,11 @@ namespace SX3_SCANER.Model
                 ScanMessage = SafeString(reader, "ScanMessage"),
                 ScanWorker = SafeString(reader, "ScanWorker"),
                 BoxType = SafeString(reader, "BoxType", "OPEN"),
-                IsPartialBox = SafeBool(reader, "IsPartialBox")
+                IsPartialBox = SafeBool(reader, "IsPartialBox"),
+                BoxDate = SafeDateTime(reader, "BoxDate") ?? SafeDateTime(reader, "ScanTime"),
+                ScanLabelDate = SafeDateTime(reader, "ScanLabelDate") ?? ParseSealDate(SafeString(reader, "SealNo")),
+                ActualQty = SafeInt(reader, "ActualQty"),
+                TargetQty = SafeInt(reader, "TargetQty")
             };
         }
 
@@ -708,6 +774,7 @@ namespace SX3_SCANER.Model
 
         private static DateTime? SafeDateTime(SQLiteDataReader reader, string columnName)
         {
+            if (!HasColumn(reader, columnName)) return null;
             object value = reader[columnName];
             if (value == null || value == DBNull.Value) return null;
 
@@ -715,6 +782,29 @@ namespace SX3_SCANER.Model
             return DateTime.TryParse(Convert.ToString(value), out result)
                 ? (DateTime?)result
                 : null;
+        }
+
+        private static bool HasColumn(SQLiteDataReader reader, string columnName)
+        {
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                if (string.Equals(reader.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private static DateTime? ParseSealDate(string sealNo)
+        {
+            DateTime value;
+            return DateTime.TryParseExact(
+                sealNo,
+                "yyMMdd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out value)
+                    ? (DateTime?)value.Date
+                    : null;
         }
 
         private static List<string> BuildSearchTerms(string keyword)
@@ -900,14 +990,49 @@ namespace SX3_SCANER.Model
 
             const string sql = @"
                 UPDATE ScanHistoryView
-                SET BoxType = @BoxType, IsPartialBox = @IsPartialBox
+                SET BoxType = @BoxType,
+                    IsPartialBox = @IsPartialBox,
+                    ActualQty = @ActualQty,
+                    TargetQty = CASE WHEN TargetQty > 0 THEN TargetQty ELSE @TargetQty END
                 WHERE BoxName = @BoxName";
             using (SQLiteCommand command = new SQLiteCommand(sql, connection, transaction))
             {
                 command.Parameters.AddWithValue("@BoxType", isPartial ? "PARTIAL" : "FULL");
                 command.Parameters.AddWithValue("@IsPartialBox", isPartial ? 1 : 0);
+                command.Parameters.AddWithValue("@ActualQty", GetPassCount(boxName, connection, transaction));
+                command.Parameters.AddWithValue("@TargetQty", GetTargetQty(boxName, connection, transaction));
                 command.Parameters.AddWithValue("@BoxName", boxName);
                 command.ExecuteNonQuery();
+            }
+        }
+
+        private static int GetPassCount(
+            string boxName,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            using (SQLiteCommand command = new SQLiteCommand(
+                "SELECT COUNT(1) FROM ScanHistoryView WHERE BoxName = @BoxName AND ScanResult = 1",
+                connection,
+                transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                return Convert.ToInt32(command.ExecuteScalar());
+            }
+        }
+
+        private static int GetTargetQty(
+            string boxName,
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            using (SQLiteCommand command = new SQLiteCommand(
+                "SELECT COALESCE(MAX(BoxQuantity), 0) FROM BoxProduct WHERE BoxName = @BoxName",
+                connection,
+                transaction))
+            {
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                return Convert.ToInt32(command.ExecuteScalar());
             }
         }
 
