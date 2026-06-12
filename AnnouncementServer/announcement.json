@@ -12,7 +12,7 @@
   "marqueeDirection": "rightToLeft",
   "marqueeSpeed": 40,
   "marqueeDelaySeconds": 5,
-  "version": "7.0.0",
+  "version": "7.1.0",
   "forceUpdate": false,
   "priority": 10,
   "backgroundColor": "#0D47A1",
