@@ -57,7 +57,7 @@ Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 Source: "{#MySourceDir}\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "{#MySourceDir}\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MySourceDir}\x86\*"; DestDir: "{app}\x86"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\AnnouncementServer\publish\*"; DestDir: "{app}\AnnouncementServer"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\InstallerOutput\PackageFiles\AnnouncementServer\*"; DestDir: "{app}\AnnouncementServer"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Sounds\*.wav"; DestDir: "{app}\Sounds"; Flags: ignoreversion
 
 [Icons]

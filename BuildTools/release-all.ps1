@@ -361,20 +361,22 @@ Assert-LastExitCode "MSBuild $Configuration|$Platform"
 
 Info "Publish Announcement Server..."
 & dotnet publish $AnnouncementServerProject `
-    --configuration $Configuration `
-    --framework net8.0 `
-    --runtime win-x64 `
-    --output $AnnouncementServerPublishDir `
-    --self-contained true
+    -c $Configuration `
+    -r win-x64 `
+    --self-contained false `
+    -o $AnnouncementServerPublishDir
 Assert-LastExitCode "dotnet publish Announcement Server"
 
-$PublishedServerExe = Join-Path $AnnouncementServerPublishDir "AnnouncementServer.exe"
-$PublishedServerConfig = Join-Path $AnnouncementServerPublishDir "appsettings.json"
-if (-not (Test-Path -LiteralPath $PublishedServerExe)) {
-    Fail "Publish Announcement Server thieu EXE: $PublishedServerExe"
-}
-if (-not (Test-Path -LiteralPath $PublishedServerConfig)) {
-    Fail "Publish Announcement Server thieu appsettings.json: $PublishedServerConfig"
+foreach ($requiredFile in @(
+    "AnnouncementServer.exe",
+    "AnnouncementServer.dll",
+    "AnnouncementServer.deps.json",
+    "AnnouncementServer.runtimeconfig.json"
+)) {
+    $requiredPath = Join-Path $AnnouncementServerPublishDir $requiredFile
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        Fail "Publish Announcement Server thieu file bat buoc: $requiredPath"
+    }
 }
 
 $Exe = Join-Path $BinRelease "SX3 SCANER.exe"
@@ -407,14 +409,17 @@ Copy-Item -Path (Join-Path $AnnouncementServerPublishDir "*") `
     -Recurse `
     -Force
 
-$PackagedServer = Join-Path $PackagedServerDir "AnnouncementServer.exe"
-$PackagedServerConfig = Join-Path $PackagedServerDir "appsettings.json"
 $UnexpectedRootServer = Join-Path $PackageDir "AnnouncementServer.exe"
-if (-not (Test-Path -LiteralPath $PackagedServer)) {
-    Fail "Khong tim thay Announcement Server trong package: $PackagedServer"
-}
-if (-not (Test-Path -LiteralPath $PackagedServerConfig)) {
-    Fail "Package Announcement Server thieu appsettings.json: $PackagedServerConfig"
+foreach ($requiredFile in @(
+    "AnnouncementServer.exe",
+    "AnnouncementServer.dll",
+    "AnnouncementServer.deps.json",
+    "AnnouncementServer.runtimeconfig.json"
+)) {
+    $requiredPath = Join-Path $PackagedServerDir $requiredFile
+    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+        Fail "Package Announcement Server thieu file bat buoc: $requiredPath"
+    }
 }
 if (Test-Path -LiteralPath $UnexpectedRootServer) {
     Fail "Package khong hop le: Announcement Server khong duoc nam o root."
