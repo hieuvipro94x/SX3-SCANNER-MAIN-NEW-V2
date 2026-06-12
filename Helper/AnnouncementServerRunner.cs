@@ -11,6 +11,8 @@ namespace SX3_SCANER.Helper
     {
         private const string ExecutableName = "AnnouncementServer.exe";
         private const string ReadyUrl = "http://127.0.0.1:5055/health";
+        private const string DevelopmentPublishDirectory =
+            @"D:\Code\sx3-scanner-release\AnnouncementServer\publish";
         private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(2);
         private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
@@ -41,11 +43,11 @@ namespace SX3_SCANER.Helper
                 }
 
                 string executablePath = ResolveExecutablePath();
-                if (!File.Exists(executablePath))
+                if (executablePath == null)
                 {
                     StartupManager.Log(
-                        "[Announcement] Server executable was not found. Path=" +
-                        executablePath);
+                        "[Announcement] Server executable was not found. Checked=" +
+                        string.Join("; ", GetExecutableCandidates()));
                     return false;
                 }
 
@@ -60,14 +62,17 @@ namespace SX3_SCANER.Helper
                         process = StartOwnedProcess(executablePath);
                 }
 
-                bool isReady = await WaitUntilReadyAsync(token)
+                bool isReady = await WaitUntilReadyAsync(process, token)
                     .ConfigureAwait(false);
                 if (!isReady)
                 {
+                    string processState = process.HasExited
+                        ? " Process exited with code " + process.ExitCode + "."
+                        : string.Empty;
                     StartupManager.Log(
                         "[Announcement] Server did not become ready within " +
                         StartupTimeout.TotalSeconds + " seconds. PID=" +
-                        process.Id);
+                        process.Id + "." + processState);
                     Stop();
                     return false;
                 }
@@ -200,7 +205,9 @@ namespace SX3_SCANER.Helper
             return _ownedProcess;
         }
 
-        private async Task<bool> WaitUntilReadyAsync(CancellationToken token)
+        private async Task<bool> WaitUntilReadyAsync(
+            Process process,
+            CancellationToken token)
         {
             DateTime deadlineUtc = DateTime.UtcNow + StartupTimeout;
             while (DateTime.UtcNow < deadlineUtc)
@@ -209,6 +216,15 @@ namespace SX3_SCANER.Helper
 
                 if (await IsServerReadyAsync(token).ConfigureAwait(false))
                     return true;
+
+                if (process.HasExited)
+                {
+                    StartupManager.Log(
+                        "[Announcement] Server process exited before /health " +
+                        "became ready. PID=" + process.Id +
+                        ", ExitCode=" + process.ExitCode);
+                    return false;
+                }
 
                 await Task.Delay(RetryDelay, token).ConfigureAwait(false);
             }
@@ -243,10 +259,25 @@ namespace SX3_SCANER.Helper
 
         private static string ResolveExecutablePath()
         {
-            return Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "AnnouncementServer",
-                ExecutableName);
+            foreach (string candidate in GetExecutableCandidates())
+            {
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+
+            return null;
+        }
+
+        private static string[] GetExecutableCandidates()
+        {
+            return new[]
+            {
+                Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "AnnouncementServer",
+                    ExecutableName),
+                Path.Combine(DevelopmentPublishDirectory, ExecutableName)
+            };
         }
 
         private void ThrowIfDisposed()
