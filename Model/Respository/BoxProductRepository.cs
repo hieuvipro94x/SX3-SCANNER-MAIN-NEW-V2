@@ -261,6 +261,40 @@ namespace SX3_SCANER.Model
             }
         }
 
+        public DateTime? GetBoxCreatedDate(string boxName)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+            {
+                return null;
+            }
+
+            using (SQLiteConnection connection =
+                DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    SELECT BoxSealNo
+                    FROM BoxProduct
+                    WHERE BoxName = @BoxName
+                    ORDER BY ID DESC
+                    LIMIT 1";
+                command.Parameters.AddWithValue("@BoxName", boxName);
+
+                string boxSealNo = Convert.ToString(command.ExecuteScalar());
+                if (DateTime.TryParseExact(
+                    boxSealNo,
+                    "yyMMdd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out DateTime boxCreatedDate))
+                {
+                    return boxCreatedDate.Date;
+                }
+            }
+
+            return null;
+        }
+
         public string GetNextBoxName(DateTime businessDate)
         {
             string today = businessDate.ToString("yyMMdd");

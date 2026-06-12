@@ -11,6 +11,7 @@ namespace SX3_SCANER
     {
         private const string SingleInstanceMutexName = @"Local\SX3_SCANER_SingleInstance";
         private Mutex _singleInstanceMutex;
+        private AnnouncementServerRunner _announcementServerRunner;
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
@@ -37,7 +38,8 @@ namespace SX3_SCANER
                     initialize.EnsureCreate();
                 });
 
-                await AnnouncementServerBootstrapper.StartAnnouncementServer();
+                _announcementServerRunner = new AnnouncementServerRunner();
+                await Task.Run(() => _announcementServerRunner.Start());
 
                 StartupManager.SetStatus("Đang tải cấu hình...");
                 MainWindow mainWindow = new MainWindow
@@ -70,6 +72,9 @@ namespace SX3_SCANER
 
         protected override void OnExit(ExitEventArgs e)
         {
+            _announcementServerRunner?.Dispose();
+            _announcementServerRunner = null;
+
             if (_singleInstanceMutex != null)
             {
                 try

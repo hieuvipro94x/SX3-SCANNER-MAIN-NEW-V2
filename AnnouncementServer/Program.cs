@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,129 +7,163 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Channels;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls(
-    builder.Configuration["AnnouncementServer:Urls"] ??
-    "http://0.0.0.0:5088");
-builder.Services.AddSingleton<AnnouncementBroker>();
-builder.Services.AddHostedService<AnnouncementFileWatcherService>();
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+    AnnouncementServerErrorLog.Write(
+        "AppDomain.UnhandledException",
+        eventArgs.ExceptionObject as Exception ??
+        new Exception(eventArgs.ExceptionObject?.ToString() ?? "Unknown error"));
 
-var app = builder.Build();
-app.UseWebSockets(new WebSocketOptions
+TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
 {
-    KeepAliveInterval = TimeSpan.FromSeconds(20)
-});
+    AnnouncementServerErrorLog.Write(
+        "TaskScheduler.UnobservedTaskException",
+        eventArgs.Exception);
+    eventArgs.SetObserved();
+};
 
-app.MapGet("/health", () => Results.Ok(new
+try
 {
-    status = "ok",
-    utc = DateTimeOffset.UtcNow
-}));
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+    builder.WebHost.UseUrls(
+        builder.Configuration["AnnouncementServer:Urls"] ??
+        "http://0.0.0.0:5088");
+    builder.Services.AddSingleton<AnnouncementBroker>();
+    builder.Services.AddHostedService<AnnouncementFileWatcherService>();
+    builder.Services.AddHostedService<AnnouncementShutdownService>();
+    builder.Services.AddHostedService<ParentProcessMonitorService>();
 
-app.MapGet(
-    "/api/announcements/current",
-    (AnnouncementBroker broker) =>
-        Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+    var app = builder.Build();
+    app.Lifetime.ApplicationStarted.Register(
+        () => app.Logger.LogInformation("Server started"));
+    app.Lifetime.ApplicationStopping.Register(
+        () => app.Logger.LogInformation("Server stopping"));
+    app.Lifetime.ApplicationStopped.Register(
+        () => app.Logger.LogInformation("Server stopped"));
 
-app.MapGet(
-    "/api/announcements",
-    (AnnouncementBroker broker) =>
-        Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
-
-app.MapPost(
-    "/api/announcements",
-    async (
-        HttpRequest request,
-        AnnouncementBroker broker,
-        IConfiguration configuration,
-        CancellationToken token) =>
+    app.UseWebSockets(new WebSocketOptions
     {
-        string expectedToken =
-            Environment.GetEnvironmentVariable(
-                "SX3_ANNOUNCEMENT_ADMIN_TOKEN") ??
-            configuration["AnnouncementServer:AdminToken"] ??
-            string.Empty;
-
-        if (string.IsNullOrWhiteSpace(expectedToken))
-        {
-            return Results.Problem(
-                "Announcement publishing is disabled because no admin token is configured.",
-                statusCode: StatusCodes.Status503ServiceUnavailable);
-        }
-
-        string authorization = request.Headers.Authorization.ToString();
-        const string bearerPrefix = "Bearer ";
-        if (!authorization.StartsWith(
-                bearerPrefix,
-                StringComparison.OrdinalIgnoreCase) ||
-            !TokensEqual(
-                authorization.Substring(bearerPrefix.Length).Trim(),
-                expectedToken))
-        {
-            return Results.Unauthorized();
-        }
-
-        try
-        {
-            using var reader = new StreamReader(
-                request.Body,
-                new UTF8Encoding(false, true),
-                detectEncodingFromByteOrderMarks: true,
-                bufferSize: 8192,
-                leaveOpen: true);
-            string json = await reader.ReadToEndAsync(token);
-            string normalized = AnnouncementBroker.ValidateAndNormalize(json);
-            await broker.PublishAsync(normalized, token);
-            return Results.Ok(new
-            {
-                published = true,
-                clients = broker.ConnectedClientCount,
-                utc = DateTimeOffset.UtcNow
-            });
-        }
-        catch (JsonException ex)
-        {
-            return Results.BadRequest(new
-            {
-                error = "Invalid announcement JSON.",
-                detail = ex.Message
-            });
-        }
-        catch (InvalidDataException ex)
-        {
-            return Results.BadRequest(new
-            {
-                error = ex.Message
-            });
-        }
-        catch (DecoderFallbackException)
-        {
-            return Results.BadRequest(new
-            {
-                error = "Announcement payload is not valid UTF-8."
-            });
-        }
+        KeepAliveInterval = TimeSpan.FromSeconds(20)
     });
 
-app.Map(
-    "/ws/announcements",
-    async (
-        HttpContext context,
-        AnnouncementBroker broker,
-        CancellationToken token) =>
+    app.MapGet("/health", () => Results.Ok(new
     {
-        if (!context.WebSockets.IsWebSocketRequest)
+        status = "ok",
+        utc = DateTimeOffset.UtcNow
+    }));
+
+    app.MapGet(
+        "/api/announcements/current",
+        (AnnouncementBroker broker) =>
+            Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+
+    app.MapGet(
+        "/api/announcements",
+        (AnnouncementBroker broker) =>
+            Results.Text(broker.CurrentJson, "application/json", Encoding.UTF8));
+
+    app.MapPost(
+        "/api/announcements",
+        async (
+            HttpRequest request,
+            AnnouncementBroker broker,
+            IConfiguration configuration,
+            CancellationToken token) =>
         {
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
-            return;
-        }
+            string expectedToken =
+                Environment.GetEnvironmentVariable(
+                    "SX3_ANNOUNCEMENT_ADMIN_TOKEN") ??
+                configuration["AnnouncementServer:AdminToken"] ??
+                string.Empty;
 
-        using WebSocket socket =
-            await context.WebSockets.AcceptWebSocketAsync();
-        await broker.RunClientAsync(socket, token);
-    });
+            if (string.IsNullOrWhiteSpace(expectedToken))
+            {
+                return Results.Problem(
+                    "Announcement publishing is disabled because no admin token is configured.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
 
-app.Run();
+            string authorization = request.Headers.Authorization.ToString();
+            const string bearerPrefix = "Bearer ";
+            if (!authorization.StartsWith(
+                    bearerPrefix,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !TokensEqual(
+                    authorization.Substring(bearerPrefix.Length).Trim(),
+                    expectedToken))
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                using var reader = new StreamReader(
+                    request.Body,
+                    new UTF8Encoding(false, true),
+                    detectEncodingFromByteOrderMarks: true,
+                    bufferSize: 8192,
+                    leaveOpen: true);
+                string json = await reader.ReadToEndAsync(token);
+                string normalized = AnnouncementBroker.ValidateAndNormalize(json);
+                await broker.PublishAsync(normalized, token);
+                return Results.Ok(new
+                {
+                    published = true,
+                    clients = broker.ConnectedClientCount,
+                    utc = DateTimeOffset.UtcNow
+                });
+            }
+            catch (JsonException ex)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Invalid announcement JSON.",
+                    detail = ex.Message
+                });
+            }
+            catch (InvalidDataException ex)
+            {
+                return Results.BadRequest(new
+                {
+                    error = ex.Message
+                });
+            }
+            catch (DecoderFallbackException)
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Announcement payload is not valid UTF-8."
+                });
+            }
+        });
+
+    app.Map(
+        "/ws/announcements",
+        async (
+            HttpContext context,
+            AnnouncementBroker broker,
+            CancellationToken token) =>
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
+
+            using WebSocket socket =
+                await context.WebSockets.AcceptWebSocketAsync();
+            await broker.RunClientAsync(socket, token);
+        });
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    AnnouncementServerErrorLog.Write("Startup", ex);
+    Environment.ExitCode = 1;
+}
 
 static bool TokensEqual(string actual, string expected)
 {
@@ -136,6 +171,58 @@ static bool TokensEqual(string actual, string expected)
     byte[] expectedBytes = Encoding.UTF8.GetBytes(expected ?? string.Empty);
     return actualBytes.Length == expectedBytes.Length &&
         CryptographicOperations.FixedTimeEquals(actualBytes, expectedBytes);
+}
+
+internal static class AnnouncementServerErrorLog
+{
+    private static readonly object SyncRoot = new();
+
+    public static void Write(string source, Exception exception)
+    {
+        try
+        {
+            string logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+            Directory.CreateDirectory(logDirectory);
+            string logPath = Path.Combine(
+                logDirectory,
+                "announcement-server-error.log");
+
+            var message = new StringBuilder()
+                .AppendLine("==================================================")
+                .AppendLine("Time: " + DateTimeOffset.Now.ToString("O"))
+                .AppendLine("Source: " + source);
+
+            AppendException(message, exception, 0);
+
+            lock (SyncRoot)
+            {
+                File.AppendAllText(
+                    logPath,
+                    message.ToString(),
+                    new UTF8Encoding(false));
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private static void AppendException(
+        StringBuilder message,
+        Exception exception,
+        int level)
+    {
+        string label = level == 0
+            ? "Exception"
+            : "Inner exception " + level;
+        message
+            .AppendLine(label + " message: " + exception.Message)
+            .AppendLine(label + " stack trace:")
+            .AppendLine(exception.StackTrace ?? "(no stack trace)");
+
+        if (exception.InnerException != null)
+            AppendException(message, exception.InnerException, level + 1);
+    }
 }
 
 internal sealed class AnnouncementBroker
@@ -196,6 +283,10 @@ internal sealed class AnnouncementBroker
             {
                 _clients[clientId] = client;
                 await client.SendAsync(CurrentJson, token);
+                _logger.LogInformation(
+                    "Client connected. ClientId={ClientId}, ConnectedClients={ConnectedClients}",
+                    clientId,
+                    ConnectedClientCount);
             }
             finally
             {
@@ -223,6 +314,10 @@ internal sealed class AnnouncementBroker
         finally
         {
             _clients.TryRemove(clientId, out _);
+            _logger.LogInformation(
+                "Client disconnected. ClientId={ClientId}, ConnectedClients={ConnectedClients}",
+                clientId,
+                ConnectedClientCount);
             if (socket.State == WebSocketState.Open ||
                 socket.State == WebSocketState.CloseReceived)
             {
@@ -238,6 +333,22 @@ internal sealed class AnnouncementBroker
                 }
             }
         }
+    }
+
+    public async Task CloseAllClientsAsync(CancellationToken token)
+    {
+        KeyValuePair<Guid, AnnouncementClient>[] clients = _clients.ToArray();
+        if (clients.Length == 0)
+            return;
+
+        _logger.LogInformation(
+            "Closing {ConnectedClients} WebSocket client(s).",
+            clients.Length);
+
+        Task[] closeTasks = clients
+            .Select(client => CloseClientAsync(client, token))
+            .ToArray();
+        await Task.WhenAll(closeTasks);
     }
 
     public async Task PublishAsync(string json, CancellationToken token)
@@ -468,6 +579,41 @@ internal sealed class AnnouncementBroker
         }
     }
 
+    private async Task CloseClientAsync(
+        KeyValuePair<Guid, AnnouncementClient> client,
+        CancellationToken token)
+    {
+        try
+        {
+            if (client.Value.Socket.State == WebSocketState.Open ||
+                client.Value.Socket.State == WebSocketState.CloseReceived)
+            {
+                await client.Value.Socket.CloseAsync(
+                    WebSocketCloseStatus.EndpointUnavailable,
+                    "Server shutting down",
+                    token);
+            }
+        }
+        catch (Exception ex) when (
+            ex is WebSocketException or
+            OperationCanceledException or
+            ObjectDisposedException or
+            InvalidOperationException)
+        {
+            try
+            {
+                client.Value.Socket.Abort();
+            }
+            catch
+            {
+            }
+        }
+        finally
+        {
+            _clients.TryRemove(client.Key, out _);
+        }
+    }
+
     private sealed class AnnouncementClient
     {
         private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -501,6 +647,7 @@ internal sealed class AnnouncementBroker
                 _sendLock.Release();
             }
         }
+
     }
 }
 
@@ -638,5 +785,146 @@ internal sealed class AnnouncementFileWatcherService : BackgroundService
         using var timer = new PeriodicTimer(SafetyPollInterval);
         while (await timer.WaitForNextTickAsync(token))
             SignalReload();
+    }
+}
+
+internal sealed class AnnouncementShutdownService : IHostedService
+{
+    private static readonly TimeSpan ClientShutdownTimeout =
+        TimeSpan.FromSeconds(3);
+
+    private readonly AnnouncementBroker _broker;
+    private readonly ILogger<AnnouncementShutdownService> _logger;
+
+    public AnnouncementShutdownService(
+        AnnouncementBroker broker,
+        ILogger<AnnouncementShutdownService> logger)
+    {
+        _broker = broker;
+        _logger = logger;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Closing announcement clients.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        timeout.CancelAfter(ClientShutdownTimeout);
+
+        try
+        {
+            await _broker.CloseAllClientsAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "Timed out while closing announcement clients.");
+        }
+    }
+}
+
+internal sealed class ParentProcessMonitorService : BackgroundService
+{
+    private static readonly TimeSpan PollInterval =
+        TimeSpan.FromMilliseconds(500);
+
+    private readonly IConfiguration _configuration;
+    private readonly IHostApplicationLifetime _lifetime;
+    private readonly ILogger<ParentProcessMonitorService> _logger;
+
+    public ParentProcessMonitorService(
+        IConfiguration configuration,
+        IHostApplicationLifetime lifetime,
+        ILogger<ParentProcessMonitorService> logger)
+    {
+        _configuration = configuration;
+        _lifetime = lifetime;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            _logger.LogWarning(
+                "Parent process monitoring requires Windows and is disabled.");
+            return;
+        }
+
+        if (!int.TryParse(
+                _configuration["ParentProcessId"],
+                out int parentProcessId) ||
+            string.IsNullOrWhiteSpace(
+                _configuration["ShutdownEventName"]))
+        {
+            _logger.LogInformation(
+                "No parent process configured; lifecycle monitoring is disabled.");
+            return;
+        }
+
+        string shutdownEventName = _configuration["ShutdownEventName"]!;
+        using EventWaitHandle shutdownEvent =
+            EventWaitHandle.OpenExisting(shutdownEventName);
+
+        try
+        {
+            await Task.Delay(
+                Timeout.InfiniteTimeSpan,
+                _lifetime.ApplicationStarted);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        if (stoppingToken.IsCancellationRequested)
+            return;
+
+        Process? parentProcess;
+        try
+        {
+            parentProcess = Process.GetProcessById(parentProcessId);
+        }
+        catch (ArgumentException)
+        {
+            _lifetime.StopApplication();
+            _logger.LogWarning(
+                "Parent process {ParentProcessId} is no longer running.",
+                parentProcessId);
+            return;
+        }
+
+        using (parentProcess)
+        {
+            _logger.LogInformation(
+                "Monitoring parent process {ParentProcessId}.",
+                parentProcessId);
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                if (shutdownEvent.WaitOne(TimeSpan.Zero))
+                {
+                    _lifetime.StopApplication();
+                    _logger.LogInformation(
+                        "Shutdown requested by parent process.");
+                    return;
+                }
+
+                if (parentProcess.HasExited)
+                {
+                    _lifetime.StopApplication();
+                    _logger.LogWarning(
+                        "Parent process {ParentProcessId} exited; stopping server.",
+                        parentProcessId);
+                    return;
+                }
+
+                await Task.Delay(PollInterval, stoppingToken);
+            }
+        }
     }
 }

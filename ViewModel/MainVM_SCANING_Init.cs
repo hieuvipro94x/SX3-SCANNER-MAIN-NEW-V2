@@ -95,6 +95,7 @@ namespace SX3_SCANER.ViewModel
             if (string.IsNullOrEmpty(notcompletebox))
             {
                 _CurrentBoxName = null;
+                _currentBoxCreatedDate = null;
                 ScanHistorySource = new ObservableCollection<ScanHistory>();
                 CurrentScanProgress = 0;
                 OnPropertyChanged(nameof(HasOpenScanSession));
@@ -103,6 +104,8 @@ namespace SX3_SCANER.ViewModel
             }
 
             _CurrentBoxName = notcompletebox;
+            _currentBoxCreatedDate =
+                _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
             ScanHistorySource = new ScanHistoryRepository().GetNotComplete(notcompletebox);
             RefreshScanHistoryDisplayIndex();
             CurrentScanProgress = ScanHistorySource?.Count(x => x.ScanResult == true) ?? 0;
@@ -167,40 +170,39 @@ namespace SX3_SCANER.ViewModel
             get { return _SelectedDate; }
             set
             {
-                DateTime previousDate = _SelectedDate;
-                bool dateChanged = previousDate != default(DateTime) && previousDate.Date != value.Date;
-                bool hasOpenBox = HasOpenScanSession && !string.IsNullOrWhiteSpace(_CurrentBoxName);
-                if (dateChanged && hasOpenBox)
+                if (_SelectedDate == value)
                 {
-                    OnPropertyChanged();
                     return;
                 }
-                if (dateChanged && !hasOpenBox && !string.IsNullOrWhiteSpace(SelectedPartNumber))
-                {
-                    SaveCurrentScanSession(false);
-                    InJob = false;
-                }
 
+                bool hasOpenBox = HasOpenScanSession;
                 string old = _SelectedDate.ToString("yyMMdd");
                 _SelectedDate = value;
-                OnPropertyChanged();
+                SealNoExpected = _SelectedDate.ToString("yyMMdd");
 
-                if (string.IsNullOrWhiteSpace(FullCodeExpected)) return;
-
-                SealNoExpected = value.ToString("yyMMdd");
-                FullCodeExpected = FullCodeExpected.Replace(old, SealNoExpected);
-
-                if (!dateChanged ||
-                    hasOpenBox ||
-                    string.IsNullOrWhiteSpace(SelectedPartNumber))
+                if (!string.IsNullOrWhiteSpace(FullCodeExpected))
                 {
+                    FullCodeExpected = FullCodeExpected.Replace(
+                        old,
+                        SealNoExpected);
+                }
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SealNoExpected));
+
+                if (hasOpenBox)
+                {
+                    CommandManager.InvalidateRequerySuggested();
                     return;
                 }
 
-                if (!RestoreScanSession(SelectedPartNumber))
+                if (!string.IsNullOrWhiteSpace(SelectedPartNumber) &&
+                    !RestoreScanSession(SelectedPartNumber))
                 {
                     CheckLastJob(SelectedPartNumber);
                 }
+
+                CommandManager.InvalidateRequerySuggested();
             }
         }
 

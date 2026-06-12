@@ -2433,25 +2433,24 @@ Width="58" />
                                        VerticalAlignment="Center"
                                        TextWrapping="NoWrap" />
 
-                            <Grid Grid.Column="2"
-                                  x:Name="AnnouncementMarqueeHost"
-                                  Margin="0,0,8,0"
-                                  ClipToBounds="True"
-                                  VerticalAlignment="Center">
+                            <Canvas Grid.Column="2"
+                                    x:Name="AnnouncementMarqueeHost"
+                                    Margin="0,0,8,0"
+                                    ClipToBounds="True"
+                                    VerticalAlignment="Stretch">
                                 <TextBlock x:Name="AnnouncementMarqueeText"
                                            Text="{Binding OnlineAnnouncementText}"
+                                           Canvas.Top="3"
                                            FontFamily="Segoe UI"
                                            FontSize="13"
                                            FontWeight="Bold"
                                            Foreground="{Binding OnlineAnnouncementForeground}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Left"
                                            TextWrapping="NoWrap">
                                     <TextBlock.RenderTransform>
                                         <TranslateTransform x:Name="AnnouncementMarqueeTransform" />
                                     </TextBlock.RenderTransform>
                                 </TextBlock>
-                            </Grid>
+                            </Canvas>
 
                             <StackPanel Grid.Column="3"
                                         Margin="6,0,0,0"

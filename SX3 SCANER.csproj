@@ -73,6 +73,9 @@
     <Reference Include="MaterialDesignThemes.Wpf, Version=5.2.1.0, Culture=neutral, PublicKeyToken=df2a72020bd7962a, processorArchitecture=MSIL">
       <HintPath>packages\MaterialDesignThemes.5.2.1\lib\net462\MaterialDesignThemes.Wpf.dll</HintPath>
     </Reference>
+    <Reference Include="Markdig, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\Markdig.1.2.0\lib\net462\Markdig.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.8, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.8\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
@@ -102,6 +105,15 @@
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
+    <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics.Vectors, Version=4.1.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\System.Numerics.Vectors.4.6.1\lib\net462\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
     <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
@@ -130,7 +142,7 @@
     <Compile Include="AskPassword\AskPasswordWD.xaml.cs">
       <DependentUpon>AskPasswordWD.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Helper\AnnouncementServerBootstrapper.cs" />
+    <Compile Include="Helper\AnnouncementServerRunner.cs" />
     <Compile Include="Helper\AppConfigHelper.cs" />
     <Compile Include="Helper\GitHubReleaseUpdateInfo.cs" />
     <Compile Include="Helper\GitHubReleaseUpdateService.cs" />
@@ -245,11 +257,13 @@
     <Copy SourceFiles="$(SQLiteStubDir)\x86\SQLite.Interop.dll" DestinationFiles="$(TargetDir)x86\SQLite.Interop.dll" SkipUnchangedFiles="true" Condition="Exists('$(SQLiteStubDir)\x86\SQLite.Interop.dll')" />
     <Copy SourceFiles="$(SQLiteStubDir)\x64\SQLite.Interop.dll" DestinationFiles="$(TargetDir)x64\SQLite.Interop.dll" SkipUnchangedFiles="true" Condition="Exists('$(SQLiteStubDir)\x64\SQLite.Interop.dll')" />
   </Target>
-  <Target Name="PublishAnnouncementServer" AfterTargets="Build">
+  <Target Name="PublishAnnouncementServer"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release'">
     <PropertyGroup>
       <AnnouncementServerProject>$(MSBuildProjectDirectory)\AnnouncementServer\SX3.AnnouncementServer.csproj</AnnouncementServerProject>
       <AnnouncementServerArtifacts>$(BaseIntermediateOutputPath)AnnouncementServerArtifacts</AnnouncementServerArtifacts>
-      <AnnouncementServerPublishDir>$([System.String]::Copy('$(TargetDir)').TrimEnd('\'))</AnnouncementServerPublishDir>
+      <AnnouncementServerPublishDir>$(TargetDir)AnnouncementServer</AnnouncementServerPublishDir>
     </PropertyGroup>
     <Exec Command="dotnet publish &quot;$(AnnouncementServerProject)&quot; --configuration $(Configuration) --framework net8.0 --artifacts-path &quot;$(AnnouncementServerArtifacts)&quot; --output &quot;$(AnnouncementServerPublishDir)&quot; --no-self-contained" />
   </Target>
