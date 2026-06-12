@@ -145,13 +145,30 @@ function Publish-GitHubRelease(
     Assert-LastExitCode "git push origin $tag --force"
 
     Info "`n[8/9] Xoa GitHub Release cu neu da ton tai..."
-    & $GitHubCLI release view $tag --repo $Repository *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $releaseViewOutput = & $GitHubCLI release view $tag --repo $Repository 2>&1
+    $releaseViewExitCode = $LASTEXITCODE
+
+    if ($releaseViewExitCode -eq 0) {
+        Write-Host "Da tim thay GitHub Release cu: $tag. Dang xoa..." -ForegroundColor Yellow
+
         & $GitHubCLI release delete $tag --repo $Repository --yes
-        Assert-LastExitCode "gh release delete $tag"
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Khong xoa duoc GitHub Release cu: $tag"
+        }
+
+        Write-Host "Da xoa GitHub Release cu: $tag" -ForegroundColor Green
     }
     else {
-        Warn "GitHub Release $tag chua ton tai. Tiep tuc tao release moi."
+        $releaseViewText = ($releaseViewOutput | Out-String)
+
+        if ($releaseViewText -match "release not found" -or
+            $releaseViewText -match "Not Found" -or
+            $releaseViewText -match "could not resolve to a Release") {
+            Write-Host "GitHub Release $tag chua ton tai, bo qua buoc xoa." -ForegroundColor Yellow
+        }
+        else {
+            Fail "Khong kiem tra duoc GitHub Release $tag. Chi tiet: $releaseViewText"
+        }
     }
 
     Info "`n[9/9] Tao GitHub Release va upload assets..."
