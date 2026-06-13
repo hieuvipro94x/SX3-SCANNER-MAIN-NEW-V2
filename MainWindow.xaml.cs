@@ -318,9 +318,13 @@ namespace SX3_SCANER
 
             double from = hostWidth;
             double to = -textWidth;
-            double seconds =
-                (hostWidth + textWidth) /
-                Math.Max(1, viewModel.OnlineAnnouncementMarqueeSpeed);
+
+            // Tốc độ cố định theo pixel
+            const double pixelsPerSecond = 55;
+
+            double distance = hostWidth + textWidth;
+            double seconds = Math.Max(12, distance / pixelsPerSecond);
+
             var animation = new DoubleAnimation
             {
                 From = from,
@@ -328,6 +332,7 @@ namespace SX3_SCANER
                 Duration = TimeSpan.FromSeconds(seconds),
                 FillBehavior = FillBehavior.Stop
             };
+
             Timeline.SetDesiredFrameRate(animation, 60);
 
             animation.Completed += async (animationSender, animationArgs) =>
@@ -347,22 +352,7 @@ namespace SX3_SCANER
                     AnnouncementMarqueeTransform.X = to;
                 }
 
-                int delaySeconds =
-                    Math.Max(0, viewModel.OnlineAnnouncementMarqueeDelaySeconds);
-
-                try
-                {
-                    if (delaySeconds > 0)
-                    {
-                        await Task.Delay(
-                            TimeSpan.FromSeconds(delaySeconds),
-                            cts.Token);
-                    }
-                }
-                catch (TaskCanceledException)
-                {
-                    return;
-                }
+                await Task.Delay(150, cts.Token);
 
                 if (cts.IsCancellationRequested ||
                     generation != _announcementMarqueeGeneration ||
