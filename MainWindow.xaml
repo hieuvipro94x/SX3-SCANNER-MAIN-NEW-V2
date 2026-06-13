@@ -213,32 +213,160 @@
                 Background="White"
                 BorderBrush="#E0E7EF"
                 BorderThickness="0,0,0,1"
-                Padding="6,2">
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right">
-                <TextBlock x:Name="txtUpdateStatus"
-                           Text="Đang kiểm tra bản cập nhật..."
-                           Foreground="{StaticResource TextMutedBrush}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0" />
+                Padding="8,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="190" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <Grid>
-                    <Button x:Name="btnSoftwareUpdate"
-                            Content="CẬP NHẬT PHẦN MỀM"
-                            Click="SoftwareUpdate_Click"
-                            IsEnabled="False" />
+                <Grid Grid.Column="1"
+                      x:Name="topAnnouncementArea"
+                      Margin="8,0,14,0"
+                      HorizontalAlignment="Stretch">
+                    <Border x:Name="onlineAnnouncementHost"
+                             Width="{Binding ActualWidth, ElementName=topAnnouncementArea}"
+                             MinWidth="760"
+                             MaxWidth="1300"
+                            Height="42"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            CornerRadius="11"
+                            Padding="12,4"
+                            BorderThickness="2"
+                            Background="{Binding OnlineAnnouncementBackground}"
+                            BorderBrush="{Binding OnlineAnnouncementBorderBrush}">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="12"
+                                              ShadowDepth="0"
+                                              Opacity="0.35" />
+                        </Border.Effect>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOnlineAnnouncementVisible}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
 
-                    <Ellipse x:Name="updateNotificationDot"
-                             Width="10"
-                             Height="10"
-                             Fill="#DC2626"
-                             Stroke="White"
-                             StrokeThickness="1"
-                             HorizontalAlignment="Right"
-                             VerticalAlignment="Top"
-                             Visibility="Collapsed" />
+                        <Grid ClipToBounds="True"
+                              VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="38" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="{Binding OnlineAnnouncementIcon}"
+                                       Foreground="{Binding OnlineAnnouncementForeground}"
+                                       FontFamily="Segoe UI Emoji"
+                                       FontSize="20"
+                                       FontWeight="Bold"
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Center" />
+
+                            <TextBlock Grid.Column="1"
+                                       Margin="6,0,12,0"
+                                       Text="{Binding OnlineAnnouncementTitle, StringFormat={}{0}:}"
+                                       Foreground="{Binding OnlineAnnouncementForeground}"
+                                       FontFamily="Segoe UI"
+                                       FontSize="14"
+                                       FontWeight="ExtraBold"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="NoWrap" />
+
+                            <Canvas Grid.Column="2"
+                                    x:Name="AnnouncementMarqueeHost"
+                                    Margin="0,0,8,0"
+                                    ClipToBounds="True"
+                                    VerticalAlignment="Stretch">
+                                <TextBlock x:Name="AnnouncementMarqueeText"
+                                           Text="{Binding OnlineAnnouncementText}"
+                                           Canvas.Top="6"
+                                           FontFamily="Segoe UI"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding OnlineAnnouncementForeground}"
+                                           TextWrapping="NoWrap">
+                                    <TextBlock.RenderTransform>
+                                        <TranslateTransform x:Name="AnnouncementMarqueeTransform" />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Canvas>
+
+                            <StackPanel Grid.Column="3"
+                                        Margin="6,0,0,0"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Border Padding="9,3"
+                                        CornerRadius="6"
+                                        Background="#33FFFFFF"
+                                        BorderBrush="#66FFFFFF"
+                                        BorderThickness="1"
+                                        VerticalAlignment="Center"
+                                        Visibility="{Binding IsAnnouncementCountdownVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <TextBlock Foreground="{Binding OnlineAnnouncementForeground}"
+                                               FontFamily="Segoe UI Emoji"
+                                               FontSize="13"
+                                               FontWeight="Bold"
+                                               Text="{Binding AnnouncementCountdownText}" />
+                                </Border>
+
+                                <Button Width="31"
+                                        Height="29"
+                                        MinHeight="0"
+                                        Margin="8,0,0,0"
+                                        Padding="0"
+                                        Content="×"
+                                        FontSize="19"
+                                        FontWeight="Bold"
+                                        Foreground="{Binding OnlineAnnouncementForeground}"
+                                        Background="#22FFFFFF"
+                                        BorderBrush="#55FFFFFF"
+                                        BorderThickness="1"
+                                        Click="OnlineAnnouncementClose_Click"
+                                        Visibility="{Binding IsAnnouncementCloseVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
-            </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <TextBlock x:Name="txtUpdateStatus"
+                               Text="Đang kiểm tra bản cập nhật..."
+                               Foreground="{StaticResource TextMutedBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               TextWrapping="NoWrap"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="180" />
+
+                    <Grid>
+                        <Button x:Name="btnSoftwareUpdate"
+                                Content="CẬP NHẬT PHẦN MỀM"
+                                Click="SoftwareUpdate_Click"
+                                IsEnabled="False" />
+
+                        <Ellipse x:Name="updateNotificationDot"
+                                 Width="10"
+                                 Height="10"
+                                 Fill="#DC2626"
+                                 Stroke="White"
+                                 StrokeThickness="1"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Top"
+                                 Visibility="Collapsed" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <TabControl Grid.Row="1" SelectedIndex="{Binding TabControlSelectedIndex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Grid.ColumnSpan="2" Margin="2">
@@ -1538,10 +1666,10 @@
                                             <Style TargetType="TextBlock">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding ScanTextResult}" Value="OK">
-                                                         <Setter Property="Text" Value="KẾT QUẢ SCAN: OK"/>
+                                                        <Setter Property="Text" Value="KẾT QUẢ SCAN: OK"/>
                                                     </DataTrigger>
                                                     <DataTrigger Binding="{Binding ScanTextResult}" Value="NG">
-                                                         <Setter Property="Text" Value="KẾT QUẢ SCAN: NG"/>
+                                                        <Setter Property="Text" Value="KẾT QUẢ SCAN: NG"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
@@ -2360,132 +2488,16 @@
                 BorderThickness="0,1,0,0"
                 Padding="16,4,16,5">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="340" />
-                    <ColumnDefinition Width="*" MinWidth="670" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0"
-           x:Name="txtStartupStatus"
-           Margin="0,0,12,0"
-           Text="Sẵn sàng"
-           FontSize="18"
-           FontWeight="ExtraBold"
-           Foreground="Green"
-           VerticalAlignment="Center"
-           TextWrapping="NoWrap"
-           TextTrimming="None" />
-
-                <Grid Grid.Column="1"
-      x:Name="footerAnnouncementArea"
-      Margin="10,0">
-                    <Border x:Name="onlineAnnouncementHost"
-                             Width="{Binding ActualWidth, ElementName=footerAnnouncementArea}"
-                             MinWidth="650"
-                             MaxWidth="1100"
-                            Height="36"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            CornerRadius="7"
-                            Padding="8,3"
-                            BorderThickness="1"
-                            Background="{Binding OnlineAnnouncementBackground}"
-                            BorderBrush="{Binding OnlineAnnouncementBorderBrush}">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsOnlineAnnouncementVisible}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-
-                        <Grid ClipToBounds="True"
-                              VerticalAlignment="Center">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="30" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Text="{Binding OnlineAnnouncementIcon}"
-                                       Foreground="{Binding OnlineAnnouncementForeground}"
-                                       FontFamily="Segoe UI Emoji"
-                                       FontSize="18"
-                                       FontWeight="Bold"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center" />
-
-                            <TextBlock Grid.Column="1"
-                                       Margin="3,0,8,0"
-                                       Text="{Binding OnlineAnnouncementTitle, StringFormat={}{0}:}"
-                                       Foreground="{Binding OnlineAnnouncementForeground}"
-                                       FontFamily="Segoe UI"
-                                       FontSize="12"
-                                       FontWeight="ExtraBold"
-                                       VerticalAlignment="Center"
-                                       TextWrapping="NoWrap" />
-
-                            <Canvas Grid.Column="2"
-                                    x:Name="AnnouncementMarqueeHost"
-                                    Margin="0,0,8,0"
-                                    ClipToBounds="True"
-                                    VerticalAlignment="Stretch">
-                                <TextBlock x:Name="AnnouncementMarqueeText"
-                                           Text="{Binding OnlineAnnouncementText}"
-                                           Canvas.Top="3"
-                                           FontFamily="Segoe UI"
-                                           FontSize="13"
-                                           FontWeight="Bold"
-                                           Foreground="{Binding OnlineAnnouncementForeground}"
-                                           TextWrapping="NoWrap">
-                                    <TextBlock.RenderTransform>
-                                        <TranslateTransform x:Name="AnnouncementMarqueeTransform" />
-                                    </TextBlock.RenderTransform>
-                                </TextBlock>
-                            </Canvas>
-
-                            <StackPanel Grid.Column="3"
-                                        Margin="6,0,0,0"
-                                        Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <Border Padding="7,2"
-                                        CornerRadius="6"
-                                        Background="#33FFFFFF"
-                                        BorderBrush="#66FFFFFF"
-                                        BorderThickness="1"
-                                        VerticalAlignment="Center"
-                                        Visibility="{Binding IsAnnouncementCountdownVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock Foreground="{Binding OnlineAnnouncementForeground}"
-                                               FontFamily="Segoe UI Emoji"
-                                               FontSize="12"
-                                               FontWeight="Bold"
-                                               Text="{Binding AnnouncementCountdownText}" />
-                                </Border>
-
-                                <Button Width="28"
-                                        Height="26"
-                                        MinHeight="0"
-                                        Margin="8,0,0,0"
-                                        Padding="0"
-                                        Content="×"
-                                        FontSize="18"
-                                        FontWeight="Bold"
-                                        Foreground="{Binding OnlineAnnouncementForeground}"
-                                        Background="#22FFFFFF"
-                                        BorderBrush="#55FFFFFF"
-                                        BorderThickness="1"
-                                        Click="OnlineAnnouncementClose_Click"
-                                        Visibility="{Binding IsAnnouncementCloseVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                </Grid>
-
+                <TextBlock x:Name="txtStartupStatus"
+                           Margin="0"
+                           Text="Sẵn sàng"
+                           FontSize="18"
+                           FontWeight="ExtraBold"
+                           Foreground="Green"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           TextWrapping="NoWrap"
+                           TextTrimming="None" />
             </Grid>
         </Border>
 
