@@ -27,7 +27,7 @@ namespace SX3_SCANER.Helper
             "SX3 Scanner",
             "logs",
             "startup.log");
-        private static string _currentStatus = "Đang khởi động ứng dụng...";
+        private static string _currentStatus = "S\u1EB5n s\u00E0ng";
 
         internal static event Action<string> StatusChanged;
 

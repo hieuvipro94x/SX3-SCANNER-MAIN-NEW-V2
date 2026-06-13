@@ -1,6 +1,7 @@
 using SX3_SCANER.Model;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace SX3_SCANER.ViewModel
@@ -81,21 +82,29 @@ namespace SX3_SCANER.ViewModel
 
         private void ApplyPersistedBox(BoxProduct persistedBox, int persistedProgress)
         {
-            BoxProduct box = ToDayBoxSource?.FirstOrDefault(x => x.BoxName == _CurrentBoxName);
+            if (persistedBox == null)
+                return;
 
-            if (persistedBox != null)
+            if (ToDayBoxSource == null)
+                ToDayBoxSource = new ObservableCollection<BoxProduct>();
+
+            var existing = ToDayBoxSource
+                .FirstOrDefault(x => x.BoxName == persistedBox.BoxName);
+
+            if (existing == null)
             {
-                if (ToDayBoxSource == null)
-                    ToDayBoxSource = new ObservableCollection<BoxProduct>();
-
                 ToDayBoxSource.Add(persistedBox);
+                SelectedTodayBox = persistedBox;
             }
-            else if (box != null)
+            else
             {
-                box.BoxProgress = persistedProgress;
+                existing.BoxProgress = persistedBox.BoxProgress;
+                existing.BoxComplete = persistedBox.BoxComplete;
+                SelectedTodayBox = existing;
             }
 
             ToDayBoxView?.Refresh();
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 }

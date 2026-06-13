@@ -147,6 +147,9 @@ namespace SX3_SCANER.ViewModel
 
         private void OpenSelectedTodayBoxScanInfo()
         {
+            if (SelectedTodayBox == null)
+                return;
+
             new TodayBoxWD
             {
                 DataContext = new TodayBoxViewModel(SelectedTodayBox.BoxName)

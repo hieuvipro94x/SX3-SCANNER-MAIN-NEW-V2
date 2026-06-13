@@ -1574,7 +1574,7 @@
                             <!-- TABLE -->
                             <DataGrid Grid.Row="2"
           ItemsSource="{Binding ToDayBoxView}"
-          SelectedItem="{Binding SelectedTodayBox}"
+          SelectedItem="{Binding SelectedTodayBox, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
           IsReadOnly="True"
           Margin="3"
           AutoGenerateColumns="False"
@@ -2361,24 +2361,25 @@
                 Padding="16,4,16,5">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MaxWidth="250" />
-                    <ColumnDefinition Width="4*" MinWidth="670" />
-                    <ColumnDefinition Width="*" MaxWidth="250" />
+                    <ColumnDefinition Width="340" />
+                    <ColumnDefinition Width="*" MinWidth="670" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
-                           x:Name="txtStartupStatus"
-                           Margin="0,0,12,0"
-                           Text="Đang khởi động ứng dụng..."
-                           FontSize="13"
-                           FontWeight="SemiBold"
-                           Foreground="#475569"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis" />
+           x:Name="txtStartupStatus"
+           Margin="0,0,12,0"
+           Text="Sẵn sàng"
+           FontSize="18"
+           FontWeight="ExtraBold"
+           Foreground="Green"
+           VerticalAlignment="Center"
+           TextWrapping="NoWrap"
+           TextTrimming="None" />
 
                 <Grid Grid.Column="1"
-                      x:Name="footerAnnouncementArea"
-                      Margin="10,0">
+      x:Name="footerAnnouncementArea"
+      Margin="10,0">
                     <Border x:Name="onlineAnnouncementHost"
                              Width="{Binding ActualWidth, ElementName=footerAnnouncementArea}"
                              MinWidth="650"

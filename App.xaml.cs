@@ -27,7 +27,7 @@ namespace SX3_SCANER
 
             try
             {
-                StartupManager.SetStatus("Äang khá»Ÿi Ä‘á»™ng á»©ng dá»¥ng...");
+                StartupManager.SetStatus("\u0110ang kh\u1EDFi \u0111\u1ED9ng \u1EE9ng d\u1EE5ng...");
                 startupWindow = new StartupStatusWindow();
                 startupWindow.Show();
 
@@ -37,7 +37,8 @@ namespace SX3_SCANER
                     initialize.EnsureCreate();
                 });
 
-                StartupManager.SetStatus("Äang táº£i cáº¥u hÃ¬nh...");
+                StartupManager.SetStatus("\u0110ang t\u1EA3i c\u1EA5u h\u00ECnh...");
+
                 MainWindow mainWindow = new MainWindow
                 {
                     DataContext = new ViewModel.MainViewModel()
@@ -50,7 +51,8 @@ namespace SX3_SCANER
 
                 mainWindow.Show();
                 startupWindow.Close();
-                StartupManager.SetStatus("Sáºµn sÃ ng");
+
+                StartupManager.SetStatus("S\u1EB5n s\u00E0ng");
             }
             catch (Exception ex)
             {
@@ -59,20 +61,25 @@ namespace SX3_SCANER
                     Model.Respository.DatabaseRepository.DatabasePath +
                     " | " +
                     Model.Respository.DatabaseRepository.ProductDatabasePath);
+
                 StartupManager.Log("Application startup failed: " + ex);
-                StartupManager.SetStatus("KhÃ´ng thá»ƒ khá»Ÿi Ä‘á»™ng á»©ng dá»¥ng.");
+
+                StartupManager.SetStatus("Kh\u00F4ng th\u1EC3 kh\u1EDFi \u0111\u1ED9ng \u1EE9ng d\u1EE5ng.");
+
                 string diagnosis = StartupManager.GetDatabaseDiagnosis(ex);
+
                 MessageBox.Show(
-                    "KhÃ´ng thá»ƒ khá»Ÿi Ä‘á»™ng SX3 SCANER." +
+                    "Kh\u00F4ng th\u1EC3 kh\u1EDFi \u0111\u1ED9ng SX3 SCANER." +
                     Environment.NewLine +
-                    "NguyÃªn nhÃ¢n: " + diagnosis +
+                    "Nguy\u00EAn nh\u00E2n: " + diagnosis +
                     Environment.NewLine +
-                    "Chi tiáº¿t: " + ex.Message +
+                    "Chi ti\u1EBFt: " + ex.Message +
                     Environment.NewLine +
                     "Log: " + StartupManager.ErrorLogPath,
                     "SX3 SCANER",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+
                 startupWindow?.Close();
                 Shutdown();
             }

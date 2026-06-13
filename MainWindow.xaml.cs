@@ -141,7 +141,35 @@ namespace SX3_SCANER
 
         private void StartupStatus_Changed(string message)
         {
-            Dispatcher.BeginInvoke(new Action(() => txtStartupStatus.Text = message));
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                txtStartupStatus.Text = message;
+
+                if (message.Contains("Sẵn sàng"))
+                {
+                    txtStartupStatus.Foreground = Brushes.Green;
+                    txtStartupStatus.FontSize = 22;
+                    txtStartupStatus.FontWeight = FontWeights.ExtraBold;
+                }
+                else if (message.Contains("Đang quét"))
+                {
+                    txtStartupStatus.Foreground = Brushes.DodgerBlue;
+                    txtStartupStatus.FontSize = 22;
+                    txtStartupStatus.FontWeight = FontWeights.ExtraBold;
+                }
+                else if (message.Contains("Lỗi"))
+                {
+                    txtStartupStatus.Foreground = Brushes.Red;
+                    txtStartupStatus.FontSize = 22;
+                    txtStartupStatus.FontWeight = FontWeights.ExtraBold;
+                }
+                else
+                {
+                    txtStartupStatus.Foreground = Brushes.DarkOrange;
+                    txtStartupStatus.FontSize = 16;
+                    txtStartupStatus.FontWeight = FontWeights.Bold;
+                }
+            }));
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)
