@@ -6,7 +6,6 @@ using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,16 +20,17 @@ namespace SX3_SCANER.Helper
         private enum AnnouncementSource
         {
             Cache,
-            Snapshot,
+            Tailscale,
+            Cdn,
             Realtime
         }
 
         private const string DefaultRealtimeUrl =
-            "ws://127.0.0.1:5055/ws/announcements";
+            "ws://100.72.125.42:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
-            "http://127.0.0.1:5055/api/announcements/current";
-        private static readonly TimeSpan ReconnectDelay =
-            TimeSpan.FromSeconds(5);
+            "http://100.72.125.42:5055/api/announcements/current";
+        private const string DefaultFallbackCdnUrl =
+            "https://cdn.jsdelivr.net/gh/hieuvipro94x/sx3-scanner-release@main/announcement.json";
 
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
@@ -38,7 +38,10 @@ namespace SX3_SCANER.Helper
             new CancellationTokenSource();
         private readonly string _realtimeUrl;
         private readonly string _snapshotUrl;
+        private readonly string _fallbackCdnUrl;
         private readonly string _cachePath;
+        private readonly TimeSpan _pollInterval;
+        private readonly TimeSpan _connectionTimeout;
         private bool _isStarted;
         private bool _isDisposed;
         private string _lastAnnouncementFingerprint;
@@ -51,11 +54,20 @@ namespace SX3_SCANER.Helper
             _dispatcher = System.Windows.Application.Current?.Dispatcher ??
                 Dispatcher.CurrentDispatcher;
             _realtimeUrl = ReadSetting(
-                "AnnouncementRealtimeUrl",
+                "AnnouncementPrimaryWebSocketUrl",
                 DefaultRealtimeUrl);
             _snapshotUrl = ReadSetting(
-                "AnnouncementSnapshotUrl",
+                "AnnouncementPrimaryHttpUrl",
                 DefaultSnapshotUrl);
+            _fallbackCdnUrl = ReadSetting(
+                "AnnouncementFallbackCdnUrl",
+                DefaultFallbackCdnUrl);
+            _pollInterval = TimeSpan.FromSeconds(
+                ReadPositiveIntSetting("AnnouncementPollSeconds", 60));
+            _connectionTimeout = TimeSpan.FromSeconds(
+                ReadPositiveIntSetting(
+                    "AnnouncementHttpTimeoutSeconds",
+                    3));
             _cachePath = Path.Combine(
                 DatabaseRepository.AppDataDirectory,
                 "cache",
@@ -63,11 +75,9 @@ namespace SX3_SCANER.Helper
 
             _httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(8)
+                Timeout = _connectionTimeout
             };
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("SX3Scanner");
-            _httpClient.DefaultRequestHeaders.CacheControl =
-                new CacheControlHeaderValue { NoCache = true };
         }
 
         public event EventHandler<AnnouncementInfo> AnnouncementChanged;
@@ -104,20 +114,22 @@ namespace SX3_SCANER.Helper
             {
                 try
                 {
-                    await LoadSnapshotAsync(token).ConfigureAwait(false);
-
                     using (var socket = new ClientWebSocket())
                     {
                         socket.Options.KeepAliveInterval =
                             TimeSpan.FromSeconds(20);
-                        StartupManager.Log(
-                            "[Announcement] Connecting realtime...");
-                        await socket.ConnectAsync(
-                            new Uri(_realtimeUrl),
-                            token).ConfigureAwait(false);
+                        using (var connectCts =
+                            CancellationTokenSource.CreateLinkedTokenSource(
+                                token))
+                        {
+                            connectCts.CancelAfter(_connectionTimeout);
+                            await socket.ConnectAsync(
+                                new Uri(_realtimeUrl),
+                                connectCts.Token).ConfigureAwait(false);
+                        }
 
                         StartupManager.Log(
-                            "[Announcement] Realtime connected.");
+                            "[Announcement] Using Tailscale server");
 
                         await LoadSnapshotAsync(token).ConfigureAwait(false);
 
@@ -141,23 +153,24 @@ namespace SX3_SCANER.Helper
                     }
                 }
                 catch (OperationCanceledException)
+                    when (token.IsCancellationRequested)
                 {
                     return;
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine(
-                        "[Announcement] Realtime unavailable: " + ex.Message);
+                        "[Announcement] WebSocket unavailable, fallback to HTTP polling");
                     StartupManager.Log(
-                        "[Announcement] Realtime unavailable. " + ex.Message);
+                        "[Announcement] WebSocket unavailable, fallback to HTTP polling. " +
+                        ex.Message);
                 }
 
                 try
                 {
-                    StartupManager.Log(
-                        "[Announcement] Reconnecting in 5 seconds.");
+                    await LoadSnapshotAsync(token).ConfigureAwait(false);
                     await Task.Delay(
-                        ReconnectDelay,
+                        _pollInterval,
                         token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
@@ -201,48 +214,90 @@ namespace SX3_SCANER.Helper
             if (_isDisposed || string.IsNullOrWhiteSpace(_snapshotUrl))
                 return;
 
+            if (await TryLoadHttpAsync(
+                    _snapshotUrl,
+                    AnnouncementSource.Tailscale,
+                    token).ConfigureAwait(false))
+            {
+                StartupManager.Log(
+                    "[Announcement] Using Tailscale server");
+                return;
+            }
+
+            StartupManager.Log(
+                "[Announcement] Tailscale unavailable, fallback to CDN");
+            if (await TryLoadHttpAsync(
+                    _fallbackCdnUrl,
+                    AnnouncementSource.Cdn,
+                    token).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            StartupManager.Log(
+                "[Announcement] CDN unavailable, using cached announcement");
+            await LoadCachedAnnouncementAsync().ConfigureAwait(false);
+        }
+
+        private async Task<bool> TryLoadHttpAsync(
+            string url,
+            AnnouncementSource source,
+            CancellationToken token)
+        {
             try
             {
-                string requestUrl = _snapshotUrl +
-                    (_snapshotUrl.Contains("?") ? "&" : "?") +
-                    "t=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
                 using (HttpResponseMessage response =
-                    await _httpClient.GetAsync(requestUrl, token)
+                    await _httpClient.GetAsync(url, token)
                         .ConfigureAwait(false))
                 {
                     if (!response.IsSuccessStatusCode)
                     {
                         StartupManager.Log(
-                            "[Announcement] Snapshot HTTP " +
-                            (int)response.StatusCode + " from " + _snapshotUrl);
-                        return;
+                            "[Announcement] HTTP " +
+                            (int)response.StatusCode + " from " + url);
+                        return false;
                     }
 
                     byte[] bytes = await response.Content.ReadAsByteArrayAsync()
                         .ConfigureAwait(false);
                     string json = Encoding.UTF8.GetString(bytes);
-                    bool updated = await ProcessAnnouncementJsonAsync(
+                    AnnouncementInfo parsed;
+                    try
+                    {
+                        parsed = ParseAnnouncement(json);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogInvalidPayload(source, ex.Message);
+                        return false;
+                    }
+                    if (ContainsInvalidEncoding(json) ||
+                        ContainsInvalidEncoding(parsed))
+                    {
+                        LogInvalidPayload(source, null);
+                        return false;
+                    }
+
+                    await ProcessAnnouncementJsonAsync(
                         json,
                         saveCache: true,
-                        source: AnnouncementSource.Snapshot)
+                        source: source)
                         .ConfigureAwait(false);
-                    if (updated)
-                    {
-                        StartupManager.Log(
-                            "[Announcement] Snapshot updated.");
-                    }
+                    return true;
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
+                return false;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(
-                    "[Announcement] Snapshot unavailable: " + ex.Message);
+                    "[Announcement] HTTP unavailable: " + ex.Message);
                 StartupManager.Log(
-                    "[Announcement] Snapshot unavailable. " + ex.Message);
+                    "[Announcement] HTTP unavailable from " + url + ". " +
+                    ex.Message);
+                return false;
             }
         }
 
@@ -616,6 +671,17 @@ namespace SX3_SCANER.Helper
             return string.IsNullOrWhiteSpace(value)
                 ? defaultValue
                 : value.Trim();
+        }
+
+        private static int ReadPositiveIntSetting(string key, int defaultValue)
+        {
+            int value;
+            return int.TryParse(
+                       ConfigurationManager.AppSettings[key],
+                       out value) &&
+                   value > 0
+                ? value
+                : defaultValue;
         }
 
         public void Dispose()

@@ -287,8 +287,6 @@ $OutputDir = Join-Path $ProjectRoot "InstallerOutput"
 $PackageDir = Join-Path $OutputDir "PackageFiles"
 $BinRelease = Join-Path $ProjectRoot "bin\$Platform\$Configuration"
 $ProjectFile = Join-Path $ProjectRoot "SX3 SCANER.csproj"
-$AnnouncementServerProject = Join-Path $ProjectRoot "AnnouncementServer\SX3.AnnouncementServer.csproj"
-$AnnouncementServerPublishDir = Join-Path $ProjectRoot "AnnouncementServer\publish"
 
 $Version = Read-VersionFromAssemblyInfo $ProjectRoot
 $ReleaseNote = Get-ReleaseNote -BuildToolsDir $BuildToolsDir -Version $Version
@@ -341,43 +339,9 @@ foreach ($dir in @($ReleaseOutputDir, $OutputDir)) {
     }
 }
 
-if (Test-Path -LiteralPath $AnnouncementServerPublishDir) {
-    $resolvedPublishDir = [IO.Path]::GetFullPath($AnnouncementServerPublishDir)
-    $resolvedProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\')
-    if (-not $resolvedPublishDir.StartsWith($resolvedProjectRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-        Fail "Tu choi xoa thu muc publish ngoai project: $resolvedPublishDir"
-    }
-    Remove-Item -LiteralPath $resolvedPublishDir -Recurse -Force
-}
-
-if (Test-Path -LiteralPath $BinRelease) {
-    Get-ChildItem -LiteralPath $BinRelease -Filter "SX3.AnnouncementServer.*" -File -ErrorAction SilentlyContinue |
-        Remove-Item -Force
-}
-
 Write-Step "[1/9] Build $Configuration|$Platform..."
 & $MSBuild $ProjectFile /t:Rebuild /p:Configuration=$Configuration /p:Platform=$Platform /m
 Assert-LastExitCode "MSBuild $Configuration|$Platform"
-
-Info "Publish Announcement Server..."
-& dotnet publish $AnnouncementServerProject `
-    -c $Configuration `
-    -r win-x64 `
-    --self-contained false `
-    -o $AnnouncementServerPublishDir
-Assert-LastExitCode "dotnet publish Announcement Server"
-
-foreach ($requiredFile in @(
-    "AnnouncementServer.exe",
-    "AnnouncementServer.dll",
-    "AnnouncementServer.deps.json",
-    "AnnouncementServer.runtimeconfig.json"
-)) {
-    $requiredPath = Join-Path $AnnouncementServerPublishDir $requiredFile
-    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
-        Fail "Publish Announcement Server thieu file bat buoc: $requiredPath"
-    }
-}
 
 $Exe = Join-Path $BinRelease "SX3 SCANER.exe"
 if (-not (Test-Path -LiteralPath $Exe)) {
@@ -398,32 +362,6 @@ New-Item -ItemType Directory -Force -Path $PackageDir | Out-Null
 
 Write-Step "[2/9] Copy bin\$Platform\$Configuration vao PackageFiles..."
 Copy-Item -Path (Join-Path $BinRelease "*") -Destination $PackageDir -Recurse -Force
-
-$PackagedServerDir = Join-Path $PackageDir "AnnouncementServer"
-if (Test-Path -LiteralPath $PackagedServerDir) {
-    Remove-Item -LiteralPath $PackagedServerDir -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $PackagedServerDir | Out-Null
-Copy-Item -Path (Join-Path $AnnouncementServerPublishDir "*") `
-    -Destination $PackagedServerDir `
-    -Recurse `
-    -Force
-
-$UnexpectedRootServer = Join-Path $PackageDir "AnnouncementServer.exe"
-foreach ($requiredFile in @(
-    "AnnouncementServer.exe",
-    "AnnouncementServer.dll",
-    "AnnouncementServer.deps.json",
-    "AnnouncementServer.runtimeconfig.json"
-)) {
-    $requiredPath = Join-Path $PackagedServerDir $requiredFile
-    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
-        Fail "Package Announcement Server thieu file bat buoc: $requiredPath"
-    }
-}
-if (Test-Path -LiteralPath $UnexpectedRootServer) {
-    Fail "Package khong hop le: Announcement Server khong duoc nam o root."
-}
 
 $PackagedOkSound = Join-Path $PackageDir "Sounds\OK.wav"
 $PackagedNgSound = Join-Path $PackageDir "Sounds\NG.wav"
@@ -508,7 +446,6 @@ Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 Source: "$EscapedPackageDir\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "$EscapedPackageDir\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "$EscapedPackageDir\x86\*"; DestDir: "{app}\x86"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "$EscapedPackageDir\AnnouncementServer\*"; DestDir: "{app}\AnnouncementServer"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "$EscapedPackageDir\Sounds\*.wav"; DestDir: "{app}\Sounds"; Flags: ignoreversion
 
 [Icons]
@@ -521,31 +458,6 @@ Filename: "{sys}\schtasks.exe"; Parameters: "/Create /F /TN ""SX3 Scanner"" /TR 
 Filename: "{app}\{#MyAppExeName}"; Description: "Open SX3 Scanner"; Flags: nowait postinstall skipifsilent
 
 [Code]
-const
-  AnnouncementShutdownEvent = 'Local\SX3_AnnouncementServer_Shutdown';
-  EVENT_MODIFY_STATE = `$0002;
-
-function OpenEvent(dwDesiredAccess: LongWord; bInheritHandle: Boolean;
-  lpName: string): THandle;
-  external 'OpenEventW@kernel32.dll stdcall';
-function SetEvent(hEvent: THandle): Boolean;
-  external 'SetEvent@kernel32.dll stdcall';
-function CloseHandle(hObject: THandle): Boolean;
-  external 'CloseHandle@kernel32.dll stdcall';
-
-procedure StopAnnouncementServer;
-var
-  ShutdownEvent: THandle;
-begin
-  ShutdownEvent := OpenEvent(EVENT_MODIFY_STATE, False, AnnouncementShutdownEvent);
-  if ShutdownEvent <> 0 then
-  begin
-    SetEvent(ShutdownEvent);
-    CloseHandle(ShutdownEvent);
-    Sleep(3000);
-  end;
-end;
-
 procedure KillProcessByName(FileName: string);
 var
   ResultCode: Integer;
@@ -556,25 +468,17 @@ end;
 function InitializeSetup(): Boolean;
 begin
   KillProcessByName('SX3 SCANER.exe');
-  KillProcessByName('AnnouncementServer.exe');
   Sleep(2000);
   Result := True;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  StopAnnouncementServer;
   KillProcessByName('SX3 SCANER.exe');
-  KillProcessByName('AnnouncementServer.exe');
   Sleep(2000);
   Result := '';
 end;
 
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-begin
-  if CurUninstallStep = usUninstall then
-    StopAnnouncementServer;
-end;
 "@
 
 $IssContent | Out-File -LiteralPath $IssFile -Encoding UTF8

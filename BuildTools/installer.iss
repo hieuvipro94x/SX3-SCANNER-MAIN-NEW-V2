@@ -57,7 +57,6 @@ Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 Source: "{#MySourceDir}\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "{#MySourceDir}\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#MySourceDir}\x86\*"; DestDir: "{app}\x86"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\InstallerOutput\PackageFiles\AnnouncementServer\*"; DestDir: "{app}\AnnouncementServer"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\Sounds\*.wav"; DestDir: "{app}\Sounds"; Flags: ignoreversion
 
 [Icons]
@@ -70,31 +69,6 @@ Filename: "{sys}\schtasks.exe"; Parameters: "/Create /F /TN ""SX3 Scanner"" /TR 
 Filename: "{app}\{#MyAppExeName}"; Description: "Open SX3 Scanner"; Flags: nowait postinstall skipifsilent
 
 [Code]
-const
-  AnnouncementShutdownEvent = 'Local\SX3_AnnouncementServer_Shutdown';
-  EVENT_MODIFY_STATE = $0002;
-
-function OpenEvent(dwDesiredAccess: LongWord; bInheritHandle: Boolean;
-  lpName: string): THandle;
-  external 'OpenEventW@kernel32.dll stdcall';
-function SetEvent(hEvent: THandle): Boolean;
-  external 'SetEvent@kernel32.dll stdcall';
-function CloseHandle(hObject: THandle): Boolean;
-  external 'CloseHandle@kernel32.dll stdcall';
-
-procedure StopAnnouncementServer;
-var
-  ShutdownEvent: THandle;
-begin
-  ShutdownEvent := OpenEvent(EVENT_MODIFY_STATE, False, AnnouncementShutdownEvent);
-  if ShutdownEvent <> 0 then
-  begin
-    SetEvent(ShutdownEvent);
-    CloseHandle(ShutdownEvent);
-    Sleep(3000);
-  end;
-end;
-
 procedure KillProcessByName(FileName: string);
 var
   ResultCode: Integer;
@@ -105,22 +79,13 @@ end;
 function InitializeSetup(): Boolean;
 begin
   KillProcessByName('SX3 SCANER.exe');
-  KillProcessByName('AnnouncementServer.exe');
   Sleep(2000);
   Result := True;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  StopAnnouncementServer;
   KillProcessByName('SX3 SCANER.exe');
-  KillProcessByName('AnnouncementServer.exe');
   Sleep(2000);
   Result := '';
-end;
-
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-begin
-  if CurUninstallStep = usUninstall then
-    StopAnnouncementServer;
 end;

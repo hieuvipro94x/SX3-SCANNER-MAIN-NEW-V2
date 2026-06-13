@@ -8,9 +8,6 @@ sequenceDiagram
     participant GitHub as GitHub Releases API
     participant Asset as GitHub Release Asset
     participant Setup as SX3ScannerSetup.exe
-    participant Server as AnnouncementServer
-
-    App->>Server: Start with parent PID and shared shutdown event
     App->>Update: CheckForUpdateAsync()
     Update->>GitHub: GET /releases/latest
     GitHub-->>Update: tag, notes, installer asset, size, SHA256 digest
@@ -34,9 +31,7 @@ sequenceDiagram
             App-->>User: Keep application running
         else User confirms
             App->>Setup: Process.Start (interactive)
-            App->>Server: Signal graceful shutdown
             App->>App: Application.Shutdown()
-            Setup->>Server: Signal graceful shutdown before install
             Setup->>Setup: Install files
             Setup->>Server: Start server
             Setup->>App: Start SX3 Scanner

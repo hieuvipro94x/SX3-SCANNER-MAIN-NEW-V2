@@ -11,7 +11,6 @@ namespace SX3_SCANER
     {
         private const string SingleInstanceMutexName = @"Local\SX3_SCANER_SingleInstance";
         private Mutex _singleInstanceMutex;
-        private AnnouncementServerRunner _announcementServerRunner;
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
@@ -28,7 +27,7 @@ namespace SX3_SCANER
 
             try
             {
-                StartupManager.SetStatus("Đang khởi động ứng dụng...");
+                StartupManager.SetStatus("Äang khá»Ÿi Ä‘á»™ng á»©ng dá»¥ng...");
                 startupWindow = new StartupStatusWindow();
                 startupWindow.Show();
 
@@ -38,25 +37,7 @@ namespace SX3_SCANER
                     initialize.EnsureCreate();
                 });
 
-                _announcementServerRunner = new AnnouncementServerRunner();
-                try
-                {
-                    bool announcementStarted =
-                        await _announcementServerRunner.StartAsync();
-                    if (!announcementStarted)
-                    {
-                        StartupManager.SetStatus(
-                            "Announcement Server không khả dụng; tiếp tục khởi động Scanner.");
-                    }
-                }
-                catch (Exception announcementException)
-                {
-                    StartupManager.Log(
-                        "Announcement Server gặp lỗi ngoài dự kiến; Scanner vẫn tiếp tục khởi động. Chi tiết: " +
-                        announcementException);
-                }
-
-                StartupManager.SetStatus("Đang tải cấu hình...");
+                StartupManager.SetStatus("Äang táº£i cáº¥u hÃ¬nh...");
                 MainWindow mainWindow = new MainWindow
                 {
                     DataContext = new ViewModel.MainViewModel()
@@ -69,7 +50,7 @@ namespace SX3_SCANER
 
                 mainWindow.Show();
                 startupWindow.Close();
-                StartupManager.SetStatus("Sẵn sàng");
+                StartupManager.SetStatus("Sáºµn sÃ ng");
             }
             catch (Exception ex)
             {
@@ -79,14 +60,14 @@ namespace SX3_SCANER
                     " | " +
                     Model.Respository.DatabaseRepository.ProductDatabasePath);
                 StartupManager.Log("Application startup failed: " + ex);
-                StartupManager.SetStatus("Không thể khởi động ứng dụng.");
+                StartupManager.SetStatus("KhÃ´ng thá»ƒ khá»Ÿi Ä‘á»™ng á»©ng dá»¥ng.");
                 string diagnosis = StartupManager.GetDatabaseDiagnosis(ex);
                 MessageBox.Show(
-                    "Không thể khởi động SX3 SCANER." +
+                    "KhÃ´ng thá»ƒ khá»Ÿi Ä‘á»™ng SX3 SCANER." +
                     Environment.NewLine +
-                    "Nguyên nhân: " + diagnosis +
+                    "NguyÃªn nhÃ¢n: " + diagnosis +
                     Environment.NewLine +
-                    "Chi tiết: " + ex.Message +
+                    "Chi tiáº¿t: " + ex.Message +
                     Environment.NewLine +
                     "Log: " + StartupManager.ErrorLogPath,
                     "SX3 SCANER",
@@ -99,9 +80,6 @@ namespace SX3_SCANER
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _announcementServerRunner?.Dispose();
-            _announcementServerRunner = null;
-
             if (_singleInstanceMutex != null)
             {
                 try
