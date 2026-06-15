@@ -104,6 +104,7 @@ namespace SX3_SCANER.ViewModel
             }
 
             ToDayBoxView?.Refresh();
+            RefreshDashboardStats();
             CommandManager.InvalidateRequerySuggested();
         }
     }

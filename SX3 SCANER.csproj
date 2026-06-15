@@ -169,6 +169,7 @@
     <Compile Include="ViewModel\MainViewModel.cs" />
     <Compile Include="ViewModel\MainVM_BoxChosing.cs" />
     <Compile Include="ViewModel\MainVM_CRUD_ProductInfo_Init.cs" />
+    <Compile Include="ViewModel\MainVM_DashboardStats.cs" />
     <Compile Include="ViewModel\MainVM_Query_Init.cs" />
     <Compile Include="ViewModel\MainVM_SCANING.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_PASS.cs" />

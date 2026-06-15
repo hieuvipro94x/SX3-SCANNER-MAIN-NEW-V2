@@ -63,6 +63,8 @@ namespace SX3_SCANER.ViewModel
 
                 CanChangeProductInfo = !value;
 
+                NotifyCurrentBoxStatusChanged();
+
                 AppConfigHelper.Modify(AppConfigStringKey.Injob, value ? "1" : "0");
 
                 if (value)
@@ -87,7 +89,7 @@ namespace SX3_SCANER.ViewModel
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 OnPropertyChanged(nameof(ScanQuantityText));
-                OnPropertyChanged(nameof(CurrentBoxStatusText));
+                NotifyCurrentBoxStatusChanged();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -223,6 +225,7 @@ namespace SX3_SCANER.ViewModel
         {
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
+            NotifyCurrentBoxStatusChanged();
             OnPropertyChanged(nameof(CanSwitchProduct));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
@@ -298,7 +301,7 @@ namespace SX3_SCANER.ViewModel
                         () => _boxProductRepository.GetNextBoxName(BoxDate));
                     OnPropertyChanged(nameof(BoxDate));
                     OnPropertyChanged(nameof(BoxDateText));
-                    OnPropertyChanged(nameof(CurrentBoxStatusText));
+                    NotifyCurrentBoxStatusChanged();
                 }
 
                 ResetScanStatus();
@@ -495,6 +498,7 @@ namespace SX3_SCANER.ViewModel
             finally
             {
                 _isScanBusy = false;
+                NotifyCurrentBoxStatusChanged();
                 OnPropertyChanged(nameof(CanSwitchProduct));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 CommandManager.InvalidateRequerySuggested();
@@ -524,7 +528,7 @@ namespace SX3_SCANER.ViewModel
                     () => _boxProductRepository.GetNextBoxName(BoxDate));
                 OnPropertyChanged(nameof(BoxDate));
                 OnPropertyChanged(nameof(BoxDateText));
-                OnPropertyChanged(nameof(CurrentBoxStatusText));
+                NotifyCurrentBoxStatusChanged();
             }
 
             ResetScanStatus();
@@ -588,7 +592,7 @@ namespace SX3_SCANER.ViewModel
                     _currentBoxCreatedDate = null;
                     OnPropertyChanged(nameof(BoxDate));
                     OnPropertyChanged(nameof(BoxDateText));
-                    OnPropertyChanged(nameof(CurrentBoxStatusText));
+                    NotifyCurrentBoxStatusChanged();
                     OnPropertyChanged(nameof(HasOpenScanSession));
                 }
 
@@ -675,6 +679,7 @@ namespace SX3_SCANER.ViewModel
         {
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
+            NotifyCurrentBoxStatusChanged();
             OnPropertyChanged(nameof(CanSwitchProduct));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
@@ -685,6 +690,7 @@ namespace SX3_SCANER.ViewModel
             finally
             {
                 _isScanBusy = false;
+                NotifyCurrentBoxStatusChanged();
                 OnPropertyChanged(nameof(CanSwitchProduct));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 CommandManager.InvalidateRequerySuggested();
@@ -777,7 +783,9 @@ namespace SX3_SCANER.ViewModel
             }
 
             ScanHistoryView?.Refresh();
+            RefreshDashboardStats();
             ToDayBoxView?.Refresh();
+            RefreshDashboardStats();
 
             CurrentScanProgress = 0;
             ScanHistorySource = new ObservableCollection<ScanHistory>();
@@ -786,7 +794,7 @@ namespace SX3_SCANER.ViewModel
             _currentBoxCreatedDate = null;
             OnPropertyChanged(nameof(BoxDate));
             OnPropertyChanged(nameof(BoxDateText));
-            OnPropertyChanged(nameof(CurrentBoxStatusText));
+            NotifyCurrentBoxStatusChanged();
             ResetScanStatus();
             OnPropertyChanged(nameof(HasOpenScanSession));
             OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
@@ -1258,6 +1266,7 @@ namespace SX3_SCANER.ViewModel
 
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
+            NotifyCurrentBoxStatusChanged();
             OnPropertyChanged(nameof(CanSwitchProduct));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
@@ -1312,6 +1321,7 @@ namespace SX3_SCANER.ViewModel
                 ScanTextResult = string.Empty;
                 InJob = false;
                 ToDayBoxView?.Refresh();
+                RefreshDashboardStats();
                 OnPropertyChanged(nameof(HasOpenScanSession));
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
@@ -1335,6 +1345,7 @@ namespace SX3_SCANER.ViewModel
             finally
             {
                 _isScanBusy = false;
+                NotifyCurrentBoxStatusChanged();
                 OnPropertyChanged(nameof(CanSwitchProduct));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 CommandManager.InvalidateRequerySuggested();
@@ -1377,6 +1388,7 @@ namespace SX3_SCANER.ViewModel
                 {
                     ToDayBoxSource.Remove(cancelledBox);
                     ToDayBoxView?.Refresh();
+                    RefreshDashboardStats();
                 }
             }
 
@@ -1519,6 +1531,7 @@ namespace SX3_SCANER.ViewModel
             }
 
             ScanHistoryView?.Refresh();
+            RefreshDashboardStats();
         }
 
         private void SaveCurrentScanSession(bool isInJob)
@@ -1649,7 +1662,7 @@ namespace SX3_SCANER.ViewModel
             OnPropertyChanged(nameof(BoxDateText));
             OnPropertyChanged(nameof(ScanLabelDateText));
             OnPropertyChanged(nameof(ScanQuantityText));
-            OnPropertyChanged(nameof(CurrentBoxStatusText));
+            NotifyCurrentBoxStatusChanged();
             OnPropertyChanged(nameof(CanModifySessionSelection));
             OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
             CommandManager.InvalidateRequerySuggested();

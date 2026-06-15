@@ -100,6 +100,53 @@ namespace SX3_SCANER.Model
             return scanHistoryItems;
         }
 
+
+        public DashboardScanStats GetDashboardScanStats(DateTime businessDate)
+        {
+            DateTime date = businessDate.Date;
+            string sealNo = date.ToString("yyMMdd");
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    SELECT
+                        COUNT(1) AS TotalScan,
+                        COALESCE(SUM(CASE WHEN ScanResult = 1 THEN 1 ELSE 0 END), 0) AS PassScan,
+                        COALESCE(SUM(CASE WHEN ScanResult = 0 THEN 1 ELSE 0 END), 0) AS FailScan
+                    FROM ScanHistoryView
+                    WHERE
+                        date(ScanLabelDate) = date(@BusinessDate)
+                        OR (
+                            (ScanLabelDate IS NULL OR TRIM(CAST(ScanLabelDate AS TEXT)) = '')
+                            AND (
+                                date(ScanTime) = date(@BusinessDate)
+                                OR SealNo = @SealNo
+                                OR BoxName LIKE @TodayPrefix
+                            )
+                        )";
+
+                command.Parameters.AddWithValue("@BusinessDate", date);
+                command.Parameters.AddWithValue("@SealNo", sealNo);
+                command.Parameters.AddWithValue("@TodayPrefix", "P" + sealNo + "%");
+
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new DashboardScanStats
+                        {
+                            Total = Convert.ToInt32(reader["TotalScan"]),
+                            Pass = Convert.ToInt32(reader["PassScan"]),
+                            Fail = Convert.ToInt32(reader["FailScan"])
+                        };
+                    }
+                }
+            }
+
+            return new DashboardScanStats();
+        }
+
         public ObservableCollection<ScanHistory> GetByBoxName(string boxname)
         {
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
@@ -343,7 +390,7 @@ namespace SX3_SCANER.Model
 
         public List<string> GetDistinctSealNos()
         {
-            List<string> sealNos = new List<string>() { "All"};
+            List<string> sealNos = new List<string>() { "All" };
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
@@ -368,7 +415,7 @@ namespace SX3_SCANER.Model
 
         public List<string> GetDistinctProductNumbers()
         {
-            List<string> productNumbers = new List<string>() { "All"};
+            List<string> productNumbers = new List<string>() { "All" };
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
@@ -393,7 +440,7 @@ namespace SX3_SCANER.Model
 
         public List<string> GetDistinctNGMessage()
         {
-            List<string> productNumbers = new List<string>() { "All"};
+            List<string> productNumbers = new List<string>() { "All" };
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
@@ -1125,4 +1172,12 @@ namespace SX3_SCANER.Model
             }
         }
     }
+
+    internal class DashboardScanStats
+    {
+        public int Total { get; set; }
+        public int Pass { get; set; }
+        public int Fail { get; set; }
+    }
+
 }

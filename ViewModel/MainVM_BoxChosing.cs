@@ -71,7 +71,7 @@ namespace SX3_SCANER.ViewModel
         public ObservableCollection<BoxProduct> ToDayBoxSource
         {
             get { return _ToDayBoxSource; }
-            set { _ToDayBoxSource = value; ToDayBoxView = value == null ? null : CollectionViewSource.GetDefaultView(value); ApplyFilter(); ApplyTodayBoxSort(); OnPropertyChanged(); }
+            set { _ToDayBoxSource = value; SubscribeDashboardTodayBox(value); ToDayBoxView = value == null ? null : CollectionViewSource.GetDefaultView(value); ApplyFilter(); ApplyTodayBoxSort(); OnPropertyChanged(); RefreshDashboardStats(); }
         }
 
         private ICollectionView _ToDayBoxView;

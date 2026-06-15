@@ -389,7 +389,7 @@ namespace SX3_SCANER.Model
                         string lastBoxName = result.ToString();
                         if (lastBoxName.Length >= 10 && lastBoxName.StartsWith($"P{today}"))
                         {
-                            string lastBoxNumberString = lastBoxName.Substring(lastBoxName.Length -4);
+                            string lastBoxNumberString = lastBoxName.Substring(lastBoxName.Length - 4);
                             if (int.TryParse(lastBoxNumberString, out int lastBoxNumber))
                             {
                                 return lastBoxNumber + 1;
@@ -567,6 +567,70 @@ namespace SX3_SCANER.Model
             }
         }
 
+
+        public DashboardBoxStats GetDashboardBoxStats(DateTime businessDate)
+        {
+            DateTime date = businessDate.Date;
+            string sealNo = date.ToString("yyMMdd");
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    SELECT
+                        COALESCE(SUM(CASE
+                            WHEN COALESCE(BoxType, 'OPEN') <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS TotalBox,
+                        COALESCE(SUM(CASE
+                            WHEN BoxComplete = 1 AND COALESCE(BoxType, 'OPEN') <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS CompletedBox,
+                        COALESCE(SUM(CASE
+                            WHEN BoxComplete = 1
+                             AND COALESCE(BoxType, 'OPEN') <> 'CANCELLED'
+                             AND (COALESCE(BoxType, '') = 'FULL' OR COALESCE(IsPartialBox, 0) = 0)
+                            THEN 1 ELSE 0 END), 0) AS FullBox,
+                        COALESCE(SUM(CASE
+                            WHEN BoxComplete = 1
+                             AND COALESCE(BoxType, 'OPEN') <> 'CANCELLED'
+                             AND (COALESCE(BoxType, '') = 'PARTIAL' OR COALESCE(IsPartialBox, 0) = 1)
+                            THEN 1 ELSE 0 END), 0) AS PartialBox,
+                        COALESCE(SUM(CASE
+                            WHEN BoxComplete = 0 AND COALESCE(BoxType, 'OPEN') <> 'CANCELLED' THEN 1 ELSE 0 END), 0) AS OpenBox,
+                        COALESCE(SUM(CASE
+                            WHEN COALESCE(BoxType, 'OPEN') = 'CANCELLED' THEN 1 ELSE 0 END), 0) AS CancelledBox
+                    FROM BoxProduct
+                    WHERE
+                        date(BoxDate) = date(@BusinessDate)
+                        OR (
+                            (BoxDate IS NULL OR TRIM(CAST(BoxDate AS TEXT)) = '')
+                            AND (
+                                BoxSealNo = @SealNo
+                                OR BoxName LIKE @TodayPrefix
+                            )
+                        )";
+
+                command.Parameters.AddWithValue("@BusinessDate", date);
+                command.Parameters.AddWithValue("@SealNo", sealNo);
+                command.Parameters.AddWithValue("@TodayPrefix", "P" + sealNo + "%");
+
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new DashboardBoxStats
+                        {
+                            Total = Convert.ToInt32(reader["TotalBox"]),
+                            Completed = Convert.ToInt32(reader["CompletedBox"]),
+                            Full = Convert.ToInt32(reader["FullBox"]),
+                            Partial = Convert.ToInt32(reader["PartialBox"]),
+                            Open = Convert.ToInt32(reader["OpenBox"]),
+                            Cancelled = Convert.ToInt32(reader["CancelledBox"])
+                        };
+                    }
+                }
+            }
+
+            return new DashboardBoxStats();
+        }
+
         private static DateTime? ReadDate(
             SQLiteDataReader reader,
             string columnName,
@@ -587,4 +651,15 @@ namespace SX3_SCANER.Model
                     : null;
         }
     }
+
+    internal class DashboardBoxStats
+    {
+        public int Total { get; set; }
+        public int Completed { get; set; }
+        public int Full { get; set; }
+        public int Partial { get; set; }
+        public int Open { get; set; }
+        public int Cancelled { get; set; }
+    }
+
 }

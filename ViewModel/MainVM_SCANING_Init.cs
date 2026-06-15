@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace SX3_SCANER.ViewModel
 {
@@ -120,7 +121,7 @@ namespace SX3_SCANER.ViewModel
                 _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
             OnPropertyChanged(nameof(BoxDate));
             OnPropertyChanged(nameof(BoxDateText));
-            OnPropertyChanged(nameof(CurrentBoxStatusText));
+            NotifyCurrentBoxStatusChanged();
             ScanHistorySource = new ScanHistoryRepository().GetNotComplete(notcompletebox);
             RefreshScanHistoryDisplayIndex();
             CurrentScanProgress = ScanHistorySource?.Count(x => x.ScanResult == true) ?? 0;
@@ -218,10 +219,60 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                if (!HasOpenScanSession) return "Chưa mở thùng";
-                if (IsFullBoxReadyToComplete) return "Hoàn thành";
-                return "Đang scan";
+                if (_isScanBusy) return "Đang xử lý";
+                if (IsFullBoxReadyToComplete) return "Đủ SL - chờ đóng";
+                if (HasOpenScanSession && InJob) return "Đang scan";
+                if (HasOpenScanSession && !InJob) return "Tạm dừng";
+                if (!HasOpenScanSession && InJob) return "Sẵn sàng scan";
+                return "Chưa mở thùng";
             }
+        }
+
+        public Brush CurrentBoxStatusBackground
+        {
+            get
+            {
+                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(238, 242, 255)); // #EEF2FF
+                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(255, 251, 235)); // #FFFBEB
+                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(236, 253, 245)); // #ECFDF5
+                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(239, 246, 255)); // #EFF6FF
+                return new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+            }
+        }
+
+        public Brush CurrentBoxStatusBorderBrush
+        {
+            get
+            {
+                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(199, 210, 254)); // #C7D2FE
+                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(251, 191, 36)); // #FBBF24
+                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(187, 247, 208)); // #BBF7D0
+                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(191, 219, 254)); // #BFDBFE
+                return new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
+            }
+        }
+
+        public Brush CurrentBoxStatusForeground
+        {
+            get
+            {
+                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(79, 70, 229)); // #4F46E5
+                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(180, 83, 9)); // #B45309
+                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
+                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB
+                return new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+            }
+        }
+
+        private void NotifyCurrentBoxStatusChanged()
+        {
+            OnPropertyChanged(nameof(CurrentBoxStatusText));
+            OnPropertyChanged(nameof(CurrentBoxStatusBackground));
+            OnPropertyChanged(nameof(CurrentBoxStatusBorderBrush));
+            OnPropertyChanged(nameof(CurrentBoxStatusForeground));
         }
 
         public DateTime SelectedDate
@@ -264,9 +315,13 @@ namespace SX3_SCANER.ViewModel
                         ". Thùng hiện tại vẫn giữ ngày box " + BoxDateText + ".";
                     ScanResultDetailText = dateChangeMessage;
                     StartupManager.SetStatus(dateChangeMessage);
+                    RefreshDashboardStats();
                     CommandManager.InvalidateRequerySuggested();
                     return;
                 }
+
+                // Đổi ngày khi chưa mở thùng: tải lại danh sách thùng và dashboard của ngày vừa chọn.
+                ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(_SelectedDate);
 
                 if (!string.IsNullOrWhiteSpace(SelectedPartNumber) &&
                     !RestoreScanSession(SelectedPartNumber))
@@ -274,6 +329,7 @@ namespace SX3_SCANER.ViewModel
                     CheckLastJob(SelectedPartNumber);
                 }
 
+                RefreshDashboardStats();
                 CommandManager.InvalidateRequerySuggested();
             }
         }
@@ -457,6 +513,7 @@ namespace SX3_SCANER.ViewModel
             set
             {
                 _ScanHistorySource = value;
+                SubscribeDashboardScanHistory(value);
                 ScanHistoryView = value == null ? null : CollectionViewSource.GetDefaultView(value);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasOpenScanSession));
