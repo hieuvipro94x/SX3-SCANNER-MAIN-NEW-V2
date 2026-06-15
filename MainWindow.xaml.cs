@@ -26,6 +26,8 @@ namespace SX3_SCANER
             AnnouncementServerStatusInfo.Unknown();
 
         private bool _hasUpdateAvailable;
+        private bool _isUpdateStatusBusy;
+        private bool _showUpdateErrorStatus;
 
         private INotifyPropertyChanged _announcementViewModel;
         private CancellationTokenSource _announcementMarqueeCts;
@@ -210,6 +212,16 @@ namespace SX3_SCANER
         {
             if (txtUpdateStatus == null)
                 return;
+
+            if (_isUpdateStatusBusy)
+                return;
+
+            if (_showUpdateErrorStatus)
+            {
+                softwareUpdatePanel.Visibility = Visibility.Visible;
+                updateNotificationDot.Visibility = Visibility.Collapsed;
+                return;
+            }
 
             if (_hasUpdateAvailable && availableUpdate != null)
             {
@@ -592,40 +604,65 @@ namespace SX3_SCANER
 
         private async Task RefreshUpdateStatusAsync(bool showErrorMessage)
         {
+            _isUpdateStatusBusy = true;
+
             txtUpdateStatus.Text = "Đang kiểm tra bản cập nhật...";
             txtUpdateStatus.Foreground = Brushes.DarkOrange;
 
             btnSoftwareUpdate.IsEnabled = false;
+            softwareUpdatePanel.Visibility = Visibility.Visible;
             updateNotificationDot.Visibility = Visibility.Collapsed;
 
             availableUpdate = null;
             _hasUpdateAvailable = false;
+            _showUpdateErrorStatus = false;
 
-            UpdateInfo update =
-                await _updateService.CheckForUpdateAsync(showErrorMessage);
-
-            availableUpdate = update;
-
-            if (availableUpdate != null)
+            try
             {
-                _hasUpdateAvailable = true;
+                UpdateInfo update =
+                    await _updateService.CheckForUpdateAsync(showErrorMessage);
+
+                availableUpdate = update;
+
+                if (availableUpdate != null)
+                {
+                    _hasUpdateAvailable = true;
+                    btnSoftwareUpdate.IsEnabled = true;
+                    return;
+                }
+
+                _hasUpdateAvailable = false;
+                updateNotificationDot.Visibility = Visibility.Collapsed;
+
+                if (_updateService.LastCheckSucceeded)
+                {
+                    btnSoftwareUpdate.IsEnabled = false;
+                    return;
+                }
+
+                txtUpdateStatus.Text = _updateService.LastStatusMessage;
+                txtUpdateStatus.Foreground = Brushes.Red;
                 btnSoftwareUpdate.IsEnabled = true;
-                UpdateTopRightStatusText();
-                return;
+                _showUpdateErrorStatus = true;
             }
-
-            _hasUpdateAvailable = false;
-            updateNotificationDot.Visibility = Visibility.Collapsed;
-
-            if (_updateService.LastCheckSucceeded)
+            finally
             {
-                btnSoftwareUpdate.IsEnabled = false;
-                UpdateTopRightStatusText();
-                return;
-            }
+                _isUpdateStatusBusy = false;
 
-            btnSoftwareUpdate.IsEnabled = true;
-            UpdateTopRightStatusText();
+                if (_hasUpdateAvailable && availableUpdate != null)
+                {
+                    UpdateTopRightStatusText();
+                }
+                else if (_updateService.LastCheckSucceeded)
+                {
+                    UpdateTopRightStatusText();
+                }
+                else
+                {
+                    softwareUpdatePanel.Visibility = Visibility.Visible;
+                    updateNotificationDot.Visibility = Visibility.Collapsed;
+                }
+            }
         }
 
         private async void SoftwareUpdate_Click(
@@ -639,23 +676,19 @@ namespace SX3_SCANER
                 await RefreshUpdateStatusAsync(true);
 
                 if (availableUpdate == null)
-                {
-                    if (!_updateService.LastCheckSucceeded)
-                    {
-                        btnSoftwareUpdate.IsEnabled = true;
-                    }
-
-                    _hasUpdateAvailable = false;
-                    UpdateTopRightStatusText();
                     return;
-                }
             }
+
+            _isUpdateStatusBusy = true;
+            _showUpdateErrorStatus = false;
 
             txtUpdateStatus.Text = "Đang tải và xác thực bản cập nhật...";
             txtUpdateStatus.Foreground = Brushes.DarkOrange;
+            softwareUpdatePanel.Visibility = Visibility.Visible;
             updateNotificationDot.Visibility = Visibility.Collapsed;
 
             bool installerStarted = false;
+            bool updateOperationFailed = false;
 
             try
             {
@@ -671,7 +704,6 @@ namespace SX3_SCANER
                 {
                     _hasUpdateAvailable = true;
                     btnSoftwareUpdate.IsEnabled = true;
-                    UpdateTopRightStatusText();
                     return;
                 }
 
@@ -692,14 +724,17 @@ namespace SX3_SCANER
                 }
 
                 btnSoftwareUpdate.IsEnabled = true;
-                UpdateTopRightStatusText();
             }
             catch (Exception ex)
             {
                 _updateService.ReportDownloadError(ex);
 
+                updateOperationFailed = true;
+                _showUpdateErrorStatus = true;
+
                 txtUpdateStatus.Text = _updateService.LastStatusMessage;
                 txtUpdateStatus.Foreground = Brushes.Red;
+                softwareUpdatePanel.Visibility = Visibility.Visible;
 
                 btnSoftwareUpdate.IsEnabled = true;
             }
@@ -707,14 +742,32 @@ namespace SX3_SCANER
             {
                 if (!installerStarted)
                 {
-                    if (availableUpdate != null ||
-                        !_updateService.LastCheckSucceeded)
+                    _isUpdateStatusBusy = false;
+
+                    if (updateOperationFailed)
                     {
+                        _hasUpdateAvailable = availableUpdate != null;
                         btnSoftwareUpdate.IsEnabled = true;
+                        softwareUpdatePanel.Visibility = Visibility.Visible;
+                        updateNotificationDot.Visibility = Visibility.Collapsed;
+                    }
+                    else if (availableUpdate != null)
+                    {
+                        _hasUpdateAvailable = true;
+                        btnSoftwareUpdate.IsEnabled = true;
+                        UpdateTopRightStatusText();
+                    }
+                    else if (_updateService.LastCheckSucceeded)
+                    {
+                        _hasUpdateAvailable = false;
+                        btnSoftwareUpdate.IsEnabled = false;
+                        UpdateTopRightStatusText();
                     }
                     else
                     {
-                        btnSoftwareUpdate.IsEnabled = false;
+                        btnSoftwareUpdate.IsEnabled = true;
+                        softwareUpdatePanel.Visibility = Visibility.Visible;
+                        updateNotificationDot.Visibility = Visibility.Collapsed;
                     }
                 }
             }
