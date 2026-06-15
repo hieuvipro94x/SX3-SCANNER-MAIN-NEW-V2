@@ -228,69 +228,297 @@ namespace SX3_SCANER.ViewModel
             CommandManager.InvalidateRequerySuggested();
             try
             {
-            inputScanCode = inputScanCode?.Trim() ?? string.Empty;
+                inputScanCode = inputScanCode?.Trim() ?? string.Empty;
 
+                if (string.IsNullOrWhiteSpace(inputScanCode))
+                    return;
+
+                DateTime scannedAt = DateTime.UtcNow;
+                if (string.Equals(
+                        inputScanCode,
+                        _lastScannedCode,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    scannedAt - _lastScannedAt <= DuplicateScanWindow)
+                {
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Scan lặp quá nhanh",
+                        "Tem này vừa được scanner gửi lại. Không thêm vào thùng.",
+                        "SCAN LẶP QUÁ NHANH");
+                    return;
+                }
+
+                _lastScannedCode = inputScanCode;
+                _lastScannedAt = scannedAt;
+
+                if (ScanHistorySource != null &&
+                    ScanHistorySource.Any(item =>
+                        item.ScanResult &&
+                        string.Equals(
+                            item.ScanData,
+                            inputScanCode,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Trùng tem trong thùng hiện tại",
+                        "Tem này đã được scan trong thùng hiện tại.",
+                        "TRÙNG TEM");
+                    return;
+                }
+
+                if (await Task.Run(() => _scanHistoryRepository.ScanDataExists(inputScanCode)))
+                {
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Trùng tem trong lịch sử PASS",
+                        "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
+                        "TRÙNG TEM");
+                    return;
+                }
+
+                if (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
+                {
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Thùng đã đủ số lượng",
+                        "Thùng đã đủ số lượng. Vui lòng xác nhận đóng thùng trước khi scan tiếp.",
+                        "THÙNG ĐÃ ĐỦ");
+                    return;
+                }
+
+                if (ScanHistorySource == null)
+                    ScanHistorySource = new ObservableCollection<ScanHistory>();
+
+                bool allocatedBoxName = string.IsNullOrWhiteSpace(_CurrentBoxName);
+                if (string.IsNullOrWhiteSpace(_CurrentBoxName))
+                {
+                    _currentBoxCreatedDate = ScanLabelDate.Date;
+                    _CurrentBoxName = await Task.Run(
+                        () => _boxProductRepository.GetNextBoxName(BoxDate));
+                    OnPropertyChanged(nameof(BoxDate));
+                    OnPropertyChanged(nameof(BoxDateText));
+                    OnPropertyChanged(nameof(CurrentBoxStatusText));
+                }
+
+                ResetScanStatus();
+
+                _CurrentScanHistory = new ScanHistory
+                {
+                    ScanTime = GetBusinessScanTime(),
+                    BoxDate = BoxDate,
+                    ScanLabelDate = ScanLabelDate,
+                    ProductPartNumber = SelectedPartNumber,
+                    ProductPartName = PNameExpected,
+                    BoxName = _CurrentBoxName,
+                    SealNo = ScanLabelDate.ToString("yyMMdd"),
+                    ScanData = inputScanCode,
+                    ScanWorker = Worker ?? string.Empty,
+                    ActualQty = CurrentScanProgress,
+                    TargetQty = SelectedQuantity
+                };
+
+                _duplicateLotForCurrentScan = await IsDuplicateLotAsync(inputScanCode);
+                bool isPass = Scan(inputScanCode);
+
+                if (!isPass)
+                {
+                    _CurrentScanHistory.ScanMessage = _ScanMess;
+
+                    _CurrentScanHistory.ScanResult = false;
+                }
+                else
+                {
+                    _CurrentScanHistory.ScanMessage = "PASS";
+
+                    _CurrentScanHistory.ScanResult = true;
+                }
+
+                ScanHistory persistedHistory = _CurrentScanHistory;
+                string persistedBoxName = _CurrentBoxName;
+                int persistedProgress = isPass
+                    ? CurrentScanProgress + 1
+                    : CurrentScanProgress;
+                persistedHistory.ActualQty = persistedProgress;
+                bool isFirstPassInBox = isPass && persistedProgress == 1;
+                BoxProduct persistedBox = isFirstPassInBox
+                    ? new BoxProduct
+                    {
+                        BoxName = _CurrentBoxName,
+                        ProductPartName = PNameExpected,
+                        ProductPartNumber = SelectedPartNumber,
+                        BoxSealNo = GetCurrentBoxCreatedDate().ToString("yyMMdd"),
+                        BoxQuantity = SelectedQuantity,
+                        BoxProgress = persistedProgress,
+                        BoxComplete = false,
+                        BoxWorker = string.IsNullOrWhiteSpace(Worker)
+                            ? string.Empty
+                            : Worker.Trim(),
+                        BoxType = "OPEN",
+                        IsPartialBox = false,
+                        BoxDate = BoxDate,
+                        ScanLabelDate = ScanLabelDate,
+                        ActualQty = persistedProgress,
+                        TargetQty = SelectedQuantity
+                    }
+                    : null;
+
+                var persistedHistoryItems = new List<ScanHistory> { persistedHistory };
+                if (ScanHistorySource != null)
+                {
+                    persistedHistoryItems.AddRange(ScanHistorySource);
+                }
+
+                ScanSessionState persistedSession = BuildCurrentScanSession(
+                    InJob,
+                    persistedProgress,
+                    persistedHistoryItems);
+
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                        using (SQLiteTransaction transaction = connection.BeginTransaction())
+                        {
+                            _scanHistoryRepository.InsertScanHistory(
+                                persistedHistory,
+                                connection,
+                                transaction);
+
+                            if (isPass)
+                            {
+                                if (isFirstPassInBox)
+                                {
+                                    _boxProductRepository.InsertBoxProduct(
+                                        persistedBox,
+                                        connection,
+                                        transaction);
+                                }
+                                else
+                                {
+                                    _boxProductRepository.UpdateBoxProgress(
+                                        persistedBoxName,
+                                        ScanLabelDate,
+                                        connection,
+                                        transaction);
+                                }
+                            }
+
+                            _scanSessionService.SaveCurrentSession(
+                                persistedSession,
+                                connection,
+                                transaction);
+                            transaction.Commit();
+                        }
+                    });
+                }
+                catch (SQLiteException ex) when (
+                    ScanHistoryRepository.IsUniqueScanDataViolation(ex))
+                {
+                    if (allocatedBoxName)
+                    {
+                        _CurrentBoxName = null;
+                        _currentBoxCreatedDate = null;
+                        OnPropertyChanged(nameof(BoxDate));
+                        OnPropertyChanged(nameof(BoxDateText));
+                        OnPropertyChanged(nameof(HasOpenScanSession));
+                    }
+                    _CurrentScanHistory = null;
+                    _duplicateLotForCurrentScan = false;
+                    ResetScanStatus();
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Trùng tem trong lịch sử PASS",
+                        "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
+                        "TRÙNG TEM");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    StartupManager.Log("Khong luu duoc lich su scan. Database path: " +
+                        Model.Respository.DatabaseRepository.DatabasePath + ". Chi tiet: " + ex);
+
+                    MessageBox.Show(
+                        "Không lưu được dữ liệu scan vào database.\nVui lòng kiểm tra quyền ghi database và liên hệ kỹ thuật.",
+                        "LOI LUU DATABASE",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    ScanSoundService.PlayNg();
+                    if (allocatedBoxName)
+                    {
+                        _CurrentBoxName = null;
+                        _currentBoxCreatedDate = null;
+                        OnPropertyChanged(nameof(HasOpenScanSession));
+                    }
+                    _CurrentScanHistory = null;
+                    _duplicateLotForCurrentScan = false;
+                    ScanTextResult = string.Empty;
+                    ResetScanStatus();
+                    return;
+                }
+
+                ScanTextResult = isPass ? OK : NG;
+                if (isPass)
+                {
+                    ScanSoundService.PlayOk();
+                    InputScanCode = string.Empty;
+                }
+                else
+                {
+                    ScanErrorPresentation error = BuildNgErrorPresentation(inputScanCode);
+                    ScanResultDetailText = error.ToDisplayText();
+                    ShowScanErrorWindow(error);
+                }
+
+                if (isPass)
+                {
+                    CurrentScanProgress = persistedProgress;
+                }
+
+                ScanHistorySource.Insert(0, _CurrentScanHistory);
+                RefreshScanHistoryDisplayIndex();
+                OnPropertyChanged(nameof(HasOpenScanSession));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                CommandManager.InvalidateRequerySuggested();
+
+                if (isPass)
+                {
+                    ApplyPersistedBox(persistedBox, persistedProgress);
+                }
+
+                if (isPass && SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
+                {
+                    await CompleteBoxAsync(false);
+                }
+            }
+            finally
+            {
+                _isScanBusy = false;
+                OnPropertyChanged(nameof(CanSwitchProduct));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                CommandManager.InvalidateRequerySuggested();
+                _scanWriteLock.Release();
+            }
+        }
+
+        private async Task RecordRejectedScanAsync(
+            string inputScanCode,
+            string scanMessage,
+            string displayMessage,
+            string title)
+        {
+            inputScanCode = inputScanCode?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(inputScanCode))
                 return;
-
-            DateTime scannedAt = DateTime.UtcNow;
-            if (string.Equals(
-                    inputScanCode,
-                    _lastScannedCode,
-                    StringComparison.OrdinalIgnoreCase) &&
-                scannedAt - _lastScannedAt <= DuplicateScanWindow)
-            {
-                ScanSoundService.PlayNg();
-                MessageBox.Show(
-                    "Tem này vừa được scanner gửi lại. Không thêm vào thùng.",
-                    "SCAN LẶP QUÁ NHANH",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            _lastScannedCode = inputScanCode;
-            _lastScannedAt = scannedAt;
-
-            if (ScanHistorySource != null &&
-                ScanHistorySource.Any(item =>
-                    item.ScanResult &&
-                    string.Equals(
-                        item.ScanData,
-                        inputScanCode,
-                        StringComparison.OrdinalIgnoreCase)))
-            {
-                ShowDuplicateScanMessage(
-                    "Tem này đã được scan trong thùng hiện tại.",
-                    inputScanCode);
-                return;
-            }
-
-            if (await Task.Run(() => _scanHistoryRepository.ScanDataExists(inputScanCode)))
-            {
-                ShowDuplicateScanMessage(
-                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
-                    inputScanCode);
-                return;
-            }
-
-            if (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
-            {
-                ScanSoundService.PlayNg();
-                MessageBox.Show(
-                    "Thùng đã đủ số lượng. Vui lòng xác nhận đóng thùng trước khi scan tiếp.",
-                    "THÙNG ĐÃ ĐỦ",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
 
             if (ScanHistorySource == null)
                 ScanHistorySource = new ObservableCollection<ScanHistory>();
 
-            bool allocatedBoxName = string.IsNullOrWhiteSpace(_CurrentBoxName);
+            bool allocatedBoxName = false;
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
             {
+                allocatedBoxName = true;
                 _currentBoxCreatedDate = ScanLabelDate.Date;
                 _CurrentBoxName = await Task.Run(
                     () => _boxProductRepository.GetNextBoxName(BoxDate));
@@ -300,8 +528,10 @@ namespace SX3_SCANER.ViewModel
             }
 
             ResetScanStatus();
+            ScanTextResult = NG;
+            ScanResultDetailText = scanMessage;
 
-            _CurrentScanHistory = new ScanHistory
+            var rejectedHistory = new ScanHistory
             {
                 ScanTime = GetBusinessScanTime(),
                 BoxDate = BoxDate,
@@ -311,65 +541,19 @@ namespace SX3_SCANER.ViewModel
                 BoxName = _CurrentBoxName,
                 SealNo = ScanLabelDate.ToString("yyMMdd"),
                 ScanData = inputScanCode,
+                ScanResult = false,
+                ScanMessage = scanMessage,
                 ScanWorker = Worker ?? string.Empty,
                 ActualQty = CurrentScanProgress,
                 TargetQty = SelectedQuantity
             };
 
-            _duplicateLotForCurrentScan = await IsDuplicateLotAsync(inputScanCode);
-            bool isPass = Scan(inputScanCode);
-
-            if (!isPass)
-            {
-                _CurrentScanHistory.ScanMessage = _ScanMess;
-
-                _CurrentScanHistory.ScanResult = false;
-            }
-            else
-            {
-                _CurrentScanHistory.ScanMessage = "PASS";
-
-                _CurrentScanHistory.ScanResult = true;
-            }
-
-            ScanHistory persistedHistory = _CurrentScanHistory;
-            string persistedBoxName = _CurrentBoxName;
-            int persistedProgress = isPass
-                ? CurrentScanProgress + 1
-                : CurrentScanProgress;
-            persistedHistory.ActualQty = persistedProgress;
-            bool isFirstPassInBox = isPass && persistedProgress == 1;
-            BoxProduct persistedBox = isFirstPassInBox
-                ? new BoxProduct
-                {
-                    BoxName = _CurrentBoxName,
-                    ProductPartName = PNameExpected,
-                    ProductPartNumber = SelectedPartNumber,
-                    BoxSealNo = GetCurrentBoxCreatedDate().ToString("yyMMdd"),
-                    BoxQuantity = SelectedQuantity,
-                    BoxProgress = persistedProgress,
-                    BoxComplete = false,
-                    BoxWorker = string.IsNullOrWhiteSpace(Worker)
-                        ? string.Empty
-                        : Worker.Trim(),
-                    BoxType = "OPEN",
-                    IsPartialBox = false,
-                    BoxDate = BoxDate,
-                    ScanLabelDate = ScanLabelDate,
-                    ActualQty = persistedProgress,
-                    TargetQty = SelectedQuantity
-                }
-                : null;
-
-            var persistedHistoryItems = new List<ScanHistory> { persistedHistory };
-            if (ScanHistorySource != null)
-            {
-                persistedHistoryItems.AddRange(ScanHistorySource);
-            }
+            var persistedHistoryItems = new List<ScanHistory> { rejectedHistory };
+            persistedHistoryItems.AddRange(ScanHistorySource);
 
             ScanSessionState persistedSession = BuildCurrentScanSession(
                 InJob,
-                persistedProgress,
+                CurrentScanProgress,
                 persistedHistoryItems);
 
             try
@@ -380,122 +564,63 @@ namespace SX3_SCANER.ViewModel
                     using (SQLiteTransaction transaction = connection.BeginTransaction())
                     {
                         _scanHistoryRepository.InsertScanHistory(
-                            persistedHistory,
+                            rejectedHistory,
                             connection,
                             transaction);
-
-                        if (isPass)
-                        {
-                            if (isFirstPassInBox)
-                            {
-                                _boxProductRepository.InsertBoxProduct(
-                                    persistedBox,
-                                    connection,
-                                    transaction);
-                            }
-                            else
-                            {
-                                _boxProductRepository.UpdateBoxProgress(
-                                    persistedBoxName,
-                                    ScanLabelDate,
-                                    connection,
-                                    transaction);
-                            }
-                        }
 
                         _scanSessionService.SaveCurrentSession(
                             persistedSession,
                             connection,
                             transaction);
+
                         transaction.Commit();
                     }
                 });
             }
-            catch (SQLiteException ex) when (
-                ScanHistoryRepository.IsUniqueScanDataViolation(ex))
+            catch (Exception ex)
             {
+                StartupManager.Log("Khong luu duoc lich su scan loi. Database path: " +
+                    Model.Respository.DatabaseRepository.DatabasePath + ". Chi tiet: " + ex);
+
                 if (allocatedBoxName)
                 {
                     _CurrentBoxName = null;
                     _currentBoxCreatedDate = null;
                     OnPropertyChanged(nameof(BoxDate));
                     OnPropertyChanged(nameof(BoxDateText));
+                    OnPropertyChanged(nameof(CurrentBoxStatusText));
                     OnPropertyChanged(nameof(HasOpenScanSession));
                 }
-                _CurrentScanHistory = null;
-                _duplicateLotForCurrentScan = false;
-                ResetScanStatus();
-                ShowDuplicateScanMessage(
-                    "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
-                    inputScanCode);
-                return;
-            }
-            catch (Exception ex)
-            {
-                StartupManager.Log("Khong luu duoc lich su scan. Database path: " +
-                    Model.Respository.DatabaseRepository.DatabasePath + ". Chi tiet: " + ex);
 
                 MessageBox.Show(
-                    "Không lưu được dữ liệu scan vào database.\nVui lòng kiểm tra quyền ghi database và liên hệ kỹ thuật.",
-                    "LOI LUU DATABASE",
+                    "Không lưu được lỗi scan vào database.\nVui lòng kiểm tra quyền ghi database và liên hệ kỹ thuật.",
+                    "LỖI LƯU DATABASE",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 ScanSoundService.PlayNg();
-                if (allocatedBoxName)
-                {
-                    _CurrentBoxName = null;
-                    _currentBoxCreatedDate = null;
-                    OnPropertyChanged(nameof(HasOpenScanSession));
-                }
-                _CurrentScanHistory = null;
-                _duplicateLotForCurrentScan = false;
-                ScanTextResult = string.Empty;
-                ResetScanStatus();
                 return;
             }
 
-            ScanTextResult = isPass ? OK : NG;
-            if (isPass)
-            {
-                ScanSoundService.PlayOk();
-                InputScanCode = string.Empty;
-            }
-            else
-            {
-                ScanErrorPresentation error = BuildNgErrorPresentation(inputScanCode);
-                ScanResultDetailText = error.ToDisplayText();
-                ShowScanErrorWindow(error);
-            }
-
-            if (isPass)
-            {
-                CurrentScanProgress = persistedProgress;
-            }
-
-            ScanHistorySource.Insert(0, _CurrentScanHistory);
+            _CurrentScanHistory = rejectedHistory;
+            ScanHistorySource.Insert(0, rejectedHistory);
             RefreshScanHistoryDisplayIndex();
             OnPropertyChanged(nameof(HasOpenScanSession));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
 
-            if (isPass)
-            {
-                ApplyPersistedBox(persistedBox, persistedProgress);
-            }
+            ScanSoundService.PlayNg();
+            InputScanCode = string.Empty;
+            StartupManager.SetStatus(displayMessage);
 
-            if (isPass && SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
+            var error = new ScanErrorPresentation
             {
-                await CompleteBoxAsync(false);
-            }
-            }
-            finally
-            {
-                _isScanBusy = false;
-                OnPropertyChanged(nameof(CanSwitchProduct));
-                OnPropertyChanged(nameof(CanModifySessionSelection));
-                CommandManager.InvalidateRequerySuggested();
-                _scanWriteLock.Release();
-            }
+                Detail = scanMessage,
+                Standard = "Tem hợp lệ, chưa bị trùng và thùng chưa đủ số lượng",
+                Actual = DisplayActualValue(inputScanCode),
+                Resolution = displayMessage
+            };
+            ScanResultDetailText = error.ToDisplayText();
+            ShowScanErrorWindow(error);
         }
 
         private async Task ClosePartialBoxAsync()
