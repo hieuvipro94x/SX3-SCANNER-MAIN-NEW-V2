@@ -1,4 +1,6 @@
 ﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Model;
+using SX3_SCANER.ViewModel;
 using System;
 using System.ComponentModel;
 using System.Threading;
@@ -9,7 +11,6 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using SX3_SCANER.ViewModel;
 
 namespace SX3_SCANER
 {
@@ -20,6 +21,12 @@ namespace SX3_SCANER
 
         private readonly UpdateService _updateService = new UpdateService();
         private UpdateInfo availableUpdate;
+
+        private AnnouncementServerStatusInfo _announcementServerStatus =
+            AnnouncementServerStatusInfo.Unknown();
+
+        private bool _hasUpdateAvailable;
+
         private INotifyPropertyChanged _announcementViewModel;
         private CancellationTokenSource _announcementMarqueeCts;
         private int _announcementMarqueeGeneration;
@@ -27,12 +34,23 @@ namespace SX3_SCANER
         public MainWindow()
         {
             InitializeComponent();
+
             DataContextChanged += MainWindow_DataContextChanged;
             StartupManager.StatusChanged += StartupStatus_Changed;
+            StartupManager.AnnouncementServerStatusChanged +=
+                AnnouncementServerStatus_Changed;
+
             Closed += MainWindow_Closed;
+
             AnnouncementMarqueeHost.SizeChanged +=
                 AnnouncementMarqueeHost_SizeChanged;
+
             txtStartupStatus.Text = StartupManager.CurrentStatus;
+
+            _announcementServerStatus =
+                StartupManager.CurrentAnnouncementServerStatus ??
+                AnnouncementServerStatusInfo.Unknown();
+
             AttachAnnouncementViewModel(DataContext as INotifyPropertyChanged);
 
             applicationVersion = UpdateService.GetCurrentVersionString();
@@ -47,6 +65,8 @@ namespace SX3_SCANER
             timer.Start();
 
             UpdateClock();
+            UpdateTopRightStatusText();
+
             Loaded += MainWindow_Loaded;
         }
 
@@ -72,7 +92,9 @@ namespace SX3_SCANER
             }
         }
 
-        private void HideRowIndex_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+        private void HideRowIndex_AutoGeneratingColumn(
+            object sender,
+            DataGridAutoGeneratingColumnEventArgs e)
         {
             if (e.PropertyName == "RowIndex" || e.PropertyName == "ID")
             {
@@ -116,7 +138,9 @@ namespace SX3_SCANER
             e.Row.Header = (e.Row.GetIndex() + 1).ToString();
         }
 
-        private void SQLiteTable_LoadingRow(object sender, DataGridRowEventArgs e)
+        private void SQLiteTable_LoadingRow(
+            object sender,
+            DataGridRowEventArgs e)
         {
             e.Row.Header = (e.Row.GetIndex() + 1).ToString();
         }
@@ -132,9 +156,7 @@ namespace SX3_SCANER
             SizeChangedEventArgs e)
         {
             if (!e.WidthChanged || !IsLoaded)
-            {
                 return;
-            }
 
             RestartAnnouncementMarquee();
         }
@@ -172,12 +194,131 @@ namespace SX3_SCANER
             }));
         }
 
+        private void AnnouncementServerStatus_Changed(
+            AnnouncementServerStatusInfo status)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                _announcementServerStatus =
+                    status ?? AnnouncementServerStatusInfo.Unknown();
+
+                UpdateTopRightStatusText();
+            }));
+        }
+
+        private void UpdateTopRightStatusText()
+        {
+            if (txtUpdateStatus == null)
+                return;
+
+            if (_hasUpdateAvailable && availableUpdate != null)
+            {
+                txtUpdateStatus.Text =
+                    "Có bản cập nhật mới: V" + availableUpdate.Version;
+
+                txtUpdateStatus.Foreground =
+                    new SolidColorBrush(Color.FromRgb(153, 27, 27));
+
+                serverStatusBadge.Background =
+                    new SolidColorBrush(Color.FromRgb(254, 242, 242));
+
+                serverStatusBadge.BorderBrush =
+                    new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+                serverStatusDot.Fill =
+                    new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+                serverStatusGlow.Fill =
+                    new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+                softwareUpdatePanel.Visibility = Visibility.Visible;
+                updateNotificationDot.Visibility = Visibility.Visible;
+                return;
+            }
+
+            softwareUpdatePanel.Visibility = Visibility.Collapsed;
+            updateNotificationDot.Visibility = Visibility.Collapsed;
+
+            if (_announcementServerStatus == null)
+            {
+                _announcementServerStatus =
+                    AnnouncementServerStatusInfo.Unknown();
+            }
+
+            if (_announcementServerStatus.IsConnected &&
+                !_announcementServerStatus.IsUsingFallback)
+            {
+                txtUpdateStatus.Text = "Đã kết nối máy chủ";
+
+                txtUpdateStatus.Foreground =
+                    new SolidColorBrush(Color.FromRgb(22, 101, 52));
+
+                serverStatusBadge.Background =
+                    new SolidColorBrush(Color.FromRgb(236, 253, 245));
+
+                serverStatusBadge.BorderBrush =
+                    new SolidColorBrush(Color.FromRgb(34, 197, 94));
+
+                serverStatusDot.Fill =
+                    new SolidColorBrush(Color.FromRgb(34, 197, 94));
+
+                serverStatusGlow.Fill =
+                    new SolidColorBrush(Color.FromRgb(34, 197, 94));
+
+                return;
+            }
+
+            if (_announcementServerStatus.IsConnected &&
+                _announcementServerStatus.IsUsingFallback)
+            {
+                txtUpdateStatus.Text = "Đang dùng máy chủ dự phòng";
+
+                txtUpdateStatus.Foreground =
+                    new SolidColorBrush(Color.FromRgb(146, 64, 14));
+
+                serverStatusBadge.Background =
+                    new SolidColorBrush(Color.FromRgb(255, 251, 235));
+
+                serverStatusBadge.BorderBrush =
+                    new SolidColorBrush(Color.FromRgb(245, 158, 11));
+
+                serverStatusDot.Fill =
+                    new SolidColorBrush(Color.FromRgb(245, 158, 11));
+
+                serverStatusGlow.Fill =
+                    new SolidColorBrush(Color.FromRgb(245, 158, 11));
+
+                return;
+            }
+
+            txtUpdateStatus.Text = "Mất kết nối máy chủ thông báo";
+
+            txtUpdateStatus.Foreground =
+                new SolidColorBrush(Color.FromRgb(153, 27, 27));
+
+            serverStatusBadge.Background =
+                new SolidColorBrush(Color.FromRgb(254, 242, 242));
+
+            serverStatusBadge.BorderBrush =
+                new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+            serverStatusDot.Fill =
+                new SolidColorBrush(Color.FromRgb(220, 38, 38));
+
+            serverStatusGlow.Fill =
+                new SolidColorBrush(Color.FromRgb(220, 38, 38));
+        }
+
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             DataContextChanged -= MainWindow_DataContextChanged;
             StartupManager.StatusChanged -= StartupStatus_Changed;
+            StartupManager.AnnouncementServerStatusChanged -=
+                AnnouncementServerStatus_Changed;
+
             AnnouncementMarqueeHost.SizeChanged -=
                 AnnouncementMarqueeHost_SizeChanged;
+
             timer.Stop();
             StopOnlineAnnouncementAnimation();
             AttachAnnouncementViewModel(null);
@@ -195,12 +336,11 @@ namespace SX3_SCANER
             AttachAnnouncementViewModel(e.NewValue as INotifyPropertyChanged);
         }
 
-        private void AttachAnnouncementViewModel(INotifyPropertyChanged viewModel)
+        private void AttachAnnouncementViewModel(
+            INotifyPropertyChanged viewModel)
         {
             if (ReferenceEquals(_announcementViewModel, viewModel))
-            {
                 return;
-            }
 
             if (_announcementViewModel != null)
             {
@@ -236,13 +376,34 @@ namespace SX3_SCANER
             string propertyName = e?.PropertyName ?? string.Empty;
 
             if (string.IsNullOrEmpty(propertyName) ||
-                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementText), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementAnimationVersion), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.IsOnlineAnnouncementVisible), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.IsOnlineAnnouncementMarqueeEnabled), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeDirection), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeSpeed), StringComparison.Ordinal) ||
-                string.Equals(propertyName, nameof(MainViewModel.OnlineAnnouncementMarqueeDelaySeconds), StringComparison.Ordinal))
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.OnlineAnnouncementText),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.OnlineAnnouncementAnimationVersion),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.IsOnlineAnnouncementVisible),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.IsOnlineAnnouncementMarqueeEnabled),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.OnlineAnnouncementMarqueeDirection),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.OnlineAnnouncementMarqueeSpeed),
+                    StringComparison.Ordinal) ||
+                string.Equals(
+                    propertyName,
+                    nameof(MainViewModel.OnlineAnnouncementMarqueeDelaySeconds),
+                    StringComparison.Ordinal))
             {
                 RestartAnnouncementMarquee();
             }
@@ -259,17 +420,19 @@ namespace SX3_SCANER
                 string.IsNullOrWhiteSpace(viewModel.OnlineAnnouncementText))
             {
                 if (AnnouncementMarqueeTransform != null)
-                {
                     AnnouncementMarqueeTransform.X = 0;
-                }
 
                 return;
             }
 
-            int generation = Interlocked.Increment(ref _announcementMarqueeGeneration);
+            int generation =
+                Interlocked.Increment(ref _announcementMarqueeGeneration);
+
             CancellationTokenSource cts = new CancellationTokenSource();
+
             CancellationTokenSource previousCts =
                 Interlocked.Exchange(ref _announcementMarqueeCts, cts);
+
             previousCts?.Cancel();
             previousCts?.Dispose();
 
@@ -286,7 +449,9 @@ namespace SX3_SCANER
 
             if (cts.IsCancellationRequested ||
                 generation != _announcementMarqueeGeneration ||
-                !TryGetAnnouncementMarqueeMetrics(out double hostWidth, out double textWidth))
+                !TryGetAnnouncementMarqueeMetrics(
+                    out double hostWidth,
+                    out double textWidth))
             {
                 if (cts.IsCancellationRequested ||
                     generation != _announcementMarqueeGeneration)
@@ -305,12 +470,12 @@ namespace SX3_SCANER
 
                 if (cts.IsCancellationRequested ||
                     generation != _announcementMarqueeGeneration ||
-                    !TryGetAnnouncementMarqueeMetrics(out hostWidth, out textWidth))
+                    !TryGetAnnouncementMarqueeMetrics(
+                        out hostWidth,
+                        out textWidth))
                 {
                     if (AnnouncementMarqueeTransform != null)
-                    {
                         AnnouncementMarqueeTransform.X = 0;
-                    }
 
                     return;
                 }
@@ -319,7 +484,6 @@ namespace SX3_SCANER
             double from = hostWidth;
             double to = -textWidth;
 
-            // Tốc độ cố định theo pixel
             const double pixelsPerSecond = 55;
 
             double distance = hostWidth + textWidth;
@@ -349,6 +513,7 @@ namespace SX3_SCANER
                     AnnouncementMarqueeTransform.BeginAnimation(
                         TranslateTransform.XProperty,
                         null);
+
                     AnnouncementMarqueeTransform.X = to;
                 }
 
@@ -360,7 +525,8 @@ namespace SX3_SCANER
                     !(DataContext is MainViewModel currentViewModel) ||
                     !currentViewModel.IsOnlineAnnouncementVisible ||
                     !currentViewModel.IsOnlineAnnouncementMarqueeEnabled ||
-                    string.IsNullOrWhiteSpace(currentViewModel.OnlineAnnouncementText))
+                    string.IsNullOrWhiteSpace(
+                        currentViewModel.OnlineAnnouncementText))
                 {
                     return;
                 }
@@ -374,6 +540,7 @@ namespace SX3_SCANER
             if (AnnouncementMarqueeTransform != null)
             {
                 AnnouncementMarqueeTransform.X = from;
+
                 AnnouncementMarqueeTransform.BeginAnimation(
                     TranslateTransform.XProperty,
                     animation);
@@ -386,6 +553,7 @@ namespace SX3_SCANER
 
             CancellationTokenSource cts =
                 Interlocked.Exchange(ref _announcementMarqueeCts, null);
+
             if (cts != null)
             {
                 cts.Cancel();
@@ -397,6 +565,7 @@ namespace SX3_SCANER
                 AnnouncementMarqueeTransform.BeginAnimation(
                     TranslateTransform.XProperty,
                     null);
+
                 AnnouncementMarqueeTransform.X = 0;
             }
         }
@@ -411,7 +580,10 @@ namespace SX3_SCANER
             if (textWidth <= 0 && AnnouncementMarqueeText != null)
             {
                 AnnouncementMarqueeText.Measure(
-                    new Size(double.PositiveInfinity, double.PositiveInfinity));
+                    new Size(
+                        double.PositiveInfinity,
+                        double.PositiveInfinity));
+
                 textWidth = AnnouncementMarqueeText.DesiredSize.Width;
             }
 
@@ -421,77 +593,85 @@ namespace SX3_SCANER
         private async Task RefreshUpdateStatusAsync(bool showErrorMessage)
         {
             txtUpdateStatus.Text = "Đang kiểm tra bản cập nhật...";
+            txtUpdateStatus.Foreground = Brushes.DarkOrange;
+
             btnSoftwareUpdate.IsEnabled = false;
             updateNotificationDot.Visibility = Visibility.Collapsed;
+
             availableUpdate = null;
+            _hasUpdateAvailable = false;
 
             UpdateInfo update =
                 await _updateService.CheckForUpdateAsync(showErrorMessage);
+
             availableUpdate = update;
 
             if (availableUpdate != null)
             {
-                txtUpdateStatus.Text = "Có bản mới: V" + availableUpdate.Version;
-                updateNotificationDot.Visibility = Visibility.Visible;
-
-                // Có bản mới thì cho bấm cập nhật.
+                _hasUpdateAvailable = true;
                 btnSoftwareUpdate.IsEnabled = true;
+                UpdateTopRightStatusText();
                 return;
             }
+
+            _hasUpdateAvailable = false;
+            updateNotificationDot.Visibility = Visibility.Collapsed;
 
             if (_updateService.LastCheckSucceeded)
             {
-                txtUpdateStatus.Text = _updateService.LastStatusMessage;
-                updateNotificationDot.Visibility = Visibility.Collapsed;
-
-                // Đã mới nhất thì khóa nút cập nhật.
                 btnSoftwareUpdate.IsEnabled = false;
+                UpdateTopRightStatusText();
                 return;
             }
 
-            txtUpdateStatus.Text = string.Empty;
-            updateNotificationDot.Visibility = Visibility.Collapsed;
-
-            // Network/API failures stay in Debug logs; the button remains retryable.
             btnSoftwareUpdate.IsEnabled = true;
+            UpdateTopRightStatusText();
         }
 
-        private async void SoftwareUpdate_Click(object sender, RoutedEventArgs e)
+        private async void SoftwareUpdate_Click(
+            object sender,
+            RoutedEventArgs e)
         {
             btnSoftwareUpdate.IsEnabled = false;
 
-            // Nếu chưa có thông tin bản cập nhật thì kiểm tra lại GitHub.
             if (availableUpdate == null)
             {
                 await RefreshUpdateStatusAsync(true);
 
                 if (availableUpdate == null)
                 {
-                    // Nếu GitHub lỗi thì vẫn cho bấm thử lại.
                     if (!_updateService.LastCheckSucceeded)
                     {
                         btnSoftwareUpdate.IsEnabled = true;
                     }
 
+                    _hasUpdateAvailable = false;
+                    UpdateTopRightStatusText();
                     return;
                 }
             }
 
             txtUpdateStatus.Text = "Đang tải và xác thực bản cập nhật...";
+            txtUpdateStatus.Foreground = Brushes.DarkOrange;
+            updateNotificationDot.Visibility = Visibility.Collapsed;
+
             bool installerStarted = false;
 
             try
             {
                 string installerPath =
-                    await _updateService.DownloadAndVerifyAsync(availableUpdate);
+                    await _updateService.DownloadAndVerifyAsync(
+                        availableUpdate);
+
                 txtUpdateStatus.Text = "Bản cập nhật đã được xác thực.";
 
                 bool accepted = ShowUpdateDetailDialog(availableUpdate);
+
                 if (!accepted)
                 {
-                    txtUpdateStatus.Text = "Đã hủy cập nhật.";
+                    _hasUpdateAvailable = true;
                     btnSoftwareUpdate.IsEnabled = true;
-                    updateNotificationDot.Visibility = Visibility.Visible;
+                    UpdateTopRightStatusText();
                     return;
                 }
 
@@ -500,25 +680,35 @@ namespace SX3_SCANER
 
                 if (installerStarted)
                 {
-                    txtUpdateStatus.Text = "Đã khởi động trình cài đặt cập nhật.";
+                    _hasUpdateAvailable = false;
+                    availableUpdate = null;
+
+                    txtUpdateStatus.Text =
+                        "Đã khởi động trình cài đặt cập nhật.";
+
                     updateNotificationDot.Visibility = Visibility.Collapsed;
                     btnSoftwareUpdate.IsEnabled = false;
                     return;
                 }
 
                 btnSoftwareUpdate.IsEnabled = true;
+                UpdateTopRightStatusText();
             }
             catch (Exception ex)
             {
                 _updateService.ReportDownloadError(ex);
+
                 txtUpdateStatus.Text = _updateService.LastStatusMessage;
+                txtUpdateStatus.Foreground = Brushes.Red;
+
                 btnSoftwareUpdate.IsEnabled = true;
             }
             finally
             {
                 if (!installerStarted)
                 {
-                    if (availableUpdate != null || !_updateService.LastCheckSucceeded)
+                    if (availableUpdate != null ||
+                        !_updateService.LastCheckSucceeded)
                     {
                         btnSoftwareUpdate.IsEnabled = true;
                     }
@@ -532,10 +722,11 @@ namespace SX3_SCANER
 
         private bool ShowUpdateDetailDialog(UpdateInfo update)
         {
-            var detailWindow = new UpdateReleaseNotesWindow(applicationVersion, update)
-            {
-                Owner = this
-            };
+            var detailWindow =
+                new UpdateReleaseNotesWindow(applicationVersion, update)
+                {
+                    Owner = this
+                };
 
             return detailWindow.ShowDialog() == true;
         }

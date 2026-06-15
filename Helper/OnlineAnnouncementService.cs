@@ -116,6 +116,9 @@ namespace SX3_SCANER.Helper
                 {
                     using (var socket = new ClientWebSocket())
                     {
+                        StartupManager.SetAnnouncementServerStatus(
+                            AnnouncementServerStatusInfo.Connecting("Tailscale WebSocket"));
+
                         socket.Options.KeepAliveInterval =
                             TimeSpan.FromSeconds(20);
                         using (var connectCts =
@@ -126,6 +129,8 @@ namespace SX3_SCANER.Helper
                             await socket.ConnectAsync(
                                 new Uri(_realtimeUrl),
                                 connectCts.Token).ConfigureAwait(false);
+                            StartupManager.SetAnnouncementServerStatus(
+                             AnnouncementServerStatusInfo.Connected("Tailscale WebSocket"));
                         }
 
                         StartupManager.Log(
@@ -159,6 +164,10 @@ namespace SX3_SCANER.Helper
                 }
                 catch (Exception ex)
                 {
+                    StartupManager.SetAnnouncementServerStatus(
+                     AnnouncementServerStatusInfo.Failed(
+                      "Tailscale WebSocket",
+                         ex.Message));
                     Debug.WriteLine(
                         "[Announcement] WebSocket unavailable, fallback to HTTP polling");
                     StartupManager.Log(
@@ -215,10 +224,13 @@ namespace SX3_SCANER.Helper
                 return;
 
             if (await TryLoadHttpAsync(
-                    _snapshotUrl,
-                    AnnouncementSource.Tailscale,
-                    token).ConfigureAwait(false))
+        _snapshotUrl,
+        AnnouncementSource.Tailscale,
+        token).ConfigureAwait(false))
             {
+                StartupManager.SetAnnouncementServerStatus(
+                    AnnouncementServerStatusInfo.Connected("Tailscale HTTP"));
+
                 StartupManager.Log(
                     "[Announcement] Using Tailscale server");
                 return;
@@ -227,12 +239,19 @@ namespace SX3_SCANER.Helper
             StartupManager.Log(
                 "[Announcement] Tailscale unavailable, fallback to CDN");
             if (await TryLoadHttpAsync(
-                    _fallbackCdnUrl,
-                    AnnouncementSource.Cdn,
-                    token).ConfigureAwait(false))
+        _fallbackCdnUrl,
+        AnnouncementSource.Cdn,
+        token).ConfigureAwait(false))
             {
+                StartupManager.SetAnnouncementServerStatus(
+                    AnnouncementServerStatusInfo.FallbackConnected("CDN jsDelivr"));
                 return;
             }
+
+            StartupManager.SetAnnouncementServerStatus(
+    AnnouncementServerStatusInfo.Failed(
+        "Announcement Server",
+        "Tailscale và CDN đều không kết nối được, đang dùng cache nếu có."));
 
             StartupManager.Log(
                 "[Announcement] CDN unavailable, using cached announcement");
@@ -252,6 +271,11 @@ namespace SX3_SCANER.Helper
                 {
                     if (!response.IsSuccessStatusCode)
                     {
+                        StartupManager.SetAnnouncementServerStatus(
+                            AnnouncementServerStatusInfo.Failed(
+                                source.ToString(),
+                                "HTTP " + (int)response.StatusCode));
+
                         StartupManager.Log(
                             "[Announcement] HTTP " +
                             (int)response.StatusCode + " from " + url);
@@ -292,9 +316,13 @@ namespace SX3_SCANER.Helper
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(
+                StartupManager.SetAnnouncementServerStatus(
+                 AnnouncementServerStatusInfo.Failed(
+                  source.ToString(),
+                    ex.Message));
+                  Debug.WriteLine(
                     "[Announcement] HTTP unavailable: " + ex.Message);
-                StartupManager.Log(
+                 StartupManager.Log(
                     "[Announcement] HTTP unavailable from " + url + ". " +
                     ex.Message);
                 return false;

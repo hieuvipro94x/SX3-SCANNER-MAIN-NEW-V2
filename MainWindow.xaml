@@ -336,36 +336,115 @@
                     </Border>
                 </Grid>
 
-                <StackPanel Grid.Column="2"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center">
-                    <TextBlock x:Name="txtUpdateStatus"
-                               Text="Đang kiểm tra bản cập nhật..."
-                               Foreground="{StaticResource TextMutedBrush}"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"
-                               TextWrapping="NoWrap"
-                               TextTrimming="CharacterEllipsis"
-                               MaxWidth="180" />
+                <Grid Grid.Column="2"
+      HorizontalAlignment="Right"
+      VerticalAlignment="Center">
 
-                    <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- TRẠNG THÁI MÁY CHỦ THÔNG BÁO -->
+                    <Border x:Name="serverStatusBadge"
+            Grid.Column="0"
+            Height="36"
+            MinWidth="260"
+            MaxWidth="420"
+            CornerRadius="18"
+            Padding="12,0"
+            Background="#ECFDF5"
+            BorderBrush="#22C55E"
+            BorderThickness="1.5"
+            VerticalAlignment="Center">
+
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10"
+                              ShadowDepth="0"
+                              Opacity="0.16"/>
+                        </Border.Effect>
+
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Width="14"
+                  Height="14"
+                  VerticalAlignment="Center">
+
+                                <Ellipse x:Name="serverStatusGlow"
+                         Fill="#22C55E"
+                         Opacity="0.22"/>
+
+                                <Ellipse x:Name="serverStatusDot"
+                         Width="9"
+                         Height="9"
+                         Fill="#22C55E"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <TextBlock x:Name="txtUpdateStatus"
+                       Grid.Column="2"
+                       Text="Đang kiểm tra máy chủ thông báo..."
+                       Foreground="#166534"
+                       FontSize="13"
+                       FontWeight="Bold"
+                       VerticalAlignment="Center"
+                       TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="370"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- NÚT CẬP NHẬT: MẶC ĐỊNH ẨN -->
+                    <Grid x:Name="softwareUpdatePanel"
+          Grid.Column="2"
+          Visibility="Collapsed">
+
                         <Button x:Name="btnSoftwareUpdate"
-                                Content="CẬP NHẬT PHẦN MỀM"
-                                Click="SoftwareUpdate_Click"
-                                IsEnabled="False" />
+                Height="36"
+                MinWidth="150"
+                Padding="14,0"
+                Content="CẬP NHẬT"
+                Click="SoftwareUpdate_Click"
+                IsEnabled="False"
+                FontSize="13"
+                FontWeight="ExtraBold"
+                Foreground="White"
+                Background="#DC2626"
+                BorderBrush="#991B1B"
+                BorderThickness="1"
+                Cursor="Hand">
+
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="18"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
 
                         <Ellipse x:Name="updateNotificationDot"
-                                 Width="10"
-                                 Height="10"
-                                 Fill="#DC2626"
-                                 Stroke="White"
-                                 StrokeThickness="1"
-                                 HorizontalAlignment="Right"
-                                 VerticalAlignment="Top"
-                                 Visibility="Collapsed" />
+                 Width="10"
+                 Height="10"
+                 Fill="#FDE047"
+                 Stroke="White"
+                 StrokeThickness="1.5"
+                 HorizontalAlignment="Right"
+                 VerticalAlignment="Top"
+                 Visibility="Collapsed"/>
                     </Grid>
-                </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 

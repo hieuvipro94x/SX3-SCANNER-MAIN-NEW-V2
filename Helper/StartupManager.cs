@@ -1,39 +1,29 @@
+using SX3_SCANER.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Windows;
 
 namespace SX3_SCANER.Helper
 {
     internal static class StartupManager
     {
         private static readonly object StatusSync = new object();
+
         private static readonly HashSet<string> LoggedKeys =
             new HashSet<string>(StringComparer.Ordinal);
-        private static readonly object LogSync = new object();
-        private static readonly string LocalDataDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SX3_SCANER");
-        private static readonly string StartupErrorLogPath = Path.Combine(
-            LocalDataDirectory,
-            "logs",
-            "startup-error.log");
-        private static readonly string StartupLogPath = Path.Combine(
-            Environment.GetFolderPath(
-                Environment.SpecialFolder.CommonApplicationData),
-            "JBZVN",
-            "SX3 Scanner",
-            "logs",
-            "startup.log");
-        private static string _currentStatus = "S\u1EB5n s\u00E0ng";
+
+        private static string _currentStatus = "Sẵn sàng";
 
         internal static event Action<string> StatusChanged;
 
+        public static event Action<AnnouncementServerStatusInfo>
+            AnnouncementServerStatusChanged;
+
         internal static string ErrorLogPath
         {
-            get { return StartupErrorLogPath; }
+            get { return string.Empty; }
         }
 
         internal static string CurrentStatus
@@ -47,14 +37,19 @@ namespace SX3_SCANER.Helper
             }
         }
 
+        public static AnnouncementServerStatusInfo CurrentAnnouncementServerStatus
+        {
+            get;
+            private set;
+        } = AnnouncementServerStatusInfo.Unknown();
+
         internal static void SetStatus(string message)
         {
             if (string.IsNullOrWhiteSpace(message))
-            {
                 return;
-            }
 
             Action<string> handler;
+
             lock (StatusSync)
             {
                 _currentStatus = message.Trim();
@@ -65,16 +60,27 @@ namespace SX3_SCANER.Helper
             handler?.Invoke(_currentStatus);
         }
 
+        public static void SetAnnouncementServerStatus(
+            AnnouncementServerStatusInfo status)
+        {
+            if (status == null)
+                return;
+
+            CurrentAnnouncementServerStatus = status;
+            AnnouncementServerStatusChanged?.Invoke(status);
+        }
+
         internal static bool HasArgument(string[] args, string argument)
         {
             if (args == null)
-            {
                 return false;
-            }
 
             foreach (string value in args)
             {
-                if (string.Equals(value, argument, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(
+                    value,
+                    argument,
+                    StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -89,62 +95,39 @@ namespace SX3_SCANER.Helper
             {
                 Process current = Process.GetCurrentProcess();
 
-                foreach (Process process in Process.GetProcessesByName(current.ProcessName))
+                foreach (Process process in
+                         Process.GetProcessesByName(current.ProcessName))
                 {
                     if (process.Id == current.Id)
-                    {
                         continue;
-                    }
 
                     IntPtr windowHandle = WaitForMainWindowHandle(process);
+
                     if (windowHandle == IntPtr.Zero)
-                    {
                         continue;
-                    }
 
                     if (IsIconic(windowHandle))
-                    {
                         ShowWindowAsync(windowHandle, 9);
-                    }
 
                     SetForegroundWindow(windowHandle);
-                    Log("Đã chuyển focus đến ứng dụng đang chạy.");
                     return;
                 }
 
-                Log("Đã tồn tại tiến trình khác nhưng không tìm thấy cửa sổ chính.");
+                ShowWarning(
+                    "Ứng dụng đã chạy",
+                    "Đã tồn tại tiến trình khác nhưng không tìm thấy cửa sổ chính.");
             }
             catch (Exception ex)
             {
-                Log("Không thể chuyển focus đến ứng dụng đang chạy: " + ex);
+                ShowError(
+                    "Không thể chuyển focus đến ứng dụng đang chạy.",
+                    ex);
             }
         }
 
         internal static void Log(string message)
         {
             Debug.WriteLine("[StartupManager] " + message);
-
-            try
-            {
-                lock (LogSync)
-                {
-                    string directory = Path.GetDirectoryName(StartupLogPath);
-                    if (!string.IsNullOrEmpty(directory))
-                        Directory.CreateDirectory(directory);
-
-                    File.AppendAllText(
-                        StartupLogPath,
-                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") +
-                        " [StartupManager] " +
-                        (message ?? string.Empty) +
-                        Environment.NewLine,
-                        new UTF8Encoding(false));
-                }
-            }
-            catch
-            {
-                // Logging must never prevent the application from starting.
-            }
         }
 
         internal static void LogOnce(string key, string message)
@@ -158,83 +141,132 @@ namespace SX3_SCANER.Helper
             lock (StatusSync)
             {
                 if (!LoggedKeys.Add(key))
-                {
                     return;
-                }
             }
 
             Log(message);
         }
 
-        internal static void LogStartupError(Exception exception, string databasePath)
+        internal static void LogStartupError(
+            Exception exception,
+            string databasePath)
         {
-            Debug.WriteLine("[StartupError] " + exception);
+            string detail =
+                "Database path: " + (databasePath ?? "(unknown)") +
+                Environment.NewLine +
+                Environment.NewLine +
+                "Loại lỗi: " +
+                (exception == null ? "(none)" : exception.GetType().FullName) +
+                Environment.NewLine +
+                Environment.NewLine +
+                "Nội dung lỗi: " +
+                (exception == null ? "(none)" : exception.Message) +
+                Environment.NewLine +
+                Environment.NewLine +
+                "Chẩn đoán: " + GetDatabaseDiagnosis(exception);
 
-            try
-            {
-                lock (LogSync)
-                {
-                    string directory = Path.GetDirectoryName(StartupErrorLogPath);
-                    if (!string.IsNullOrEmpty(directory))
-                    {
-                        Directory.CreateDirectory(directory);
-                    }
-
-                    var builder = new StringBuilder();
-                    builder.AppendLine("============================================================");
-                    builder.AppendLine("Timestamp: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-                    builder.AppendLine("Database path: " + (databasePath ?? "(unknown)"));
-                    builder.AppendLine("Exception type: " +
-                        (exception == null ? "(none)" : exception.GetType().FullName));
-                    builder.AppendLine("Exception message: " +
-                        (exception == null ? "(none)" : exception.Message));
-                    builder.AppendLine("SQLite diagnosis: " + GetDatabaseDiagnosis(exception));
-                    builder.AppendLine("Stack trace:");
-                    builder.AppendLine(
-                        exception == null || string.IsNullOrWhiteSpace(exception.StackTrace)
-                            ? "(not available)"
-                            : exception.StackTrace);
-                    builder.AppendLine("Database file state:");
-
-                    foreach (string fileName in new[]
-                    {
-                        "database.db",
-                        "database.db-wal",
-                        "database.db-shm",
-                        "product.db",
-                        "product.db-wal",
-                        "product.db-shm"
-                    })
-                    {
-                        string path = Path.Combine(LocalDataDirectory, fileName);
-                        builder.AppendLine(
-                            "  " + path + " | exists=" + File.Exists(path));
-                    }
-
-                    File.AppendAllText(
-                        StartupErrorLogPath,
-                        builder.ToString(),
-                        new UTF8Encoding(false));
-                }
-            }
-            catch
-            {
-                // Error logging must not hide the original startup exception.
-            }
+            ShowError("Lỗi khởi động ứng dụng", detail);
         }
 
         internal static string GetDatabaseDiagnosis(Exception exception)
         {
-            string details = exception == null ? string.Empty : exception.ToString();
+            string details = exception == null
+                ? string.Empty
+                : exception.ToString();
 
-            if (details.IndexOf("database is locked", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "database is locked";
-            if (details.IndexOf("file is not a database", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "file is not a database";
-            if (details.IndexOf("unable to open database file", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "unable to open database file";
+            if (details.IndexOf(
+                    "database is locked",
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "Database đang bị khóa.";
+            }
 
-            return "other startup/database error";
+            if (details.IndexOf(
+                    "file is not a database",
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "File database không hợp lệ.";
+            }
+
+            if (details.IndexOf(
+                    "unable to open database file",
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "Không mở được file database.";
+            }
+
+            return "Lỗi khởi động hoặc database khác.";
+        }
+
+        internal static void ShowError(string title, Exception exception)
+        {
+            ShowError(
+                title,
+                exception == null
+                    ? "Không có thông tin lỗi."
+                    : exception.Message);
+        }
+
+        internal static void ShowError(string title, string message)
+        {
+            ShowMessageBox(
+                title,
+                message,
+                MessageBoxImage.Error);
+        }
+
+        internal static void ShowWarning(string title, string message)
+        {
+            ShowMessageBox(
+                title,
+                message,
+                MessageBoxImage.Warning);
+        }
+
+        internal static void ShowInfo(string title, string message)
+        {
+            ShowMessageBox(
+                title,
+                message,
+                MessageBoxImage.Information);
+        }
+
+        private static void ShowMessageBox(
+            string title,
+            string message,
+            MessageBoxImage icon)
+        {
+            try
+            {
+                Application.Current?.Dispatcher?.BeginInvoke(
+                    new Action(() =>
+                    {
+                        MessageBox.Show(
+                            message ?? string.Empty,
+                            string.IsNullOrWhiteSpace(title)
+                                ? "SX3 Scanner"
+                                : title,
+                            MessageBoxButton.OK,
+                            icon);
+                    }));
+            }
+            catch
+            {
+                try
+                {
+                    MessageBox.Show(
+                        message ?? string.Empty,
+                        string.IsNullOrWhiteSpace(title)
+                            ? "SX3 Scanner"
+                            : title,
+                        MessageBoxButton.OK,
+                        icon);
+                }
+                catch
+                {
+                    // Không để popup lỗi làm crash app.
+                }
+            }
         }
 
         private static IntPtr WaitForMainWindowHandle(Process process)
@@ -244,9 +276,7 @@ namespace SX3_SCANER.Helper
                 process.Refresh();
 
                 if (process.MainWindowHandle != IntPtr.Zero)
-                {
                     return process.MainWindowHandle;
-                }
 
                 System.Threading.Thread.Sleep(100);
             }
