@@ -9,6 +9,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -127,8 +128,10 @@ namespace SX3_SCANER.ViewModel
 
         private void CheckLastJob(string partNumber)
         {
-            var notcompletebox = new BoxProductRepository().GetNotComplete(partNumber, SelectedDate);
-            
+            // Chỉ khôi phục thùng đang mở theo NGÀY BOX hiện tại.
+            // Không tự kéo thùng cũ khác ngày lên, tránh tình trạng ngày Box bị lệch
+            // với phiên quét đang thao tác.
+            var notcompletebox = new BoxProductRepository().GetNotComplete(partNumber, BoxDate);
 
             if (string.IsNullOrEmpty(notcompletebox))
             {
@@ -144,6 +147,10 @@ namespace SX3_SCANER.ViewModel
             _CurrentBoxName = notcompletebox;
             _currentBoxCreatedDate =
                 _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName);
+            if (_currentBoxCreatedDate.HasValue)
+            {
+                _SelectedBoxDate = _currentBoxCreatedDate.Value.Date;
+            }
             OnPropertyChanged(nameof(BoxDate));
             OnPropertyChanged(nameof(BoxDateText));
             NotifyCurrentBoxStatusChanged();
@@ -220,10 +227,9 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                if (_currentBoxCreatedDate.HasValue)
-                    return _currentBoxCreatedDate.Value.Date;
-
-                return _SelectedBoxDate.Date;
+                return _currentBoxCreatedDate.HasValue
+                    ? _currentBoxCreatedDate.Value.Date
+                    : _SelectedBoxDate.Date;
             }
             set
             {
@@ -232,18 +238,11 @@ namespace SX3_SCANER.ViewModel
                 if (BoxDate.Date == next)
                     return;
 
-                // Nếu thùng đang có dữ liệu scan thì không cho đổi ngày box trực tiếp.
-                // Muốn đổi ngày box thì phải xóa/hủy thùng cũ trước để tránh lệch BoxName và dữ liệu lịch sử.
                 if (HasOpenScanSession &&
                     ScanHistorySource != null &&
                     ScanHistorySource.Count > 0)
                 {
-                    MessageBox.Show(
-                        "Thùng hiện tại đã có dữ liệu scan.\n\n" +
-                        "Vui lòng XÓA/HỦY thùng cũ trước khi đổi NGÀY BOX.",
-                        "KHÔNG THỂ ĐỔI NGÀY BOX",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
+                    ShowBoxDateChangeBlockedDialog();
 
                     OnPropertyChanged(nameof(BoxDate));
                     OnPropertyChanged(nameof(BoxDateText));
@@ -251,24 +250,267 @@ namespace SX3_SCANER.ViewModel
                 }
 
                 _SelectedBoxDate = next;
-                _currentBoxCreatedDate = next;
+                _currentBoxCreatedDate = null;
 
                 OnPropertyChanged(nameof(BoxDate));
                 OnPropertyChanged(nameof(BoxDateText));
 
-                ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(_SelectedBoxDate);
+                ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(BoxDate);
 
-                if (!string.IsNullOrWhiteSpace(SelectedPartNumber))
+                if (!string.IsNullOrWhiteSpace(SelectedPartNumber) &&
+                    !RestoreScanSession(SelectedPartNumber))
                 {
-                    if (!RestoreScanSession(SelectedPartNumber))
-                    {
-                        CheckLastJob(SelectedPartNumber);
-                    }
+                    CheckLastJob(SelectedPartNumber);
                 }
 
                 RefreshDashboardStats();
                 CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+
+        private void ShowBoxDateChangeBlockedDialog()
+        {
+            Window owner = Application.Current == null ? null : Application.Current.MainWindow;
+
+            Window dialog = new Window
+            {
+                Title = "KHÔNG THỂ ĐỔI NGÀY BOX",
+                Width = 680,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = owner != null && owner.IsVisible
+                    ? WindowStartupLocation.CenterOwner
+                    : WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                Background = Brushes.White,
+                WindowStyle = WindowStyle.SingleBorderWindow
+            };
+
+            if (owner != null && owner.IsVisible)
+            {
+                dialog.Owner = owner;
+            }
+
+            Border root = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(16),
+                Padding = new Thickness(26),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1)
+            };
+
+            Grid grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(18) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(18) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(24) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            StackPanel headerPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            Border iconBox = new Border
+            {
+                Width = 64,
+                Height = 64,
+                CornerRadius = new CornerRadius(32),
+                Background = new SolidColorBrush(Color.FromRgb(254, 243, 199)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+                BorderThickness = new Thickness(2),
+                Margin = new Thickness(0, 0, 18, 0)
+            };
+
+            TextBlock iconText = new TextBlock
+            {
+                Text = "!",
+                FontSize = 38,
+                FontWeight = FontWeights.Black,
+                Foreground = new SolidColorBrush(Color.FromRgb(217, 119, 6)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
+
+            iconBox.Child = iconText;
+
+            StackPanel titlePanel = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            TextBlock titleText = new TextBlock
+            {
+                Text = "KHÔNG THỂ ĐỔI NGÀY BOX",
+                FontSize = 26,
+                FontWeight = FontWeights.Black,
+                Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            TextBlock subTitleText = new TextBlock
+            {
+                Text = "Thùng hiện tại đang có dữ liệu scan.",
+                FontSize = 17,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+                Margin = new Thickness(0, 5, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            titlePanel.Children.Add(titleText);
+            titlePanel.Children.Add(subTitleText);
+
+            headerPanel.Children.Add(iconBox);
+            headerPanel.Children.Add(titlePanel);
+
+            Grid.SetRow(headerPanel, 0);
+            grid.Children.Add(headerPanel);
+
+            Border infoBox = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(18)
+            };
+
+            StackPanel infoPanel = new StackPanel();
+
+            TextBlock line1 = new TextBlock
+            {
+                Text = "NGÀY BOX là ngày quản lý thùng và sinh mã Box.",
+                FontSize = 17,
+                FontWeight = FontWeights.Black,
+                Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            TextBlock line2 = new TextBlock
+            {
+                Text = "Thùng đang mở đã có dữ liệu scan, nên không được đổi NGÀY BOX trực tiếp để tránh lệch dữ liệu lịch sử.",
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 24
+            };
+
+            infoPanel.Children.Add(line1);
+            infoPanel.Children.Add(line2);
+            infoBox.Child = infoPanel;
+
+            Grid.SetRow(infoBox, 2);
+            grid.Children.Add(infoBox);
+
+            Grid optionGrid = new Grid();
+            optionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            optionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
+            optionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Border optionDeleteBox = CreateBoxDateDialogOptionCard(
+                "Muốn đổi NGÀY BOX",
+                "Hãy hủy/xóa thùng hiện tại trước, sau đó chọn lại ngày box mới.",
+                Color.FromRgb(254, 242, 242),
+                Color.FromRgb(248, 113, 113),
+                Color.FromRgb(185, 28, 28));
+
+            Border optionScanDateBox = CreateBoxDateDialogOptionCard(
+                "Muốn scan tem ngày khác",
+                "Không đổi ngày box. Chỉ đổi NGÀY TEM để scan tiếp vào cùng thùng.",
+                Color.FromRgb(236, 253, 245),
+                Color.FromRgb(74, 222, 128),
+                Color.FromRgb(21, 128, 61));
+
+            Grid.SetColumn(optionDeleteBox, 0);
+            Grid.SetColumn(optionScanDateBox, 2);
+
+            optionGrid.Children.Add(optionDeleteBox);
+            optionGrid.Children.Add(optionScanDateBox);
+
+            Grid.SetRow(optionGrid, 4);
+            grid.Children.Add(optionGrid);
+
+            Button okButton = new Button
+            {
+                Content = "ĐÃ HIỂU",
+                Height = 52,
+                MinWidth = 170,
+                Padding = new Thickness(28, 0, 28, 0),
+                FontSize = 17,
+                FontWeight = FontWeights.Black,
+                Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Cursor = Cursors.Hand
+            };
+
+            okButton.Click += (sender, args) =>
+            {
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            Grid.SetRow(okButton, 6);
+            grid.Children.Add(okButton);
+
+            root.Child = grid;
+            dialog.Content = root;
+            dialog.ShowDialog();
+        }
+
+        private static Border CreateBoxDateDialogOptionCard(
+            string title,
+            string description,
+            Color backgroundColor,
+            Color borderColor,
+            Color titleColor)
+        {
+            Border card = new Border
+            {
+                Background = new SolidColorBrush(backgroundColor),
+                BorderBrush = new SolidColorBrush(borderColor),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(16),
+                MinHeight = 124
+            };
+
+            StackPanel panel = new StackPanel();
+
+            TextBlock titleText = new TextBlock
+            {
+                Text = title,
+                FontSize = 16,
+                FontWeight = FontWeights.Black,
+                Foreground = new SolidColorBrush(titleColor),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 9)
+            };
+
+            TextBlock descriptionText = new TextBlock
+            {
+                Text = description,
+                FontSize = 14.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 21
+            };
+
+            panel.Children.Add(titleText);
+            panel.Children.Add(descriptionText);
+
+            card.Child = panel;
+            return card;
         }
 
         public string BoxDateText
@@ -391,11 +633,8 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                // Đổi ngày khi chưa mở thùng: tải lại danh sách thùng và dashboard của ngày vừa chọn.
-                ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(_SelectedDate);
-
-                // Đổi NGÀY TEM chỉ cập nhật mẫu tem/SealNo.
-                // Không đổi danh sách thùng theo NGÀY BOX.
+                // Đổi NGÀY TEM khi chưa mở thùng: chỉ cập nhật mẫu tem/SealNo.
+                // NGÀY BOX và danh sách thùng trong ngày vẫn do BoxDate quản lý riêng.
                 if (!string.IsNullOrWhiteSpace(SelectedPartNumber))
                 {
                     SetExpectedData(SelectedPartNumber);

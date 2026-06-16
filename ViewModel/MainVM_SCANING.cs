@@ -535,24 +535,13 @@ namespace SX3_SCANER.ViewModel
             bool allocatedBoxName = false;
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
             {
-                ResetScanStatus();
-                ScanTextResult = NG;
-                ScanResultDetailText = scanMessage;
-                InputScanCode = string.Empty;
-                ScanSoundService.PlayNg();
-                StartupManager.SetStatus(displayMessage);
-
-                var errorWithoutBox = new ScanErrorPresentation
-                {
-                    Detail = scanMessage,
-                    Standard = "Tem hợp lệ, chưa bị trùng và thùng chưa đủ số lượng",
-                    Actual = DisplayActualValue(inputScanCode),
-                    Resolution = displayMessage
-                };
-
-                ScanResultDetailText = errorWithoutBox.ToDisplayText();
-                ShowScanErrorWindow(errorWithoutBox);
-                return;
+                allocatedBoxName = true;
+                _currentBoxCreatedDate = BoxDate.Date;
+                _CurrentBoxName = await Task.Run(
+                    () => _boxProductRepository.GetNextBoxName(BoxDate));
+                OnPropertyChanged(nameof(BoxDate));
+                OnPropertyChanged(nameof(BoxDateText));
+                NotifyCurrentBoxStatusChanged();
             }
 
             ResetScanStatus();
@@ -1644,6 +1633,8 @@ namespace SX3_SCANER.ViewModel
 
         private bool RestoreScanSession(string productCode)
         {
+            // Chỉ khôi phục phiên theo NGÀY BOX hiện tại.
+            // Không LoadLatestSession để tránh tự kéo thùng cũ khác ngày lên.
             ScanSessionState state = _scanSessionService.LoadSession(productCode, BoxDate);
             if (state == null)
             {
@@ -1654,6 +1645,11 @@ namespace SX3_SCANER.ViewModel
             _currentBoxCreatedDate = state.BoxDate == default(DateTime)
                 ? _boxProductRepository.GetBoxCreatedDate(_CurrentBoxName)
                 : (DateTime?)state.BoxDate.Date;
+            if (_currentBoxCreatedDate.HasValue)
+            {
+                _SelectedBoxDate = _currentBoxCreatedDate.Value.Date;
+            }
+
             DateTime restoredScanLabelDate = state.ScanLabelDate == default(DateTime)
                 ? state.SessionDate.Date
                 : state.ScanLabelDate.Date;

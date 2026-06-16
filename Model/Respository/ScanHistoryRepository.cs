@@ -111,18 +111,28 @@ namespace SX3_SCANER.Model
             {
                 command.CommandText = @"
                     SELECT
-                        COUNT(1) AS TotalScan,
                         COALESCE(SUM(CASE WHEN ScanResult = 1 THEN 1 ELSE 0 END), 0) AS PassScan,
                         COALESCE(SUM(CASE WHEN ScanResult = 0 THEN 1 ELSE 0 END), 0) AS FailScan
                     FROM ScanHistoryView
                     WHERE
-                        date(ScanLabelDate) = date(@BusinessDate)
+                        -- Ưu tiên thống kê theo NGÀY BOX.
+                        -- Nếu một thùng chưa đủ số lượng và sang ngày hôm sau mới scan tiếp,
+                        -- các tem scan thêm vẫn có cùng BoxDate nên vẫn được cộng vào tổng của phiên thùng.
+                        date(BoxDate) = date(@BusinessDate)
+
+                        -- Fallback cho dữ liệu cũ chưa có BoxDate.
                         OR (
-                            (ScanLabelDate IS NULL OR TRIM(CAST(ScanLabelDate AS TEXT)) = '')
+                            (BoxDate IS NULL OR TRIM(CAST(BoxDate AS TEXT)) = '')
                             AND (
-                                date(ScanTime) = date(@BusinessDate)
-                                OR SealNo = @SealNo
-                                OR BoxName LIKE @TodayPrefix
+                                date(ScanLabelDate) = date(@BusinessDate)
+                                OR (
+                                    (ScanLabelDate IS NULL OR TRIM(CAST(ScanLabelDate AS TEXT)) = '')
+                                    AND (
+                                        date(ScanTime) = date(@BusinessDate)
+                                        OR SealNo = @SealNo
+                                        OR BoxName LIKE @TodayPrefix
+                                    )
+                                )
                             )
                         )";
 
@@ -134,11 +144,16 @@ namespace SX3_SCANER.Model
                 {
                     if (reader.Read())
                     {
+                        int pass = Convert.ToInt32(reader["PassScan"]);
+                        int fail = Convert.ToInt32(reader["FailScan"]);
+
                         return new DashboardScanStats
                         {
-                            Total = Convert.ToInt32(reader["TotalScan"]),
-                            Pass = Convert.ToInt32(reader["PassScan"]),
-                            Fail = Convert.ToInt32(reader["FailScan"])
+                            // Tổng scan = PASS + NG.
+                            // Không dùng COUNT(1) để tránh lệch nếu sau này có bản ghi loại khác.
+                            Total = Math.Max(0, pass) + Math.Max(0, fail),
+                            Pass = pass,
+                            Fail = fail
                         };
                     }
                 }

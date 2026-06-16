@@ -40,14 +40,36 @@
                 </Grid.RowDefinitions>
 
                 <Grid.Resources>
-                    <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
-                        <Setter Property="FontSize" Value="10"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="Foreground" Value="#64748B"/>
-                        <Setter Property="Margin" Value="0,0,0,3"/>
-                    </Style>
+                        <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="11.5"/>
+                            <Setter Property="FontWeight" Value="Black"/>
+                            <Setter Property="Foreground" Value="#1E40AF"/>
+                            <Setter Property="Margin" Value="0,0,0,4"/>
+                            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                        </Style>
 
-                    <Style x:Key="InfoValueStyle" TargetType="TextBlock">
+                        <Style x:Key="HotInfoLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoLabelStyle}">
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="FontWeight" Value="Black"/>
+                            <Setter Property="Foreground" Value="#DC2626"/>
+                        </Style>
+
+                        <Style x:Key="ProductInfoLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoLabelStyle}">
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="FontWeight" Value="Black"/>
+                            <Setter Property="Foreground" Value="#7C3AED"/>
+                        </Style>
+
+                        <Style x:Key="ProgressTitleStyle" TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="14"/>
+                            <Setter Property="FontWeight" Value="Black"/>
+                            <Setter Property="Foreground" Value="#1D4ED8"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                        </Style>
+
+                        <Style x:Key="InfoValueStyle" TargetType="TextBlock">
                         <Setter Property="FontSize" Value="13"/>
                         <Setter Property="FontWeight" Value="Bold"/>
                         <Setter Property="Foreground" Value="#0F172A"/>
@@ -104,11 +126,11 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0"
-                                   Text="MÃ HÀNG / NAME"
-                                   Style="{StaticResource InfoLabelStyle}"/>
+                            <TextBlock Grid.Row="0"
+           Text="MÃ HÀNG / NAME"
+           Style="{StaticResource ProductInfoLabelStyle}"/>
 
-                        <ComboBox Grid.Row="1"
+                            <ComboBox Grid.Row="1"
                                   MinWidth="0"
                                   Height="31"
                                   FontSize="13"
@@ -124,31 +146,40 @@
                 <UniformGrid Grid.Row="4"
                              Columns="2"
                              Rows="2">
-                    <Border CornerRadius="10"
-                            Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            Padding="8,6"
-                            Margin="0,0,4,4">
-                        <StackPanel>
-                                <DatePicker MinWidth="0"
-            Height="28"
-            FontSize="12.5"
-            HorizontalAlignment="Stretch"
-            SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                    </Border>
+                        <Border CornerRadius="10"
+        Background="#FFFFFF"
+        BorderBrush="#E2E8F0"
+        BorderThickness="1"
+        Padding="8,6"
+        Margin="0,0,4,4">
+                            <StackPanel>
+                                <TextBlock Text="NGÀY BOX"
+           FontSize="12"
+           FontWeight="Black"
+           Foreground="#2563EB"
+           Margin="0,0,0,4"/>
 
-                    <Border CornerRadius="10"
+                                <DatePicker MinWidth="0"
+                    Height="28"
+                    FontSize="12.5"
+                    HorizontalAlignment="Stretch"
+                    SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border CornerRadius="10"
                             Background="#FFFFFF"
                             BorderBrush="#E2E8F0"
                             BorderThickness="1"
                             Padding="8,6"
                             Margin="4,0,0,4">
                         <StackPanel>
-                            <TextBlock Text="NGÀY TEM"
-                                       Style="{StaticResource InfoLabelStyle}"/>
-                            <DatePicker MinWidth="0"
+                                <TextBlock Text="NGÀY TEM"
+           FontSize="12"
+           FontWeight="Black"
+           Foreground="#DC2626"
+           Margin="0,0,0,4"/>
+                                <DatePicker MinWidth="0"
                                         Height="28"
                                         FontSize="12.5"
                                         HorizontalAlignment="Stretch"
@@ -292,23 +323,23 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0"
-   Text="TIẾN ĐỘ SCAN"
-   FontSize="12"
-   FontWeight="SemiBold"
-   Foreground="#607D8B"
-   VerticalAlignment="Center"
-   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="0"
+           Text="TIẾN ĐỘ SCAN"
+           FontSize="14"
+           FontWeight="Black"
+           Foreground="#1D4ED8"
+           VerticalAlignment="Center"
+           TextTrimming="CharacterEllipsis"/>
 
-                    <TextBlock Grid.Column="1"
-   Text="{Binding ScanQuantityText}"
-   FontSize="18"
-   FontWeight="Bold"
-   Foreground="#2563EB"
-   HorizontalAlignment="Right"
-   TextAlignment="Right"
-   MinWidth="70"
-   Margin="12,0,0,0"/>
+                        <TextBlock Grid.Column="1"
+           Text="{Binding ScanQuantityText}"
+           FontSize="22"
+           FontWeight="Black"
+           Foreground="#DC2626"
+           HorizontalAlignment="Right"
+           TextAlignment="Right"
+           MinWidth="76"
+           Margin="12,0,0,0"/>
 
                 </Grid>
 

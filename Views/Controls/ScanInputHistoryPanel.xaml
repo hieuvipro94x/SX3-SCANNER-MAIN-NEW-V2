@@ -97,88 +97,171 @@
             CommandParameter="{Binding ElementName=TbxInputCode, Path=Text}" />
                     </TextBox.InputBindings>
                 </TextBox>
+                    <Button Grid.Column="2"
+        Height="56"
+        Width="90"
+        Padding="0"
+        Margin="6,0,0,0"
+        HorizontalAlignment="Right"
+        VerticalAlignment="Center"
+        Foreground="White"
+        BorderThickness="0"
+        Command="{Binding STARTCMD}"
+        CommandParameter="{Binding ElementName=TbxInputCode}"
+        ToolTip="Bắt đầu / Dừng phiên scan"
+        Cursor="Hand"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
 
-                <Button Grid.Column="2"
-                        Height="56"
-                        Width="96"
-                        Padding="0"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Command="{Binding STARTCMD}"
-                        CommandParameter="{Binding ElementName=TbxInputCode}"
-                        ToolTip="Bắt đầu/Dừng phiên scan"
-                        Cursor="Hand">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Background" Value="#16A34A"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
-                                    <Setter Property="Background" Value="#DC2626"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
-                                    <Setter Property="Background" Value="#DC2626"/>
-                                </DataTrigger>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Opacity" Value="0.92"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter Property="Opacity" Value="0.5"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#16A34A"/>
+                                <Setter Property="Opacity" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
+                                        <Setter Property="Background" Value="#DC2626"/>
+                                    </DataTrigger>
 
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="10">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16"
-                                                      ShadowDepth="0"
-                                                      Color="#22C55E"
-                                                      Opacity="0.55"/>
-                                </Border.Effect>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
+                                        <Setter Property="Background" Value="#DC2626"/>
+                                    </DataTrigger>
 
-                                <Grid>
-                                    <Border CornerRadius="10"
-                                            Margin="2"
-                                            Opacity="0.14"
-                                            Background="White"/>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Opacity" Value="0.94"/>
+                                    </Trigger>
 
-                                    <StackPanel HorizontalAlignment="Center"
-                                                VerticalAlignment="Center">
-                                        <materialDesign:PackIcon Width="22"
-                                                                 Height="22"
-                                                                 Foreground="White"
-                                                                 HorizontalAlignment="Center">
-                                            <materialDesign:PackIcon.Style>
-                                                <Style TargetType="materialDesign:PackIcon">
-                                                    <Setter Property="Kind" Value="PlayCircle"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
-                                                            <Setter Property="Kind" Value="StopCircle"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
-                                                            <Setter Property="Kind" Value="StopCircle"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </materialDesign:PackIcon.Style>
-                                        </materialDesign:PackIcon>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter Property="Opacity" Value="0.86"/>
+                                    </Trigger>
 
-                                        <TextBlock Text="{Binding BtnSTART_CONTENT}"
-                                                   Margin="0,2,0,0"
-                                                   FontSize="12"
-                                                   FontWeight="Bold"
-                                                   Foreground="White"
-                                                   TextAlignment="Center"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-            </Grid>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.45"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="MainBorder"
+                    Width="{TemplateBinding Width}"
+                    Height="{TemplateBinding Height}"
+                    CornerRadius="12"
+                    Background="{TemplateBinding Background}"
+                    BorderThickness="1"
+                    BorderBrush="#BBF7D0"
+                    SnapsToDevicePixels="True">
+
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="10"
+                                      ShadowDepth="0"
+                                      Color="#16A34A"
+                                      Opacity="0.28"/>
+                                    </Border.Effect>
+
+                                    <Grid ClipToBounds="True">
+                                        <Border CornerRadius="12"
+                            Height="24"
+                            VerticalAlignment="Top"
+                            Background="White"
+                            Opacity="0.16"/>
+
+                                        <Grid HorizontalAlignment="Center"
+                          VerticalAlignment="Center">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="26"/>
+                                                <RowDefinition Height="18"/>
+                                            </Grid.RowDefinitions>
+
+                                            <Border Grid.Row="0"
+                                Width="26"
+                                Height="26"
+                                CornerRadius="13"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Background="White">
+
+                                                <materialDesign:PackIcon Width="18"
+                                                     Height="18"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="{TemplateBinding Background}">
+                                                    <materialDesign:PackIcon.Style>
+                                                        <Style TargetType="materialDesign:PackIcon">
+                                                            <Setter Property="Kind" Value="PlayCircle"/>
+
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
+                                                                    <Setter Property="Kind" Value="StopCircle"/>
+                                                                </DataTrigger>
+
+                                                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
+                                                                    <Setter Property="Kind" Value="StopCircle"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </materialDesign:PackIcon.Style>
+                                                </materialDesign:PackIcon>
+                                            </Border>
+
+                                            <TextBlock Grid.Row="1"
+                                   Text="{Binding BtnSTART_CONTENT}"
+                                   FontSize="12"
+                                   FontWeight="Black"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Center"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
+                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FECACA"/>
+                                        <Setter TargetName="MainBorder" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect BlurRadius="10"
+                                              ShadowDepth="0"
+                                              Color="#DC2626"
+                                              Opacity="0.28"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
+                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FECACA"/>
+                                        <Setter TargetName="MainBorder" Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect BlurRadius="10"
+                                              ShadowDepth="0"
+                                              Color="#DC2626"
+                                              Opacity="0.28"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="White"/>
+                                    </Trigger>
+
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="MainBorder" Property="RenderTransform">
+                                            <Setter.Value>
+                                                <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter TargetName="MainBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                    </Trigger>
+
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="MainBorder" Property="Effect" Value="{x:Null}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
         </Border>
     </Grid>
 

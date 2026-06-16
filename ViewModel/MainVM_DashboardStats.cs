@@ -1,4 +1,4 @@
-﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using System;
 using System.Collections.ObjectModel;
@@ -176,6 +176,14 @@ namespace SX3_SCANER.ViewModel
 
         private DateTime GetDashboardBusinessDate()
         {
+            // Dashboard thống kê theo NGÀY BOX, không theo NGÀY TEM.
+            // Lý do: một thùng có thể mở hôm nay nhưng sang ngày hôm sau mới scan đủ.
+            // Khi đổi NGÀY TEM để kiểm tem mới, các tem trong cùng thùng vẫn phải
+            // được cộng vào tổng scan của NGÀY BOX / phiên thùng hiện tại.
+            DateTime boxDate = BoxDate.Date;
+            if (boxDate != DateTime.MinValue)
+                return boxDate;
+
             if (SelectedDate == DateTime.MinValue)
                 return DateTime.Today;
 
@@ -298,12 +306,16 @@ namespace SX3_SCANER.ViewModel
             DashboardScanStats scanStats = snapshot.ScanStats;
             DashboardBoxStats boxStats = snapshot.BoxStats;
 
-            TodayScanCount = scanStats.Total;
+            // Tổng scan trong ngày = PASS + NG.
+            // Không dùng trực tiếp scanStats.Total để tránh lệch nếu database có thêm loại bản ghi khác.
+            int totalScan = Math.Max(0, scanStats.Pass) + Math.Max(0, scanStats.Fail);
+
+            TodayScanCount = totalScan;
             TodayPassCount = scanStats.Pass;
             TodayFailCount = scanStats.Fail;
-            TodayYieldText = scanStats.Total <= 0
+            TodayYieldText = totalScan <= 0
                 ? "0%"
-                : ((double)scanStats.Pass / scanStats.Total * 100.0).ToString("0") + "%";
+                : ((double)scanStats.Pass / totalScan * 100.0).ToString("0") + "%";
 
             TodayTotalBoxCount = boxStats.Total;
             TodayCompletedBoxCount = boxStats.Completed;
@@ -321,4 +333,3 @@ namespace SX3_SCANER.ViewModel
         }
     }
 }
-
