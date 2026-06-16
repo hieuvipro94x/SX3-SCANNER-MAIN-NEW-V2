@@ -394,7 +394,13 @@ namespace SX3_SCANER.Model
             using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
             {
                 connection.Open();
-                string query = "SELECT DISTINCT SealNo FROM ScanHistoryView WHERE SealNo IS NOT NULL AND SealNo <> '' ORDER BY SealNo";
+                string query = @"
+                    SELECT SealNo
+                    FROM ScanHistoryView
+                    WHERE SealNo IS NOT NULL
+                      AND TRIM(SealNo) <> ''
+                    GROUP BY SealNo
+                    ORDER BY MAX(ID) DESC, SealNo DESC";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     using (SQLiteDataReader reader = command.ExecuteReader())
@@ -650,26 +656,17 @@ namespace SX3_SCANER.Model
                         }
 
                         string parameterName = "@Keyword" + i;
+                        // Ô tìm nhanh lịch sử chỉ lọc theo ProductPartNumber.
+                        // Ví dụ nhập "028" sẽ trả về các mã như "WH322028".
                         selectQuery += @"
-                            CAST(ID AS TEXT) LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(BoxName, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(ProductPartNumber, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(ProductPartName, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(SealNo, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(LotNo, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(ScanMessage, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(ScanWorker, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                            OR COALESCE(ScanData, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'";
-                        if (hasBoxType)
-                        {
-                            selectQuery += @"
-                            OR COALESCE(BoxType, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'";
-                        }
+                            COALESCE(ProductPartNumber, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'";
                     }
                     selectQuery += ")";
                 }
 
-                selectQuery += " ORDER BY ID DESC, ScanTime DESC LIMIT @Limit";
+                // ID is the safest newest key in SQLite because ScanTime may be stored as text
+                // with different culture formats on some machines.
+                selectQuery += " ORDER BY ID DESC LIMIT @Limit";
 
                 using (SQLiteCommand command = new SQLiteCommand(selectQuery, connection))
                 {

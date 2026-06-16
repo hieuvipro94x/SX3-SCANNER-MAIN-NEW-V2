@@ -399,13 +399,16 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                HistoryResults = results;
-                RowCounts = results.Count;
+                ObservableCollection<HistoryDataRow> newestFirstResults =
+                    SortHistoryNewestFirst(results);
+
+                HistoryResults = newestFirstResults;
+                RowCounts = newestFirstResults.Count;
                 stopwatch.Stop();
                 QueryTimes = stopwatch.Elapsed.TotalMilliseconds.ToString("0");
-                QueryStatus = results.Count == 0
+                QueryStatus = newestFirstResults.Count == 0
                     ? "Không có dữ liệu lịch sử scan phù hợp."
-                    : "Hiển thị " + results.Count + " dòng mới nhất.";
+                    : "Hiển thị " + newestFirstResults.Count + " dòng mới nhất.";
             }
             catch (OperationCanceledException)
             {
@@ -426,6 +429,24 @@ namespace SX3_SCANER.ViewModel
                     IsQuerying = false;
                 }
             }
+        }
+
+        private static ObservableCollection<HistoryDataRow> SortHistoryNewestFirst(
+            IEnumerable<HistoryDataRow> rows)
+        {
+            List<HistoryDataRow> sortedRows =
+                (rows ?? Enumerable.Empty<HistoryDataRow>())
+                .OrderByDescending(row => row.ScanTime ?? DateTime.MinValue)
+                .ThenByDescending(row => row.SortSequence > 0 ? row.SortSequence : row.ID)
+                .ThenByDescending(row => row.ID)
+                .ToList();
+
+            for (int index = 0; index < sortedRows.Count; index++)
+            {
+                sortedRows[index].RowIndex = index + 1;
+            }
+
+            return new ObservableCollection<HistoryDataRow>(sortedRows);
         }
 
         private bool? GetScanResultFilter()

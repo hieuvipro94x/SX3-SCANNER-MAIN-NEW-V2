@@ -8,6 +8,9 @@ namespace SX3_SCANER.Model
 
         public int ID { get; set; }
 
+        // Internal sort key. Used to keep newest records first when ScanTime text cannot be parsed reliably.
+        public long SortSequence { get; set; }
+
         public DateTime? ScanTime { get; set; }
 
         public string DataSource { get; set; }

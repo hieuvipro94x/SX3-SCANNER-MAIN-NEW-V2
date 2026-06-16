@@ -1,0 +1,106 @@
+<UserControl x:Class="SX3_SCANER.Views.Controls.DashboardStatsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:SX3_SCANER"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
+             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+<Grid Grid.Row="0" Grid.ColumnSpan="3" Margin="4,0,4,10" Height="82">
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <materialDesign:Card Grid.Column="0" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="White">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="TODAY SCAN" FontSize="11" FontWeight="Bold" Foreground="#64748B"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayScanCount}" FontSize="26" FontWeight="Black" Foreground="#0F172A" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="1" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="#ECFDF5">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="PASS" FontSize="11" FontWeight="Bold" Foreground="#047857"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayPassCount}" FontSize="26" FontWeight="Black" Foreground="#059669" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="2" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="#FEF2F2">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="FAIL" FontSize="11" FontWeight="Bold" Foreground="#B91C1C"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayFailCount}" FontSize="26" FontWeight="Black" Foreground="#DC2626" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="3" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="#EFF6FF">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="HIỆU SUẤT" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayYieldText}" FontSize="25" FontWeight="Black" Foreground="#2563EB" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="4" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="#F8FAFC">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="TỔNG THÙNG" FontSize="11" FontWeight="Bold" Foreground="#475569"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayTotalBoxCount}" FontSize="26" FontWeight="Black" Foreground="#334155" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="5" Margin="0,0,8,0" Padding="10" UniformCornerRadius="12" Background="#F0FDF4">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="THÙNG ĐỦ" FontSize="11" FontWeight="Bold" Foreground="#047857"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayFullBoxCount}" FontSize="26" FontWeight="Black" Foreground="#059669" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+
+    <materialDesign:Card Grid.Column="6" Margin="0" Padding="10" UniformCornerRadius="12" Background="#FFF7ED">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="THÙNG LẺ" FontSize="11" FontWeight="Bold" Foreground="#C2410C"/>
+            <TextBlock Grid.Row="1" Text="{Binding TodayPartialBoxCount}" FontSize="26" FontWeight="Black" Foreground="#F97316" VerticalAlignment="Center"/>
+        </Grid>
+    </materialDesign:Card>
+</Grid>
+</UserControl>

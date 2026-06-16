@@ -200,7 +200,13 @@ namespace SX3_SCANER.ViewModel
         public string InputProductNameSearch
         {
             get { return _InputProductNameSearch; }
-            set { _InputProductNameSearch = value; OnPropertyChanged(); }
+            set
+            {
+                if (_InputProductNameSearch == value) return;
+                _InputProductNameSearch = value;
+                OnPropertyChanged();
+                ApplyProductInfoFilter();
+            }
         }
 
         private ObservableCollection<LabelProductInfo> _LabelProductInfoSource;
@@ -208,7 +214,13 @@ namespace SX3_SCANER.ViewModel
         public ObservableCollection<LabelProductInfo> LabelProductInfoSource
         {
             get { return _LabelProductInfoSource; }
-            set { if (null == value) return; _LabelProductInfoSource = value; LabelProductInfoView = CollectionViewSource.GetDefaultView(value); }
+            set
+            {
+                _LabelProductInfoSource = value ?? new ObservableCollection<LabelProductInfo>();
+                LabelProductInfoView = CollectionViewSource.GetDefaultView(_LabelProductInfoSource);
+                ApplyProductInfoFilter();
+                OnPropertyChanged();
+            }
         }
 
         private ICollectionView _LabelProductInfoView;
@@ -240,18 +252,46 @@ namespace SX3_SCANER.ViewModel
         private void SearchProductInfo()
         {
             LabelProductInfoSource = new LabelProductInfoRepository().GetAllLabelProductInfo();
-            if (string.IsNullOrEmpty(InputProductNameSearch))
+        }
+
+        private void ApplyProductInfoFilter()
+        {
+            if (LabelProductInfoView == null) return;
+
+            string keyword = InputProductNameSearch;
+            keyword = keyword == null ? string.Empty : keyword.Trim();
+
+            if (string.IsNullOrWhiteSpace(keyword))
             {
                 LabelProductInfoView.Filter = null;
+                LabelProductInfoView.Refresh();
+                return;
             }
-            else
+
+            LabelProductInfoView.Filter = item =>
             {
-                LabelProductInfoView.Filter = item =>
-                {
-                    var labelProductInfo = item as LabelProductInfo;
-                    return labelProductInfo != null && labelProductInfo.PartName != null && labelProductInfo.PartName.IndexOf(InputProductNameSearch, System.StringComparison.OrdinalIgnoreCase) >= 0;
-                };
-            }
+                if (!(item is LabelProductInfo labelProductInfo))
+                    return false;
+
+                return ContainsIgnoreCase(labelProductInfo.ID.ToString(), keyword)
+                    || ContainsIgnoreCase(labelProductInfo.Car, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.PartNumber, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.PartName, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.CodeStringForm, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.CodePrefix, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.CodeSuffix, keyword)
+                    || ContainsIgnoreCase(labelProductInfo.CodeLength.ToString(), keyword)
+                    || ContainsIgnoreCase(labelProductInfo.BoxQuantity.ToString(), keyword);
+            };
+
+            LabelProductInfoView.Refresh();
+        }
+
+        private static bool ContainsIgnoreCase(string source, string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(source)) return false;
+            if (string.IsNullOrWhiteSpace(keyword)) return true;
+            return source.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private LabelProductInfo _SelectedProductInfoToModify;

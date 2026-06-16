@@ -1,4 +1,4 @@
-﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.ViewModel;
 using System;
@@ -57,10 +57,6 @@ namespace SX3_SCANER
 
             applicationVersion = UpdateService.GetCurrentVersionString();
 
-            if (txtAppVersion != null)
-            {
-                txtAppVersion.Text = "SCANER V" + applicationVersion;
-            }
 
             timer.Interval = TimeSpan.FromSeconds(1);
             timer.Tick += Timer_Tick;
@@ -83,15 +79,6 @@ namespace SX3_SCANER
 
             Title = "Scanner V" + applicationVersion + " | " + now;
 
-            if (txtAppVersion != null)
-            {
-                txtAppVersion.Text = "SCANER V" + applicationVersion;
-            }
-
-            if (txtDateTimeVersion != null)
-            {
-                txtDateTimeVersion.Text = now;
-            }
         }
 
         private void HideRowIndex_AutoGeneratingColumn(

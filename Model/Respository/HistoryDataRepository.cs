@@ -64,12 +64,27 @@ namespace SX3_SCANER.Model.Respository
                         result,
                         safeLimit)).ToList();
 
-            for (int index = 0; index < rows.Count; index++)
-            {
-                rows[index].RowIndex = index + 1;
-            }
+            rows = SortNewestFirst(rows);
 
             return new ObservableCollection<HistoryDataRow>(rows);
+        }
+
+        private static List<HistoryDataRow> SortNewestFirst(
+            IEnumerable<HistoryDataRow> rows)
+        {
+            List<HistoryDataRow> sortedRows =
+                (rows ?? Enumerable.Empty<HistoryDataRow>())
+                .OrderByDescending(row => row.ScanTime ?? DateTime.MinValue)
+                .ThenByDescending(row => row.SortSequence > 0 ? row.SortSequence : row.ID)
+                .ThenByDescending(row => row.ID)
+                .ToList();
+
+            for (int index = 0; index < sortedRows.Count; index++)
+            {
+                sortedRows[index].RowIndex = index + 1;
+            }
+
+            return sortedRows;
         }
 
         private static IEnumerable<HistoryDataRow> SearchScanHistory(
@@ -92,6 +107,7 @@ namespace SX3_SCANER.Model.Respository
             return histories.Select(history => new HistoryDataRow
             {
                 ID = history.ID,
+                SortSequence = history.ID,
                 ScanTime = history.ScanTime,
                 DataSource = ScanHistorySource,
                 BoxName = history.BoxName,
@@ -135,13 +151,20 @@ namespace SX3_SCANER.Model.Respository
                                    FROM [ScanHistoryView] sh
                                    WHERE sh.BoxName = bp.BoxName
                                       OR (sh.BoxName IS NULL AND bp.BoxName IS NULL)
-                               ) AS RelatedScanTime
+                               ) AS RelatedScanTime,
+                               (
+                                   SELECT MAX(sh.ID)
+                                   FROM [ScanHistoryView] sh
+                                   WHERE sh.BoxName = bp.BoxName
+                                      OR (sh.BoxName IS NULL AND bp.BoxName IS NULL)
+                               ) AS RelatedLastHistoryID
                         FROM [BoxProduct] bp
                         WHERE 1=1"
                     : "SELECT bp.* FROM [BoxProduct] bp WHERE 1=1";
                 if (hasScanHistory)
                 {
                     columns.Add("RelatedScanTime");
+                    columns.Add("RelatedLastHistoryID");
                 }
                 var parameters = new List<SQLiteParameter>();
 
@@ -178,21 +201,12 @@ namespace SX3_SCANER.Model.Respository
                 string normalizedKeyword = NormalizeFilter(keyword);
                 if (normalizedKeyword != null)
                 {
+                    // Ô tìm nhanh lịch sử chỉ lọc theo mã hàng/ProductPartNumber.
+                    // Hỗ trợ cả tên cột ProductPartNumber và PartNumber tùy bảng.
                     string[] candidates =
                     {
-                        "BoxName",
                         "ProductPartNumber",
-                        "PartNumber",
-                        "ProductPartName",
-                        "PartName",
-                        "BoxSealNo",
-                        "SealNo",
-                        "LotNo",
-                        "BoxWorker",
-                        "ScanWorker",
-                        "Worker",
-                        "BoxType",
-                        "ScanData"
+                        "PartNumber"
                     };
                     List<string> searchable =
                         candidates.Where(columns.Contains).Distinct().ToList();
@@ -212,18 +226,37 @@ namespace SX3_SCANER.Model.Respository
                     }
                 }
 
-                string orderColumn = FirstExisting(
-                    columns,
-                    "ID",
-                    "ScanTime",
-                    "CreatedAt",
-                    "CreateTime",
-                    "BoxTime",
-                    "DateTime",
-                    "Time");
-                if (orderColumn != null)
+                if (hasScanHistory)
                 {
-                    sql += " ORDER BY bp.[" + orderColumn + "] DESC";
+                    sql += " ORDER BY RelatedScanTime DESC, RelatedLastHistoryID DESC";
+                    if (columns.Contains("ID"))
+                    {
+                        sql += ", bp.[ID] DESC";
+                    }
+                }
+                else
+                {
+                    string orderColumn = FirstExisting(
+                        columns,
+                        "ScanTime",
+                        "CreatedAt",
+                        "CreateTime",
+                        "BoxTime",
+                        "DateTime",
+                        "Time",
+                        "ID");
+                    if (orderColumn != null)
+                    {
+                        sql += " ORDER BY bp.[" + orderColumn + "] DESC";
+                        if (!string.Equals(
+                            orderColumn,
+                            "ID",
+                            StringComparison.OrdinalIgnoreCase) &&
+                            columns.Contains("ID"))
+                        {
+                            sql += ", bp.[ID] DESC";
+                        }
+                    }
                 }
 
                 sql += " LIMIT @Limit";
@@ -284,6 +317,7 @@ namespace SX3_SCANER.Model.Respository
             return new HistoryDataRow
             {
                 ID = ReadInt(reader, columns, "ID"),
+                SortSequence = ReadInt(reader, columns, "RelatedLastHistoryID", "ID"),
                 ScanTime = ReadNullableDateTime(
                     reader,
                     columns,
