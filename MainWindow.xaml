@@ -513,7 +513,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Text="YIELD" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
+                                <TextBlock Text="HIỆU SUẤT" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
                                 <TextBlock Grid.Row="1" Text="{Binding TodayYieldText}" FontSize="25" FontWeight="Black" Foreground="#2563EB" VerticalAlignment="Center"/>
                             </Grid>
                         </materialDesign:Card>

@@ -17,6 +17,34 @@ namespace SX3_SCANER.ViewModel
 {
     internal partial class MainViewModel : ViewModelBase
     {
+        private static readonly Brush StatusBusyBackground = CreateFrozenStatusBrush(0xEE, 0xF2, 0xFF);
+        private static readonly Brush StatusFullBackground = CreateFrozenStatusBrush(0xFF, 0xFB, 0xEB);
+        private static readonly Brush StatusScanningBackground = CreateFrozenStatusBrush(0xEC, 0xFD, 0xF5);
+        private static readonly Brush StatusPausedBackground = CreateFrozenStatusBrush(0xF1, 0xF5, 0xF9);
+        private static readonly Brush StatusReadyBackground = CreateFrozenStatusBrush(0xEF, 0xF6, 0xFF);
+        private static readonly Brush StatusClosedBackground = CreateFrozenStatusBrush(0xF8, 0xFA, 0xFC);
+
+        private static readonly Brush StatusBusyBorder = CreateFrozenStatusBrush(0xC7, 0xD2, 0xFE);
+        private static readonly Brush StatusFullBorder = CreateFrozenStatusBrush(0xFB, 0xBF, 0x24);
+        private static readonly Brush StatusScanningBorder = CreateFrozenStatusBrush(0xBB, 0xF7, 0xD0);
+        private static readonly Brush StatusPausedBorder = CreateFrozenStatusBrush(0xCB, 0xD5, 0xE1);
+        private static readonly Brush StatusReadyBorder = CreateFrozenStatusBrush(0xBF, 0xDB, 0xFE);
+        private static readonly Brush StatusClosedBorder = CreateFrozenStatusBrush(0xE2, 0xE8, 0xF0);
+
+        private static readonly Brush StatusBusyForeground = CreateFrozenStatusBrush(0x4F, 0x46, 0xE5);
+        private static readonly Brush StatusFullForeground = CreateFrozenStatusBrush(0xB4, 0x53, 0x09);
+        private static readonly Brush StatusScanningForeground = CreateFrozenStatusBrush(0x16, 0xA3, 0x4A);
+        private static readonly Brush StatusPausedForeground = CreateFrozenStatusBrush(0x47, 0x55, 0x69);
+        private static readonly Brush StatusReadyForeground = CreateFrozenStatusBrush(0x25, 0x63, 0xEB);
+        private static readonly Brush StatusClosedForeground = CreateFrozenStatusBrush(0x64, 0x74, 0x8B);
+
+        private static Brush CreateFrozenStatusBrush(byte r, byte g, byte b)
+        {
+            SolidColorBrush brush = new SolidColorBrush(Color.FromRgb(r, g, b));
+            brush.Freeze();
+            return brush;
+        }
+
 
         private List<string> _PartNumberList;
 
@@ -232,12 +260,12 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(238, 242, 255)); // #EEF2FF
-                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(255, 251, 235)); // #FFFBEB
-                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(236, 253, 245)); // #ECFDF5
-                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
-                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(239, 246, 255)); // #EFF6FF
-                return new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                if (_isScanBusy) return StatusBusyBackground;
+                if (IsFullBoxReadyToComplete) return StatusFullBackground;
+                if (HasOpenScanSession && InJob) return StatusScanningBackground;
+                if (HasOpenScanSession && !InJob) return StatusPausedBackground;
+                if (!HasOpenScanSession && InJob) return StatusReadyBackground;
+                return StatusClosedBackground;
             }
         }
 
@@ -245,12 +273,12 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(199, 210, 254)); // #C7D2FE
-                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(251, 191, 36)); // #FBBF24
-                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(187, 247, 208)); // #BBF7D0
-                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
-                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(191, 219, 254)); // #BFDBFE
-                return new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
+                if (_isScanBusy) return StatusBusyBorder;
+                if (IsFullBoxReadyToComplete) return StatusFullBorder;
+                if (HasOpenScanSession && InJob) return StatusScanningBorder;
+                if (HasOpenScanSession && !InJob) return StatusPausedBorder;
+                if (!HasOpenScanSession && InJob) return StatusReadyBorder;
+                return StatusClosedBorder;
             }
         }
 
@@ -258,12 +286,12 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                if (_isScanBusy) return new SolidColorBrush(Color.FromRgb(79, 70, 229)); // #4F46E5
-                if (IsFullBoxReadyToComplete) return new SolidColorBrush(Color.FromRgb(180, 83, 9)); // #B45309
-                if (HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
-                if (HasOpenScanSession && !InJob) return new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
-                if (!HasOpenScanSession && InJob) return new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB
-                return new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+                if (_isScanBusy) return StatusBusyForeground;
+                if (IsFullBoxReadyToComplete) return StatusFullForeground;
+                if (HasOpenScanSession && InJob) return StatusScanningForeground;
+                if (HasOpenScanSession && !InJob) return StatusPausedForeground;
+                if (!HasOpenScanSession && InJob) return StatusReadyForeground;
+                return StatusClosedForeground;
             }
         }
 
@@ -391,10 +419,13 @@ namespace SX3_SCANER.ViewModel
             get { return _SelectedQuantity; }
             set
             {
+                if (_SelectedQuantity == value) return;
+
                 _SelectedQuantity = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ScanQuantityText));
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+                NotifyCurrentBoxStatusChanged();
                 CommandManager.InvalidateRequerySuggested();
             }
         }

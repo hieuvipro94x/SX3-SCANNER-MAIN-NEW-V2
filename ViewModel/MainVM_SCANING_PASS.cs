@@ -82,24 +82,62 @@ namespace SX3_SCANER.ViewModel
 
         private void ApplyPersistedBox(BoxProduct persistedBox, int persistedProgress)
         {
-            if (persistedBox == null)
+            string boxName = persistedBox == null ? _CurrentBoxName : persistedBox.BoxName;
+            if (string.IsNullOrWhiteSpace(boxName))
                 return;
 
             if (ToDayBoxSource == null)
                 ToDayBoxSource = new ObservableCollection<BoxProduct>();
 
             var existing = ToDayBoxSource
-                .FirstOrDefault(x => x.BoxName == persistedBox.BoxName);
+                .FirstOrDefault(x => string.Equals(x.BoxName, boxName, System.StringComparison.OrdinalIgnoreCase));
 
             if (existing == null)
             {
+                if (persistedBox == null)
+                {
+                    persistedBox = new BoxProduct
+                    {
+                        BoxName = boxName,
+                        ProductPartName = PNameExpected,
+                        ProductPartNumber = SelectedPartNumber,
+                        BoxSealNo = GetCurrentBoxCreatedDate().ToString("yyMMdd"),
+                        BoxQuantity = SelectedQuantity,
+                        BoxComplete = false,
+                        BoxWorker = string.IsNullOrWhiteSpace(Worker) ? string.Empty : Worker.Trim(),
+                        BoxType = "OPEN",
+                        IsPartialBox = false,
+                        BoxDate = BoxDate,
+                        ScanLabelDate = ScanLabelDate
+                    };
+                }
+
+                persistedBox.BoxProgress = persistedProgress;
+                persistedBox.ActualQty = persistedProgress;
+                persistedBox.TargetQty = SelectedQuantity;
                 ToDayBoxSource.Add(persistedBox);
                 SelectedTodayBox = persistedBox;
             }
-            else
+            else if (existing != null)
             {
-                existing.BoxProgress = persistedBox.BoxProgress;
-                existing.BoxComplete = persistedBox.BoxComplete;
+                existing.BoxProgress = persistedProgress;
+                existing.ActualQty = persistedProgress;
+                existing.TargetQty = SelectedQuantity;
+                existing.BoxQuantity = SelectedQuantity;
+                existing.ScanLabelDate = ScanLabelDate;
+
+                if (persistedBox != null)
+                {
+                    existing.ProductPartName = persistedBox.ProductPartName;
+                    existing.ProductPartNumber = persistedBox.ProductPartNumber;
+                    existing.BoxSealNo = persistedBox.BoxSealNo;
+                    existing.BoxComplete = persistedBox.BoxComplete;
+                    existing.BoxWorker = persistedBox.BoxWorker;
+                    existing.BoxType = persistedBox.BoxType;
+                    existing.IsPartialBox = persistedBox.IsPartialBox;
+                    existing.BoxDate = persistedBox.BoxDate;
+                }
+
                 SelectedTodayBox = existing;
             }
 

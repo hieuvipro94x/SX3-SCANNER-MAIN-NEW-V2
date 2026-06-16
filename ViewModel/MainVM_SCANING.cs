@@ -243,11 +243,10 @@ namespace SX3_SCANER.ViewModel
                         StringComparison.OrdinalIgnoreCase) &&
                     scannedAt - _lastScannedAt <= DuplicateScanWindow)
                 {
-                    await RecordRejectedScanAsync(
+                    RecordIgnoredFastDuplicateScan(
                         inputScanCode,
                         "NG - Scan lặp quá nhanh",
-                        "Tem này vừa được scanner gửi lại. Không thêm vào thùng.",
-                        "SCAN LẶP QUÁ NHANH");
+                        "Tem này vừa được scanner gửi lại quá nhanh. Không ghi lịch sử và không thêm vào thùng.");
                     return;
                 }
 
@@ -504,6 +503,20 @@ namespace SX3_SCANER.ViewModel
                 CommandManager.InvalidateRequerySuggested();
                 _scanWriteLock.Release();
             }
+        }
+
+        private void RecordIgnoredFastDuplicateScan(
+            string inputScanCode,
+            string scanMessage,
+            string displayMessage)
+        {
+            _ScanMess = scanMessage;
+            ResetScanStatus();
+            ScanTextResult = NG;
+            ScanResultDetailText = displayMessage;
+            InputScanCode = string.Empty;
+            ScanSoundService.PlayNg();
+            StartupManager.SetStatus(displayMessage);
         }
 
         private async Task RecordRejectedScanAsync(
@@ -783,7 +796,6 @@ namespace SX3_SCANER.ViewModel
             }
 
             ScanHistoryView?.Refresh();
-            RefreshDashboardStats();
             ToDayBoxView?.Refresh();
             RefreshDashboardStats();
 

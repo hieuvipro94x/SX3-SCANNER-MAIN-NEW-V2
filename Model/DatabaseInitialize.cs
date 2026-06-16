@@ -39,21 +39,22 @@ namespace SX3_SCANER.Model
                     "main schema " + mainVersion + " -> " +
                     MainDatabaseSchemaVersion);
                 StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc database.db...");
-                BoxProductRepository.CreateTableIfNotExists();
-                ScanHistoryRepository.CreateTableIfNotExists();
-                ScanSessionService.CreateTableIfNotExists();
-                SyncHistoryBoxTypes();
-                CreateMainIndexes();
-                CreateDataIntegrityTriggers();
+            }
+
+            // Luôn chạy các lệnh idempotent để sửa database đã migrate dở hoặc thiếu index/trigger.
+            // CREATE TABLE/INDEX/TRIGGER IF NOT EXISTS có thể chạy lại nhiều lần an toàn.
+            BoxProductRepository.CreateTableIfNotExists();
+            ScanHistoryRepository.CreateTableIfNotExists();
+            ScanSessionService.CreateTableIfNotExists();
+            SyncHistoryBoxTypes();
+            CreateMainIndexes();
+            CreateDataIntegrityTriggers();
+
+            if (mainVersion < MainDatabaseSchemaVersion)
+            {
                 SetUserVersion(
                     DatabaseRepository.CreateConnection,
                     MainDatabaseSchemaVersion);
-            }
-            else
-            {
-                // Keep BoxProduct compatible even if an older deployment has an
-                // incorrect user_version or a partially migrated table.
-                BoxProductRepository.CreateTableIfNotExists();
             }
 
             int productVersion = GetUserVersion(DatabaseRepository.CreateProductConnection);
@@ -64,8 +65,13 @@ namespace SX3_SCANER.Model
                     "product schema " + productVersion + " -> " +
                     ProductDatabaseSchemaVersion);
                 StartupManager.SetStatus("\u0110ang c\u1EADp nh\u1EADt c\u1EA5u tr\u00FAc product.db...");
-                LabelProductInfoRepository.CreateTableIfNotExists();
-                CreateProductIndexes();
+            }
+
+            LabelProductInfoRepository.CreateTableIfNotExists();
+            CreateProductIndexes();
+
+            if (productVersion < ProductDatabaseSchemaVersion)
+            {
                 SetUserVersion(
                     DatabaseRepository.CreateProductConnection,
                     ProductDatabaseSchemaVersion);
@@ -168,6 +174,8 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_LotNo ON ScanHistoryView(LotNo);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result ON ScanHistoryView(ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime ON ScanHistoryView(ScanTime);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_Result ON ScanHistoryView(ScanTime, ScanResult);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxDate_Result ON ScanHistoryView(BoxDate, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ID_ScanTime ON ScanHistoryView(ID DESC, ScanTime DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData ON ScanHistoryView(ScanData);");
             TryExecute("CREATE UNIQUE INDEX IF NOT EXISTS UX_ScanHistoryView_PassScanData ON ScanHistoryView(ScanData COLLATE NOCASE) WHERE ScanResult = 1 AND ScanData IS NOT NULL AND TRIM(ScanData) <> '';");
@@ -179,6 +187,7 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Pass_Product_Seal_Lot ON ScanHistoryView(ProductPartName, SealNo, LotNo) WHERE ScanResult = 1;");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxName ON BoxProduct(BoxName);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxDate_Type_Complete ON BoxProduct(BoxDate, BoxType, BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
         }
 

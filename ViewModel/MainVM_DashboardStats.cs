@@ -1,7 +1,11 @@
-﻿using SX3_SCANER.Model;
+﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Model;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 
 namespace SX3_SCANER.ViewModel
@@ -13,6 +17,8 @@ namespace SX3_SCANER.ViewModel
 
         private ObservableCollection<ScanHistory> _dashboardScanHistorySource;
         private ObservableCollection<BoxProduct> _dashboardTodayBoxSource;
+        private static readonly TimeSpan DashboardRefreshDebounce = TimeSpan.FromMilliseconds(180);
+        private int _dashboardRefreshRequestId;
 
         private int _todayScanCount;
         private int _todayPassCount;
@@ -222,37 +228,96 @@ namespace SX3_SCANER.ViewModel
 
         /// <summary>
         /// Dashboard dùng dữ liệu tổng hợp từ database theo ngày đang chọn.
-        /// Không chỉ đếm collection của thùng hiện tại, nên PASS/NG/tổng thùng sẽ đúng cho cả ngày.
+        /// Không query trực tiếp trên UI thread để tránh đơ giao diện khi scan nhanh.
+        /// Nhiều lần gọi liên tiếp sẽ được gom lại, chỉ lần mới nhất được áp dụng.
         /// </summary>
         private void RefreshDashboardStats()
         {
-            try
+            DateTime businessDate = GetDashboardBusinessDate();
+            DashboardDateText = businessDate.ToString("dd/MM/yyyy");
+
+            int requestId = Interlocked.Increment(ref _dashboardRefreshRequestId);
+
+            // Chạy nền có chủ ý: không await để UI không bị đứng khi scan liên tục.
+            // Toàn bộ exception bên trong đã được catch/log, nên không bị mất lỗi.
+            _ = Task.Run(async () =>
             {
-                DateTime businessDate = GetDashboardBusinessDate();
-                DashboardDateText = businessDate.ToString("dd/MM/yyyy");
+                try
+                {
+                    await Task.Delay(DashboardRefreshDebounce).ConfigureAwait(false);
 
-                DashboardScanStats scanStats = _dashboardScanRepository.GetDashboardScanStats(businessDate);
-                DashboardBoxStats boxStats = _dashboardBoxRepository.GetDashboardBoxStats(businessDate);
+                    if (requestId != _dashboardRefreshRequestId)
+                        return;
 
-                TodayScanCount = scanStats.Total;
-                TodayPassCount = scanStats.Pass;
-                TodayFailCount = scanStats.Fail;
-                TodayYieldText = scanStats.Total <= 0
-                    ? "0.0%"
-                    : ((double)scanStats.Pass / scanStats.Total * 100.0).ToString("0.0") + "%";
+                    DashboardStatsSnapshot snapshot = new DashboardStatsSnapshot
+                    {
+                        BusinessDate = businessDate,
+                        ScanStats = _dashboardScanRepository.GetDashboardScanStats(businessDate),
+                        BoxStats = _dashboardBoxRepository.GetDashboardBoxStats(businessDate)
+                    };
 
-                TodayTotalBoxCount = boxStats.Total;
-                TodayCompletedBoxCount = boxStats.Completed;
-                TodayFullBoxCount = boxStats.Full;
-                TodayPartialBoxCount = boxStats.Partial;
-                TodayOpenBoxCount = boxStats.Open;
-                TodayCancelledBoxCount = boxStats.Cancelled;
-            }
-            catch
-            {
-                // Dashboard là phần hiển thị phụ, không được làm gián đoạn thao tác scan.
-                // Giữ giá trị hiện tại nếu database đang bận hoặc chưa khởi tạo xong.
-            }
+                    Action applyAction = () =>
+                    {
+                        if (requestId != _dashboardRefreshRequestId)
+                            return;
+
+                        ApplyDashboardStats(snapshot);
+                    };
+
+                    var dispatcher = Application.Current == null
+                        ? null
+                        : Application.Current.Dispatcher;
+
+                    if (dispatcher != null && !dispatcher.CheckAccess())
+                    {
+                        // Dùng Invoke để exception trong ApplyDashboardStats được trả về catch bên ngoài.
+                        // Phần này chỉ set vài property nên rất nhẹ, không gây lag UI.
+                        dispatcher.Invoke(applyAction);
+                    }
+                    else
+                    {
+                        applyAction();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Dashboard là phần hiển thị phụ, không được làm gián đoạn thao tác scan.
+                    // Giữ giá trị hiện tại nếu database đang bận hoặc chưa khởi tạo xong.
+                    StartupManager.Log("Refresh dashboard failed: " + ex);
+                }
+            });
+        }
+
+        private void ApplyDashboardStats(DashboardStatsSnapshot snapshot)
+        {
+            if (snapshot == null)
+                return;
+
+            DashboardDateText = snapshot.BusinessDate.ToString("dd/MM/yyyy");
+
+            DashboardScanStats scanStats = snapshot.ScanStats;
+            DashboardBoxStats boxStats = snapshot.BoxStats;
+
+            TodayScanCount = scanStats.Total;
+            TodayPassCount = scanStats.Pass;
+            TodayFailCount = scanStats.Fail;
+            TodayYieldText = scanStats.Total <= 0
+                ? "0.0%"
+                : ((double)scanStats.Pass / scanStats.Total * 100.0).ToString("0.0") + "%";
+
+            TodayTotalBoxCount = boxStats.Total;
+            TodayCompletedBoxCount = boxStats.Completed;
+            TodayFullBoxCount = boxStats.Full;
+            TodayPartialBoxCount = boxStats.Partial;
+            TodayOpenBoxCount = boxStats.Open;
+            TodayCancelledBoxCount = boxStats.Cancelled;
+        }
+
+        private sealed class DashboardStatsSnapshot
+        {
+            public DateTime BusinessDate { get; set; }
+            public DashboardScanStats ScanStats { get; set; }
+            public DashboardBoxStats BoxStats { get; set; }
         }
     }
 }
