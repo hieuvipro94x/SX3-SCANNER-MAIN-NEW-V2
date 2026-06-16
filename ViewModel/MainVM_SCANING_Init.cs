@@ -128,10 +128,7 @@ namespace SX3_SCANER.ViewModel
         private void CheckLastJob(string partNumber)
         {
             var notcompletebox = new BoxProductRepository().GetNotComplete(partNumber, SelectedDate);
-            if (string.IsNullOrEmpty(notcompletebox))
-            {
-                notcompletebox = _boxProductRepository.GetLatestNotComplete(partNumber);
-            }
+            
 
             if (string.IsNullOrEmpty(notcompletebox))
             {
@@ -211,6 +208,7 @@ namespace SX3_SCANER.ViewModel
         }
 
         private DateTime _SelectedDate;
+        private DateTime _SelectedBoxDate;
 
         public DateTime ScanLabelDate
         {
@@ -222,9 +220,54 @@ namespace SX3_SCANER.ViewModel
         {
             get
             {
-                return _currentBoxCreatedDate.HasValue
-                    ? _currentBoxCreatedDate.Value.Date
-                    : SelectedDate.Date;
+                if (_currentBoxCreatedDate.HasValue)
+                    return _currentBoxCreatedDate.Value.Date;
+
+                return _SelectedBoxDate.Date;
+            }
+            set
+            {
+                DateTime next = value.Date;
+
+                if (BoxDate.Date == next)
+                    return;
+
+                // Nếu thùng đang có dữ liệu scan thì không cho đổi ngày box trực tiếp.
+                // Muốn đổi ngày box thì phải xóa/hủy thùng cũ trước để tránh lệch BoxName và dữ liệu lịch sử.
+                if (HasOpenScanSession &&
+                    ScanHistorySource != null &&
+                    ScanHistorySource.Count > 0)
+                {
+                    MessageBox.Show(
+                        "Thùng hiện tại đã có dữ liệu scan.\n\n" +
+                        "Vui lòng XÓA/HỦY thùng cũ trước khi đổi NGÀY BOX.",
+                        "KHÔNG THỂ ĐỔI NGÀY BOX",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    OnPropertyChanged(nameof(BoxDate));
+                    OnPropertyChanged(nameof(BoxDateText));
+                    return;
+                }
+
+                _SelectedBoxDate = next;
+                _currentBoxCreatedDate = next;
+
+                OnPropertyChanged(nameof(BoxDate));
+                OnPropertyChanged(nameof(BoxDateText));
+
+                ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(_SelectedBoxDate);
+
+                if (!string.IsNullOrWhiteSpace(SelectedPartNumber))
+                {
+                    if (!RestoreScanSession(SelectedPartNumber))
+                    {
+                        CheckLastJob(SelectedPartNumber);
+                    }
+                }
+
+                RefreshDashboardStats();
+                CommandManager.InvalidateRequerySuggested();
             }
         }
 
@@ -351,10 +394,11 @@ namespace SX3_SCANER.ViewModel
                 // Đổi ngày khi chưa mở thùng: tải lại danh sách thùng và dashboard của ngày vừa chọn.
                 ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(_SelectedDate);
 
-                if (!string.IsNullOrWhiteSpace(SelectedPartNumber) &&
-                    !RestoreScanSession(SelectedPartNumber))
+                // Đổi NGÀY TEM chỉ cập nhật mẫu tem/SealNo.
+                // Không đổi danh sách thùng theo NGÀY BOX.
+                if (!string.IsNullOrWhiteSpace(SelectedPartNumber))
                 {
-                    CheckLastJob(SelectedPartNumber);
+                    SetExpectedData(SelectedPartNumber);
                 }
 
                 RefreshDashboardStats();
@@ -565,8 +609,16 @@ namespace SX3_SCANER.ViewModel
 
         private void InitializeScaningPropeties()
         {
-            SelectedDate = DateTime.Now;
-            ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(SelectedDate);
+            _SelectedDate = DateTime.Now.Date;
+            _SelectedBoxDate = DateTime.Now.Date;
+
+            OnPropertyChanged(nameof(SelectedDate));
+            OnPropertyChanged(nameof(ScanLabelDate));
+            OnPropertyChanged(nameof(ScanLabelDateText));
+            OnPropertyChanged(nameof(BoxDate));
+            OnPropertyChanged(nameof(BoxDateText));
+
+            ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(BoxDate);
             LoadInitialListsAsync();
         }
 

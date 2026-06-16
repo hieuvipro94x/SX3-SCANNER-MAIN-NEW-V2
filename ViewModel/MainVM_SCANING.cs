@@ -295,7 +295,7 @@ namespace SX3_SCANER.ViewModel
                 bool allocatedBoxName = string.IsNullOrWhiteSpace(_CurrentBoxName);
                 if (string.IsNullOrWhiteSpace(_CurrentBoxName))
                 {
-                    _currentBoxCreatedDate = ScanLabelDate.Date;
+                    _currentBoxCreatedDate = BoxDate.Date;
                     _CurrentBoxName = await Task.Run(
                         () => _boxProductRepository.GetNextBoxName(BoxDate));
                     OnPropertyChanged(nameof(BoxDate));
@@ -535,13 +535,24 @@ namespace SX3_SCANER.ViewModel
             bool allocatedBoxName = false;
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
             {
-                allocatedBoxName = true;
-                _currentBoxCreatedDate = ScanLabelDate.Date;
-                _CurrentBoxName = await Task.Run(
-                    () => _boxProductRepository.GetNextBoxName(BoxDate));
-                OnPropertyChanged(nameof(BoxDate));
-                OnPropertyChanged(nameof(BoxDateText));
-                NotifyCurrentBoxStatusChanged();
+                ResetScanStatus();
+                ScanTextResult = NG;
+                ScanResultDetailText = scanMessage;
+                InputScanCode = string.Empty;
+                ScanSoundService.PlayNg();
+                StartupManager.SetStatus(displayMessage);
+
+                var errorWithoutBox = new ScanErrorPresentation
+                {
+                    Detail = scanMessage,
+                    Standard = "Tem hợp lệ, chưa bị trùng và thùng chưa đủ số lượng",
+                    Actual = DisplayActualValue(inputScanCode),
+                    Resolution = displayMessage
+                };
+
+                ScanResultDetailText = errorWithoutBox.ToDisplayText();
+                ShowScanErrorWindow(errorWithoutBox);
+                return;
             }
 
             ResetScanStatus();
@@ -1588,7 +1599,7 @@ namespace SX3_SCANER.ViewModel
 
             if (string.IsNullOrWhiteSpace(_CurrentBoxName))
             {
-                return SelectedDate.Date;
+                return BoxDate.Date;
             }
 
             DateTime? persistedBoxCreatedDate =
@@ -1633,8 +1644,7 @@ namespace SX3_SCANER.ViewModel
 
         private bool RestoreScanSession(string productCode)
         {
-            ScanSessionState state = _scanSessionService.LoadLatestSession(productCode)
-                ?? _scanSessionService.LoadSession(productCode, SelectedDate);
+            ScanSessionState state = _scanSessionService.LoadSession(productCode, BoxDate);
             if (state == null)
             {
                 return false;

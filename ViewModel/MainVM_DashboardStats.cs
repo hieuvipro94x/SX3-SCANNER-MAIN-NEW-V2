@@ -302,8 +302,8 @@ namespace SX3_SCANER.ViewModel
             TodayPassCount = scanStats.Pass;
             TodayFailCount = scanStats.Fail;
             TodayYieldText = scanStats.Total <= 0
-                ? "0.0%"
-                : ((double)scanStats.Pass / scanStats.Total * 100.0).ToString("0.0") + "%";
+                ? "0%"
+                : ((double)scanStats.Pass / scanStats.Total * 100.0).ToString("0") + "%";
 
             TodayTotalBoxCount = boxStats.Total;
             TodayCompletedBoxCount = boxStats.Completed;

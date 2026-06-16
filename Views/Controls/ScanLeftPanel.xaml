@@ -131,11 +131,12 @@
                             Padding="8,6"
                             Margin="0,0,4,4">
                         <StackPanel>
-                            <TextBlock Text="NGÀY BOX"
-                                       Style="{StaticResource InfoLabelStyle}"/>
-                            <TextBlock Text="{Binding BoxDateText}"
-                                       Style="{StaticResource InfoValueStyle}"/>
-                        </StackPanel>
+                                <DatePicker MinWidth="0"
+            Height="28"
+            FontSize="12.5"
+            HorizontalAlignment="Stretch"
+            SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
                     </Border>
 
                     <Border CornerRadius="10"
