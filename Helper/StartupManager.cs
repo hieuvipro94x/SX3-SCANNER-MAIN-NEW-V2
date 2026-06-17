@@ -163,6 +163,7 @@ namespace SX3_SCANER.Helper
             }
         }
 
+
         internal static void FocusExistingInstance()
         {
             try

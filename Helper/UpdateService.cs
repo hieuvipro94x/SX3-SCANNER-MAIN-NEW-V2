@@ -110,6 +110,7 @@ namespace SX3_SCANER.Helper
             }
         }
 
+
         internal async Task<UpdateInfo> CheckForMandatoryUpdateAsync()
         {
             try

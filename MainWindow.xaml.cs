@@ -1,4 +1,4 @@
-using SX3_SCANER.Helper;
+﻿using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.ViewModel;
 using System;
@@ -33,6 +33,7 @@ namespace SX3_SCANER
         private bool _mandatoryUpdateWorkflowStarted;
         private bool _isBackgroundUpdateCheckRunning;
         private bool _isMandatoryUpdateWorkflowRunning;
+        private bool isUpdateDeferredUntilScannerIdle;
 
         private INotifyPropertyChanged _announcementViewModel;
         private CancellationTokenSource _announcementMarqueeCts;
@@ -63,6 +64,7 @@ namespace SX3_SCANER
 
             applicationVersion = UpdateService.GetCurrentVersionString();
 
+            SetOptionalTextBlockText("txtAppVersion", "SCANER V" + applicationVersion);
 
             timer.Interval = TimeSpan.FromSeconds(1);
             timer.Tick += Timer_Tick;
@@ -88,6 +90,18 @@ namespace SX3_SCANER
 
             Title = "Scanner V" + applicationVersion + " | " + now;
 
+            SetOptionalTextBlockText("txtAppVersion", "SCANER V" + applicationVersion);
+
+            SetOptionalTextBlockText("txtDateTimeVersion", now);
+        }
+
+        private void SetOptionalTextBlockText(string controlName, string text)
+        {
+            TextBlock textBlock = FindName(controlName) as TextBlock;
+            if (textBlock != null)
+            {
+                textBlock.Text = text ?? string.Empty;
+            }
         }
 
         private void HideRowIndex_AutoGeneratingColumn(
@@ -147,7 +161,12 @@ namespace SX3_SCANER
         {
             RestartAnnouncementMarquee();
             await EnsureMandatoryUpdateBeforeRunAsync();
-            StartUpdatePolling();
+
+            if (Application.Current != null &&
+                !Application.Current.Dispatcher.HasShutdownStarted)
+            {
+                StartUpdatePolling();
+            }
         }
 
         private void StartUpdatePolling()
@@ -155,9 +174,6 @@ namespace SX3_SCANER
             if (updatePollingTimer.IsEnabled)
                 return;
 
-            // App đang chạy vẫn tự kiểm tra cập nhật định kỳ.
-            // Khi phát hiện bản mới, popup bắt buộc cập nhật sẽ hiện ngay,
-            // không cần đóng/mở lại phần mềm.
             updatePollingTimer.Start();
             StartupManager.Log(
                 "Đã bật kiểm tra cập nhật định kỳ mỗi " +
@@ -184,6 +200,20 @@ namespace SX3_SCANER
 
             try
             {
+                if (isUpdateDeferredUntilScannerIdle &&
+                    availableUpdate != null)
+                {
+                    if (!IsScannerIdleForAutoUpdate())
+                    {
+                        SetDeferredUpdateWaitingStatus(
+                            GetScannerBusyReasonForUpdate());
+                        return;
+                    }
+
+                    await RunDeferredAutoUpdateWorkflowAsync();
+                    return;
+                }
+
                 UpdateInfo update =
                     await _updateService.CheckForMandatoryUpdateAsync();
 
@@ -207,6 +237,14 @@ namespace SX3_SCANER
                 _showUpdateErrorStatus = false;
                 _isUpdateStatusBusy = false;
 
+                if (!IsScannerIdleForAutoUpdate())
+                {
+                    isUpdateDeferredUntilScannerIdle = true;
+                    SetDeferredUpdateWaitingStatus(
+                        GetScannerBusyReasonForUpdate());
+                    return;
+                }
+
                 txtUpdateStatus.Text =
                     "Phát hiện bản cập nhật bắt buộc: V" + update.Version;
                 txtUpdateStatus.Foreground = Brushes.Red;
@@ -214,8 +252,6 @@ namespace SX3_SCANER
                 updateNotificationDot.Visibility = Visibility.Visible;
                 btnSoftwareUpdate.IsEnabled = false;
 
-                // Tạm dừng timer trong lúc popup/download installer đang chạy
-                // để tránh mở nhiều popup cùng lúc.
                 updatePollingTimer.Stop();
                 await RunMandatoryUpdateWorkflowAsync(update);
             }
@@ -230,11 +266,66 @@ namespace SX3_SCANER
 
                 if (Application.Current != null &&
                     !Application.Current.Dispatcher.HasShutdownStarted &&
-                    !updatePollingTimer.IsEnabled)
+                    !updatePollingTimer.IsEnabled &&
+                    !_isMandatoryUpdateWorkflowRunning)
                 {
                     updatePollingTimer.Start();
                 }
             }
+        }
+
+        private bool IsScannerIdleForAutoUpdate()
+        {
+            MainViewModel viewModel = DataContext as MainViewModel;
+            if (viewModel == null)
+                return true;
+
+            return !viewModel.InJob &&
+                !viewModel.HasOpenScanSession &&
+                !viewModel.IsFullBoxReadyToComplete;
+        }
+
+        private string GetScannerBusyReasonForUpdate()
+        {
+            MainViewModel viewModel = DataContext as MainViewModel;
+            if (viewModel == null)
+                return "ứng dụng đang bận";
+
+            if (viewModel.IsFullBoxReadyToComplete)
+                return "thùng đã đủ số lượng, vui lòng đóng thùng trước";
+
+            if (viewModel.InJob)
+                return "đang trong phiên scan";
+
+            if (viewModel.HasOpenScanSession)
+                return "thùng hiện tại đang mở/chưa hoàn tất";
+
+            return "scanner chưa sẵn sàng";
+        }
+
+        private void SetDeferredUpdateWaitingStatus(string reason)
+        {
+            txtUpdateStatus.Text =
+                "Có bản cập nhật mới. Chờ kết thúc scan để cập nhật bắt buộc" +
+                (string.IsNullOrWhiteSpace(reason) ? "." : ": " + reason + ".");
+
+            txtUpdateStatus.Foreground = Brushes.Red;
+            softwareUpdatePanel.Visibility = Visibility.Visible;
+            updateNotificationDot.Visibility = Visibility.Visible;
+            btnSoftwareUpdate.IsEnabled = false;
+        }
+
+        private async Task RunDeferredAutoUpdateWorkflowAsync()
+        {
+            if (availableUpdate == null)
+            {
+                isUpdateDeferredUntilScannerIdle = false;
+                return;
+            }
+
+            isUpdateDeferredUntilScannerIdle = false;
+            updatePollingTimer.Stop();
+            await RunMandatoryUpdateWorkflowAsync(availableUpdate);
         }
 
         private void AnnouncementMarqueeHost_SizeChanged(
@@ -687,6 +778,7 @@ namespace SX3_SCANER
 
             return hostWidth > 0 && textWidth > 0;
         }
+
 
         private enum MandatoryUpdateDialogChoice
         {
