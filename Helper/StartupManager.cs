@@ -2,6 +2,8 @@ using SX3_SCANER.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using System.Windows;
 
@@ -87,6 +89,78 @@ namespace SX3_SCANER.Helper
             }
 
             return false;
+        }
+
+        internal static void EnsureStartWithWindows()
+        {
+            try
+            {
+                string executablePath = Process.GetCurrentProcess().MainModule.FileName;
+
+                if (string.IsNullOrWhiteSpace(executablePath) ||
+                    !File.Exists(executablePath))
+                {
+                    Log("Không xác định được file EXE để đăng ký khởi động cùng Windows.");
+                    return;
+                }
+
+                string runCommand = "\"" + executablePath + "\" --autostart";
+
+                using (RegistryKey runKey = Registry.CurrentUser.CreateSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run"))
+                {
+                    if (runKey == null)
+                    {
+                        Log("Không mở được registry Run của CurrentUser.");
+                        return;
+                    }
+
+                    object currentValue = runKey.GetValue("SX3 Scanner");
+                    string currentCommand = currentValue == null
+                        ? string.Empty
+                        : currentValue.ToString();
+
+                    if (!string.Equals(
+                        currentCommand,
+                        runCommand,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        runKey.SetValue(
+                            "SX3 Scanner",
+                            runCommand,
+                            RegistryValueKind.String);
+                    }
+                }
+
+                Log("Đã kiểm tra/đăng ký app khởi động cùng Windows.");
+            }
+            catch (Exception ex)
+            {
+                Log("Không đăng ký được app khởi động cùng Windows: " + ex);
+            }
+        }
+
+        internal static bool IsStartWithWindowsEnabled()
+        {
+            try
+            {
+                using (RegistryKey runKey = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run",
+                    false))
+                {
+                    object currentValue = runKey == null
+                        ? null
+                        : runKey.GetValue("SX3 Scanner");
+
+                    return currentValue != null &&
+                        !string.IsNullOrWhiteSpace(currentValue.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Không kiểm tra được trạng thái khởi động cùng Windows: " + ex);
+                return false;
+            }
         }
 
         internal static void FocusExistingInstance()

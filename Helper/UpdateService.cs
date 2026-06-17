@@ -110,6 +110,50 @@ namespace SX3_SCANER.Helper
             }
         }
 
+        internal async Task<UpdateInfo> CheckForMandatoryUpdateAsync()
+        {
+            try
+            {
+                LastCheckSucceeded = false;
+                LastStatusMessage = "Đang kiểm tra bản cập nhật bắt buộc...";
+                Log("Mandatory update check started. GitHub API URL: " + LatestReleaseApiUrl);
+
+                UpdateInfo update = await GetLatestReleaseAsync();
+                LastCheckSucceeded = true;
+
+                if (!update.IsUpdateAvailable)
+                {
+                    LastStatusMessage = "Không có bản mới.";
+                    SaveStartupResult(false, null);
+                    Log("No mandatory update available. Current version: " +
+                        GetCurrentVersion() + ".");
+                    return null;
+                }
+
+                LastStatusMessage = "Có bản cập nhật bắt buộc: V" + update.Version;
+                SaveStartupResult(false, update);
+                Log("Mandatory update available. Current=" + GetCurrentVersion() +
+                    ", Latest=" + update.Version + ".");
+                return update;
+            }
+            catch (TaskCanceledException ex)
+            {
+                return HandleCheckError(
+                    ex.CancellationToken.IsCancellationRequested
+                        ? "Đã hủy kiểm tra cập nhật."
+                        : "GitHub API phản hồi quá thời gian.",
+                    false,
+                    ex);
+            }
+            catch (Exception ex)
+            {
+                return HandleCheckError(
+                    "Không kiểm tra được cập nhật lúc này. Vui lòng thử lại sau.",
+                    false,
+                    ex);
+            }
+        }
+
         internal async Task<string> DownloadAndVerifyAsync(UpdateInfo info)
         {
             ValidateUpdateInfo(info);
