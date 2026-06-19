@@ -1,7 +1,7 @@
 param(
     [string]$Configuration = "Release",
     [string]$Platform = "x64",
-    [string]$Repository = "hieuvipro94x/sx3-scanner-release"
+    [string]$Repository = "hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2"
 )
 
 $ErrorActionPreference = "Stop"
@@ -208,6 +208,34 @@ Build time: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
     return $sha256
 }
 
+function New-OnlineUpdateManifest(
+    $UpdateManifestFile,
+    $Version,
+    $Repository,
+    $InstallerFile,
+    $Sha256,
+    $ReleaseNotes
+) {
+    $installerName = Split-Path -Leaf $InstallerFile
+    $downloadUrl = "https://github.com/$Repository/releases/download/v$Version/$installerName"
+
+    $manifest = [ordered]@{
+        version = $Version
+        downloadUrl = $downloadUrl
+        sha256 = $Sha256
+        releaseNotes = $ReleaseNotes
+    }
+
+    $json = $manifest | ConvertTo-Json -Depth 4
+    [IO.File]::WriteAllText(
+        $UpdateManifestFile,
+        $json + [Environment]::NewLine,
+        [Text.UTF8Encoding]::new($false))
+
+    Ok "Da tao online update manifest: $UpdateManifestFile"
+    Info "Update download URL: $downloadUrl"
+}
+
 function Publish-GitHubDraftRelease(
     $GitRoot,
     $GitExe,
@@ -216,7 +244,8 @@ function Publish-GitHubDraftRelease(
     $Version,
     $InstallerFile,
     $ReleaseNoteFile,
-    $ManifestFile
+    $ManifestFile,
+    $UpdateManifestFile
 ) {
     $tag = "v$Version"
     $title = "SX3 Scanner $Version"
@@ -273,6 +302,7 @@ function Publish-GitHubDraftRelease(
         $InstallerFile `
         $ReleaseNoteFile `
         $ManifestFile `
+        $UpdateManifestFile `
         --repo $Repository `
         --title $title `
         --notes-file $ReleaseNoteFile `
@@ -295,6 +325,7 @@ $InstallerFileName = "SX3ScannerSetup-$Version.exe"
 $InstallerFile = Join-Path $OutputDir $InstallerFileName
 $ReleaseNoteOutputFile = Join-Path $OutputDir "release-note.txt"
 $ManifestFile = Join-Path $OutputDir "release-manifest.txt"
+$UpdateManifestFile = Join-Path $ProjectRoot "update.json"
 $IssFile = Join-Path $OutputDir "SX3ScannerSetup.iss"
 $ReleaseUrl = "https://github.com/$Repository/releases/tag/v$Version"
 
@@ -511,6 +542,13 @@ if (-not (Test-Path -LiteralPath $InstallerFile)) {
 }
 
 $Sha256 = New-ReleaseManifest -InstallerFile $InstallerFile -ManifestFile $ManifestFile -Version $Version -Repository $Repository
+New-OnlineUpdateManifest `
+    -UpdateManifestFile $UpdateManifestFile `
+    -Version $Version `
+    -Repository $Repository `
+    -InstallerFile $InstallerFile `
+    -Sha256 $Sha256 `
+    -ReleaseNotes $ReleaseNote.Text
 
 Publish-GitHubDraftRelease `
     -GitRoot $GitRoot `
@@ -520,7 +558,8 @@ Publish-GitHubDraftRelease `
     -Version $Version `
     -InstallerFile $InstallerFile `
     -ReleaseNoteFile $ReleaseNoteOutputFile `
-    -ManifestFile $ManifestFile
+    -ManifestFile $ManifestFile `
+    -UpdateManifestFile $UpdateManifestFile
 
 Ok "`n====================================="
 Ok "DRAFT RELEASE DA DUOC TAO THANH CONG"
@@ -530,5 +569,6 @@ Ok "Assets:"
 Ok "- $InstallerFileName"
 Ok "- release-note.txt"
 Ok "- release-manifest.txt"
+Ok "- update.json"
 Ok "SHA256: $Sha256"
 Ok "====================================="

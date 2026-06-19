@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Configuration;
 using System.Diagnostics;
@@ -8,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,13 +18,14 @@ namespace SX3_SCANER.Helper
     internal sealed class UpdateService
     {
         internal const string ReleasesPageUrl =
-            "https://github.com/hieuvipro94x/sx3-scanner-release/releases";
+            "https://github.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/releases";
 
-        private const string LatestReleaseApiUrl =
-            "https://api.github.com/repos/hieuvipro94x/sx3-scanner-release/releases/latest";
+        private const string DefaultUpdateManifestUrl =
+            "https://raw.githubusercontent.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/main/update.json";
         private const string InstallerFileName = "SX3ScannerSetup.exe";
         private const string UserAgent = "SX3Scanner-Updater";
         private const string EnabledSetting = "UpdateCheckOnStartup";
+        private const string ManifestUrlSetting = "UpdateManifestUrl";
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
         private static readonly object StartupCheckLock = new object();
@@ -67,7 +68,7 @@ namespace SX3_SCANER.Helper
             try
             {
                 LastCheckSucceeded = false;
-                Log("Update check started. GitHub API URL: " + LatestReleaseApiUrl);
+                Log("Update check started. Manifest URL: " + GetUpdateManifestUrl());
 
                 UpdateInfo update = await GetLatestReleaseAsync();
                 LastCheckSucceeded = true;
@@ -92,7 +93,7 @@ namespace SX3_SCANER.Helper
                 return HandleCheckError(
                     ex.CancellationToken.IsCancellationRequested
                         ? "Đã hủy kiểm tra cập nhật."
-                        : "GitHub API phản hồi quá thời gian.",
+                        : "Máy chủ update manifest phản hồi quá thời gian.",
                     showErrors,
                     ex);
             }
@@ -117,7 +118,7 @@ namespace SX3_SCANER.Helper
             {
                 LastCheckSucceeded = false;
                 LastStatusMessage = "Đang kiểm tra bản cập nhật bắt buộc...";
-                Log("Mandatory update check started. GitHub API URL: " + LatestReleaseApiUrl);
+                Log("Mandatory update check started. Manifest URL: " + GetUpdateManifestUrl());
 
                 UpdateInfo update = await GetLatestReleaseAsync();
                 LastCheckSucceeded = true;
@@ -142,7 +143,7 @@ namespace SX3_SCANER.Helper
                 return HandleCheckError(
                     ex.CancellationToken.IsCancellationRequested
                         ? "Đã hủy kiểm tra cập nhật."
-                        : "GitHub API phản hồi quá thời gian.",
+                        : "Máy chủ update manifest phản hồi quá thời gian.",
                     false,
                     ex);
             }
@@ -315,11 +316,8 @@ namespace SX3_SCANER.Helper
 
         internal static Version GetCurrentVersion()
         {
-            string executablePath = Process.GetCurrentProcess().MainModule.FileName;
-            FileVersionInfo info = FileVersionInfo.GetVersionInfo(executablePath);
-            Version version;
-            if (TryParseVersion(info.ProductVersion, out version) ||
-                TryParseVersion(info.FileVersion, out version))
+            Version version = Assembly.GetExecutingAssembly().GetName().Version;
+            if (version != null)
                 return version;
 
             throw new InvalidOperationException(
@@ -337,99 +335,66 @@ namespace SX3_SCANER.Helper
 
         private async Task<UpdateInfo> GetLatestReleaseAsync()
         {
-            ValidateSecureUri(LatestReleaseApiUrl, "GitHub API URL");
+            string manifestUrl = GetUpdateManifestUrl();
+            ValidateSecureUri(manifestUrl, "Update manifest URL");
 
             using (var client = CreateHttpClient(RequestTimeout))
             using (HttpResponseMessage response =
-                await client.GetAsync(LatestReleaseApiUrl))
+                await client.GetAsync(manifestUrl))
             {
-                ValidateFinalResponseUrl(response, "GitHub API");
+                ValidateFinalResponseUrl(response, "update manifest");
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new InvalidOperationException(
-                        "GitHub API HTTP " + (int)response.StatusCode + " " +
+                        "Update manifest HTTP " + (int)response.StatusCode + " " +
                         response.ReasonPhrase);
                 }
 
                 string json = await response.Content.ReadAsStringAsync();
-                GitHubRelease release =
-                    JsonConvert.DeserializeObject<GitHubRelease>(json);
-                return BuildUpdateInfo(release);
+                OnlineUpdateManifest manifest =
+                    JsonConvert.DeserializeObject<OnlineUpdateManifest>(json);
+                return BuildUpdateInfo(manifest);
             }
         }
 
-        private static UpdateInfo BuildUpdateInfo(GitHubRelease release)
+        private static UpdateInfo BuildUpdateInfo(OnlineUpdateManifest manifest)
         {
-            if (release == null)
+            if (manifest == null)
                 throw new InvalidOperationException(
-                    "GitHub API không trả về thông tin release.");
+                    "Update manifest không có dữ liệu hợp lệ.");
 
             Version latestVersion;
-            if (!TryParseVersion(release.TagName, out latestVersion))
+            if (!TryParseVersion(manifest.Version, out latestVersion))
                 throw new InvalidOperationException(
-                    "GitHub release thiếu tag version hợp lệ.");
-
-            string versionedAssetName =
-                "SX3ScannerSetup-" + latestVersion + ".exe";
-            GitHubAsset asset = (release.Assets ?? new List<GitHubAsset>())
-                .Where(value =>
-                    value != null &&
-                    string.Equals(
-                        value.State,
-                        "uploaded",
-                        StringComparison.OrdinalIgnoreCase) &&
-                    (string.Equals(
-                         value.Name,
-                         versionedAssetName,
-                         StringComparison.OrdinalIgnoreCase) ||
-                     string.Equals(
-                         value.Name,
-                         InstallerFileName,
-                         StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(value =>
-                    string.Equals(
-                        value.Name,
-                        versionedAssetName,
-                        StringComparison.OrdinalIgnoreCase)
-                        ? 0
-                        : 1)
-                .FirstOrDefault();
-
-            if (asset == null)
-                throw new InvalidOperationException(
-                    "GitHub release không có installer đúng version.");
+                    "Update manifest thiếu version hợp lệ.");
 
             Uri downloadUri = ValidateSecureUri(
-                asset.BrowserDownloadUrl,
-                "GitHub asset URL");
-            string sha256 = ParseGitHubDigest(asset.Digest);
-            Log("Selected GitHub asset: " + asset.Name);
-            Log("GitHub asset URL: " + downloadUri.AbsoluteUri);
-            Log("GitHub asset SHA256: " + sha256);
+                manifest.DownloadUrl,
+                "Update download URL");
+            string sha256 = NormalizeSha256(manifest.Sha256);
+            string fileName = Path.GetFileName(downloadUri.LocalPath);
+            if (string.IsNullOrWhiteSpace(fileName))
+                throw new InvalidOperationException(
+                    "Update manifest thiếu tên installer hợp lệ.");
+
+            Log("Update manifest version: " + latestVersion);
+            Log("Update download URL: " + downloadUri.AbsoluteUri);
+            Log("Update SHA256: " + sha256);
 
             return new UpdateInfo
             {
                 Version = latestVersion.ToString(),
-                TagName = release.TagName,
-                ReleaseNotes = release.Body ?? string.Empty,
-                FileName = asset.Name,
-                FileSize = Math.Max(0, asset.Size),
+                TagName = "v" + latestVersion,
+                ReleaseNotes = !string.IsNullOrWhiteSpace(manifest.ReleaseNotes)
+                    ? manifest.ReleaseNotes
+                    : manifest.Notes ?? string.Empty,
+                FileName = fileName,
+                FileSize = 0,
                 DownloadUrl = downloadUri.AbsoluteUri,
                 Sha256 = sha256,
                 IsUpdateAvailable =
                     IsNewerVersion(latestVersion, GetCurrentVersion())
             };
-        }
-
-        private static string ParseGitHubDigest(string digest)
-        {
-            const string prefix = "sha256:";
-            if (string.IsNullOrWhiteSpace(digest) ||
-                !digest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException(
-                    "GitHub API không cung cấp SHA256 cho installer.");
-
-            return NormalizeSha256(digest.Substring(prefix.Length));
         }
 
         private static void ValidateUpdateInfo(UpdateInfo info)
@@ -573,6 +538,14 @@ namespace SX3_SCANER.Helper
             return !bool.TryParse(configured, out enabled) || enabled;
         }
 
+        private static string GetUpdateManifestUrl()
+        {
+            string configured = ConfigurationManager.AppSettings[ManifestUrlSetting];
+            return string.IsNullOrWhiteSpace(configured)
+                ? DefaultUpdateManifestUrl
+                : configured.Trim();
+        }
+
         private static bool TryBeginStartupCheck()
         {
             lock (StartupCheckLock)
@@ -644,34 +617,22 @@ namespace SX3_SCANER.Helper
                 MessageBoxImage.Error);
         }
 
-        private sealed class GitHubRelease
+        private sealed class OnlineUpdateManifest
         {
-            [JsonProperty("tag_name")]
-            public string TagName { get; set; }
+            [JsonProperty("version")]
+            public string Version { get; set; }
 
-            [JsonProperty("body")]
-            public string Body { get; set; }
+            [JsonProperty("downloadUrl")]
+            public string DownloadUrl { get; set; }
 
-            [JsonProperty("assets")]
-            public List<GitHubAsset> Assets { get; set; }
-        }
+            [JsonProperty("sha256")]
+            public string Sha256 { get; set; }
 
-        private sealed class GitHubAsset
-        {
-            [JsonProperty("name")]
-            public string Name { get; set; }
+            [JsonProperty("releaseNotes")]
+            public string ReleaseNotes { get; set; }
 
-            [JsonProperty("state")]
-            public string State { get; set; }
-
-            [JsonProperty("size")]
-            public long Size { get; set; }
-
-            [JsonProperty("digest")]
-            public string Digest { get; set; }
-
-            [JsonProperty("browser_download_url")]
-            public string BrowserDownloadUrl { get; set; }
+            [JsonProperty("notes")]
+            public string Notes { get; set; }
         }
     }
 }

@@ -5,13 +5,13 @@ sequenceDiagram
     actor User
     participant App as SX3 Scanner
     participant Update as UpdateService
-    participant GitHub as GitHub Releases API
+    participant GitHub as GitHub Raw update.json
     participant Asset as GitHub Release Asset
     participant Setup as SX3ScannerSetup.exe
     App->>Update: CheckForUpdateAsync()
-    Update->>GitHub: GET /releases/latest
-    GitHub-->>Update: tag, notes, installer asset, size, SHA256 digest
-    Update->>Update: Validate HTTPS, hostname, version and digest
+    Update->>GitHub: GET /main/update.json
+    GitHub-->>Update: version, downloadUrl, notes, SHA256
+    Update->>Update: Validate HTTPS, version and SHA256
     Update-->>App: UpdateInfo
 
     User->>App: Click Update
@@ -44,5 +44,5 @@ sequenceDiagram
 
 The updater never replaces the running executable. It downloads to
 `%TEMP%\SX3Scanner\Updates\SX3ScannerSetup.exe`, requires the GitHub asset
-`digest` to contain SHA256, verifies the file, asks for confirmation, and only
+`update.json` to contain SHA256, verifies the file, asks for confirmation, and only
 then starts the interactive installer.
