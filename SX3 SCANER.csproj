@@ -215,10 +215,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Views\Controls\DashboardStatsPanel.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="Views\Controls\ScanLeftPanel.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -247,9 +243,6 @@
     </Compile>
     <Compile Include="Views\Controls\HistorySearchTab.xaml.cs">
       <DependentUpon>HistorySearchTab.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\Controls\DashboardStatsPanel.xaml.cs">
-      <DependentUpon>DashboardStatsPanel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Controls\DataMaintenanceTab.xaml.cs">
       <DependentUpon>DataMaintenanceTab.xaml</DependentUpon>
