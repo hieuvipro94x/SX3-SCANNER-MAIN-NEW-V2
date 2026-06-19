@@ -3,414 +3,286 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:SX3_SCANER"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
-             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <Storyboard x:Key="ScanResultPulseStoryboard">
+                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
+                                 Storyboard.TargetProperty="ScaleX"
+                                 From="0.72"
+                                 To="1.55"
+                                 Duration="0:0:0.55"
+                                 AutoReverse="True"
+                                 RepeatBehavior="2x"/>
+                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
+                                 Storyboard.TargetProperty="ScaleY"
+                                 From="0.72"
+                                 To="1.55"
+                                 Duration="0:0:0.55"
+                                 AutoReverse="True"
+                                 RepeatBehavior="2x"/>
+                <DoubleAnimation Storyboard.TargetName="ResultHalo"
+                                 Storyboard.TargetProperty="Opacity"
+                                 From="0.58"
+                                 To="0"
+                                 Duration="0:0:0.55"
+                                 AutoReverse="True"
+                                 RepeatBehavior="2x"/>
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
+                                               Storyboard.TargetProperty="ScaleX">
+                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
+                </DoubleAnimationUsingKeyFrames>
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
+                                               Storyboard.TargetProperty="ScaleY">
+                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
+                </DoubleAnimationUsingKeyFrames>
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
+                                               Storyboard.TargetProperty="ScaleX">
+                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
+                </DoubleAnimationUsingKeyFrames>
+                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
+                                               Storyboard.TargetProperty="ScaleY">
+                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
+                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
+                </DoubleAnimationUsingKeyFrames>
+            </Storyboard>
         </ResourceDictionary>
     </UserControl.Resources>
-<materialDesign:Card Grid.Row="1"
-                     Grid.Column="2"
-                     Margin="4,4,4,4"
-                     UniformCornerRadius="14">
-    <Grid>
+
+    <Grid Margin="4">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- RESULT -->
-        <Border x:Name="ScanResultBorder"
-                Grid.Row="0"
-                CornerRadius="22"
-                Padding="20,18"
-                Margin="12,10,12,12"
-                Background="{Binding ResultBackgroundBrush}"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Center"
-                MinHeight="220"
-                Opacity="1"
-                RenderTransformOrigin="0.5,0.5">
-            <Border.RenderTransform>
-                <ScaleTransform ScaleX="1" ScaleY="1"/>
-            </Border.RenderTransform>
-            <Border.Effect>
-                <DropShadowEffect Color="#334155"
-                                  BlurRadius="24"
-                                  ShadowDepth="4"
-                                  Direction="270"
-                                  Opacity="0.28"/>
-            </Border.Effect>
+        <!-- Box progress -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="THÙNG HIỆN TẠI" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="{Binding CurrentBoxNameText}" FontSize="20" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" CornerRadius="14" Padding="10,6" Background="{Binding CurrentBoxStatusBackground}" BorderBrush="{Binding CurrentBoxStatusBorderBrush}" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentBoxStatusText}" FontSize="11" FontWeight="Black" Foreground="{Binding CurrentBoxStatusForeground}"/>
+                    </Border>
+                </Grid>
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="TIẾN ĐỘ" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource OkBrush}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ScanQuantityText}" FontSize="17" FontWeight="Black" Foreground="{StaticResource TextMainBrush}"/>
+                    </Grid>
+                    <ProgressBar Grid.Row="2" Height="12" Minimum="0" Maximum="{Binding SelectedQuantity}" Value="{Binding CurrentScanProgress}" Foreground="{StaticResource OkBrush}" Background="#E2E8F0"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <UniformGrid Grid.Row="2" Columns="3">
+            <Border CornerRadius="14" Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" Padding="10,8" Margin="0,0,5,0">
+                <StackPanel>
+                    <TextBlock Text="PASS" FontSize="11" FontWeight="Black" Foreground="{StaticResource OkBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding CurrentPassCount}" FontSize="24" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <Border CornerRadius="14" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Padding="10,8" Margin="5,0">
+                <StackPanel>
+                    <TextBlock Text="NG" FontSize="11" FontWeight="Black" Foreground="{StaticResource NgBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding CurrentNgCount}" FontSize="24" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+            <Border CornerRadius="14" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Padding="10,8" Margin="5,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="HOÀN THÀNH" FontSize="10" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding CurrentProgressPercentText}" FontSize="24" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- Latest scan result: light background, strong badge only -->
+        <Border Grid.Row="4" Padding="20" MinHeight="280">
             <Border.Style>
-                <Style TargetType="Border">
+                <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
+                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                    <Setter Property="Background" Value="White"/>
+                    <Setter Property="BorderThickness" Value="1"/>
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding ScanTextResult}" Value="OK">
-                            <DataTrigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)">
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.14" Value="1.08">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseInOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                        </DoubleAnimationUsingKeyFrames>
-                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)">
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.14" Value="1.08">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseInOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                        </DoubleAnimationUsingKeyFrames>
-                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                         From="0.82"
-                                                         To="1"
-                                                         Duration="0:0:0.18">
-                                            <DoubleAnimation.EasingFunction>
-                                                <CubicEase EasingMode="EaseOut"/>
-                                            </DoubleAnimation.EasingFunction>
-                                        </DoubleAnimation>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </DataTrigger.EnterActions>
+                            <Setter Property="BorderBrush" Value="#22C55E"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                            <Setter Property="Background" Value="#F7FEFA"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS">
+                            <Setter Property="BorderBrush" Value="#22C55E"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                            <Setter Property="Background" Value="#F7FEFA"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding ScanTextResult}" Value="NG">
-                            <DataTrigger.EnterActions>
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)">
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.14" Value="1.08">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseInOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                        </DoubleAnimationUsingKeyFrames>
-                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)">
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.14" Value="1.08">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                            <EasingDoubleKeyFrame KeyTime="0:0:0.32" Value="1">
-                                                <EasingDoubleKeyFrame.EasingFunction>
-                                                    <CubicEase EasingMode="EaseInOut"/>
-                                                </EasingDoubleKeyFrame.EasingFunction>
-                                            </EasingDoubleKeyFrame>
-                                        </DoubleAnimationUsingKeyFrames>
-                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                         From="0.78"
-                                                         To="1"
-                                                         Duration="0:0:0.20">
-                                            <DoubleAnimation.EasingFunction>
-                                                <CubicEase EasingMode="EaseOut"/>
-                                            </DoubleAnimation.EasingFunction>
-                                        </DoubleAnimation>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </DataTrigger.EnterActions>
+                            <Setter Property="BorderBrush" Value="#DC2626"/>
+                            <Setter Property="BorderThickness" Value="2"/>
+                            <Setter Property="Background" Value="#FFF7F7"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-
-            <Grid HorizontalAlignment="Stretch"
-                  VerticalAlignment="Center">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.14" Color="#334155"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.Triggers>
+                    <EventTrigger RoutedEvent="Binding.TargetUpdated">
+                        <BeginStoryboard Storyboard="{StaticResource ScanResultPulseStoryboard}"/>
+                    </EventTrigger>
+                </Grid.Triggers>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="16"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="16"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0"
-                           FontSize="46"
-                           FontWeight="ExtraBold"
-                           Foreground="#FFFFFF"
-                           HorizontalAlignment="Center"
-                           TextAlignment="Center"
-                           LineHeight="50"
-                           LineStackingStrategy="BlockLineHeight">
-                    <TextBlock.Effect>
-                        <DropShadowEffect Color="#0F172A"
-                                          BlurRadius="12"
-                                          ShadowDepth="1"
-                                          Opacity="0.30"/>
-                    </TextBlock.Effect>
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                <TextBlock Text="KẾT QUẢ SCAN MỚI NHẤT" Style="{StaticResource SectionTitleStyle}" HorizontalAlignment="Center"/>
+
+                <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Grid Width="136" Height="136" HorizontalAlignment="Center">
+                        <Ellipse x:Name="ResultHalo"
+                                 Width="118"
+                                 Height="118"
+                                 Opacity="0"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <ScaleTransform x:Name="ResultHaloScale" ScaleX="1" ScaleY="1"/>
+                            </Ellipse.RenderTransform>
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#CBD5E1"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Fill" Value="#86EFAC"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Fill" Value="#86EFAC"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Fill" Value="#FCA5A5"/></DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                    <Border Width="106" Height="106" CornerRadius="53" HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="2" RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="ResultBadgeScale" ScaleX="1" ScaleY="1"/>
+                        </Border.RenderTransform>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Background" Value="#ECFDF5"/><Setter Property="BorderBrush" Value="#22C55E"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Background" Value="#ECFDF5"/><Setter Property="BorderBrush" Value="#22C55E"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Background" Value="#FEF2F2"/><Setter Property="BorderBrush" Value="#DC2626"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock FontSize="56" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="•"/>
+                                    <Setter Property="Foreground" Value="#94A3B8"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Text" Value="✓"/><Setter Property="Foreground" Value="#16A34A"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Text" Value="✓"/><Setter Property="Foreground" Value="#16A34A"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Text" Value="!"/><Setter Property="Foreground" Value="#DC2626"/></DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Border>
+                    </Grid>
+
+                    <TextBlock Margin="0,10,0,0" FontWeight="Black" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="NoWrap" RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <ScaleTransform x:Name="ResultTextScale" ScaleX="1" ScaleY="1"/>
+                        </TextBlock.RenderTransform>
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="CHỜ QUÉT"/>
+                                <Setter Property="FontSize" Value="42"/>
+                                <Setter Property="Foreground" Value="#64748B"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Text" Value="PASS"/><Setter Property="FontSize" Value="68"/><Setter Property="Foreground" Value="#16A34A"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Text" Value="PASS"/><Setter Property="FontSize" Value="68"/><Setter Property="Foreground" Value="#16A34A"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Text" Value="NG"/><Setter Property="FontSize" Value="76"/><Setter Property="Foreground" Value="#DC2626"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <Border Grid.Row="4" CornerRadius="14" Padding="14,11" BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#F8FAFC"/>
+                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding ScanTextResult}" Value="OK">
-                                    <Setter Property="Text" Value="&#x2714;"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ScanTextResult}" Value="NG">
-                                    <Setter Property="Text" Value="&#x2716;"/>
-                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Background" Value="#F0FDF4"/><Setter Property="BorderBrush" Value="#BBF7D0"/></DataTrigger>
+                                <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Background" Value="#F0FDF4"/><Setter Property="BorderBrush" Value="#BBF7D0"/></DataTrigger>
+                                <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Background" Value="#FEF2F2"/><Setter Property="BorderBrush" Value="#FECACA"/></DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-
-                <TextBlock Grid.Row="1"
-                           Margin="0,6,0,0"
-                           FontSize="40"
-                           FontWeight="ExtraBold"
-                           Foreground="#FFFFFF"
-                           HorizontalAlignment="Center"
-                           TextAlignment="Center"
-                           LineHeight="62"
-                           LineStackingStrategy="BlockLineHeight">
-                    <TextBlock.Effect>
-                        <DropShadowEffect Color="#0F172A"
-                                          BlurRadius="14"
-                                          ShadowDepth="1"
-                                          Opacity="0.34"/>
-                    </TextBlock.Effect>
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ScanTextResult}" Value="OK">
-                                    <Setter Property="Text" Value="KẾT QUẢ SCAN: OK"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ScanTextResult}" Value="NG">
-                                    <Setter Property="Text" Value="KẾT QUẢ SCAN: NG"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-
-                <TextBlock Grid.Row="2"
-                           Text="{Binding ScanResultDetailText}"
-                           Margin="8,14,8,0"
-                           FontSize="24"
-                           FontWeight="SemiBold"
-                           Foreground="#FFFFFF"
-                           HorizontalAlignment="Stretch"
-                           TextAlignment="Left"
-                           TextWrapping="Wrap"
-                           LineHeight="32"
-                           LineStackingStrategy="BlockLineHeight"
-                           Opacity="0.95"/>
+                    </Border.Style>
+                    <TextBlock Text="{Binding ScanResultDetailText, NotifyOnTargetUpdated=True}"
+                               FontSize="15.5"
+                               FontWeight="Bold"
+                               LineHeight="23"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Stretch">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#64748B"/>
+                                <Setter Property="Text" Value="Quét tem để xem kết quả PASS / NG."/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="OK"><Setter Property="Foreground" Value="#166534"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="PASS"><Setter Property="Foreground" Value="#166534"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ScanTextResult}" Value="NG"><Setter Property="Foreground" Value="#991B1B"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
             </Grid>
         </Border>
-
-        <!-- FILTER -->
-        <TextBox Grid.Row="1"
-         Height="36"
-         Margin="4"
-         FontSize="14"
-         VerticalContentAlignment="Center"
-         Text="{Binding BoxNameForFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-        <!-- TABLE -->
-        <DataGrid Grid.Row="2"
-      ItemsSource="{Binding ToDayBoxView}"
-      SelectedItem="{Binding SelectedTodayBox, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-      IsReadOnly="True"
-      Margin="3"
-      AutoGenerateColumns="False"
-      FontSize="13"
-      RowHeight="34"
-      ColumnHeaderHeight="34"
-      HeadersVisibility="Column"
-      GridLinesVisibility="Horizontal"
-      HorizontalScrollBarVisibility="Disabled"
-      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-      CanUserResizeColumns="False"
-      CanUserResizeRows="False"
-      CanUserAddRows="False"
-      CanUserDeleteRows="False"
-      SelectionMode="Single"
-      BorderThickness="0"
-      ColumnHeaderStyle="{StaticResource UnifiedScanDataGridColumnHeaderStyle}"
-      RowStyle="{StaticResource UnifiedScanRowStyle}"
-      Background="White">
-
-            <DataGrid.CellStyle>
-                <Style TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="4,0"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="TextBlock.TextAlignment" Value="Center"/>
-                    <Setter Property="TextBlock.TextTrimming" Value="CharacterEllipsis"/>
-                </Style>
-            </DataGrid.CellStyle>
-
-            <DataGrid.Columns>
-
-                <!-- PNAME -->
-                <DataGridTextColumn Header="Mã hàng"
-        Binding="{Binding ProductPartNumber}"
-        Width="1.35*"
-        MinWidth="110" />
-
-                <!-- SEAL -->
-                <DataGridTextColumn Header="Ngày"
-        Binding="{Binding BoxSealNo}"
-        Width="0.8*"
-        MinWidth="76" />
-
-                <!-- SCAN -->
-                <DataGridTemplateColumn Header="Số lượng"
-            Width="0.85*"
-            MinWidth="84">
-
-                    <DataGridTemplateColumn.HeaderTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="Số thùng" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.HeaderTemplate>
-
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-
-                            <Border CornerRadius="8"
-        Padding="5,3"
-        MinHeight="24"
-        HorizontalAlignment="Center">
-
-                                <Border.Style>
-                                    <Style TargetType="Border">
-
-                                        <Setter Property="Background" Value="White"/>
-
-                                        <Style.Triggers>
-
-                                            <!-- DONE -->
-                                            <DataTrigger Binding="{Binding BoxComplete}" Value="True">
-                                                <Setter Property="Background" Value="#DCFCE7"/>
-                                            </DataTrigger>
-
-                                            <DataTrigger Binding="{Binding IsPartialBox}" Value="True">
-                                                <Setter Property="Background" Value="#FEF3C7"/>
-                                            </DataTrigger>
-
-                                        </Style.Triggers>
-
-                                    </Style>
-                                </Border.Style>
-
-                                <TextBlock HorizontalAlignment="Center"
-               VerticalAlignment="Center"
-               FontWeight="Bold"
-               FontSize="13"
-               LineHeight="16"
-               LineStackingStrategy="BlockLineHeight">
-
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-
-                                            <Setter Property="Foreground" Value="#0F172A"/>
-
-                                            <Style.Triggers>
-
-                                                <DataTrigger Binding="{Binding BoxComplete}" Value="True">
-                                                    <Setter Property="Foreground" Value="#166534"/>
-                                                </DataTrigger>
-
-                                                <DataTrigger Binding="{Binding IsPartialBox}" Value="True">
-                                                    <Setter Property="Foreground" Value="#B45309"/>
-                                                </DataTrigger>
-
-                                            </Style.Triggers>
-
-                                        </Style>
-                                    </TextBlock.Style>
-
-                                    <TextBlock.Text>
-                                        <Binding Path="ProgressText"/>
-                                    </TextBlock.Text>
-
-                                </TextBlock>
-
-                            </Border>
-
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-
-                </DataGridTemplateColumn>
-
-                <!-- DONE -->
-                <DataGridTextColumn Header="Trạng thái"
-            Binding="{Binding BoxCompleteText}"
-            Width="1.0*"
-            MinWidth="92"
-            IsReadOnly="True" />
-
-                <DataGridTextColumn Header="Loại thùng"
-            Binding="{Binding BoxTypeText}"
-            Width="1.0*"
-            MinWidth="92"
-            IsReadOnly="True" />
-
-            </DataGrid.Columns>
-
-        </DataGrid>
-
-        <!-- BUTTON -->
-        <Grid Grid.Row="3" Margin="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition />
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-
-            <Button Content="Xem"
-Grid.Column="0"
-Margin="4"
-Height="38"
-FontSize="13"
-Command="{Binding OpenBoxCMD}" />
-
-            <Button Content="Scan"
-Grid.Column="1"
-Margin="4"
-Height="38"
-FontSize="13"
-Command="{Binding SetSelectedBoxOnJobCMD}" />
-        </Grid>
     </Grid>
-</materialDesign:Card>
 </UserControl>

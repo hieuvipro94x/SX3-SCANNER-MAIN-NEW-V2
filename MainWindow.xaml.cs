@@ -34,6 +34,7 @@ namespace SX3_SCANER
         private bool _isBackgroundUpdateCheckRunning;
         private bool _isMandatoryUpdateWorkflowRunning;
         private bool isUpdateDeferredUntilScannerIdle;
+        private bool _startupInitializationStarted;
 
         private INotifyPropertyChanged _announcementViewModel;
         private CancellationTokenSource _announcementMarqueeCts;
@@ -160,7 +161,23 @@ namespace SX3_SCANER
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             RestartAnnouncementMarquee();
+
+            if (!_startupInitializationStarted)
+            {
+                _startupInitializationStarted = true;
+
+                MainViewModel viewModel = DataContext as MainViewModel;
+                if (viewModel != null)
+                {
+                    await viewModel.InitializeApplicationAsync();
+                }
+            }
+
+#if !DEBUG
             await EnsureMandatoryUpdateBeforeRunAsync();
+#else
+            await Task.CompletedTask;
+#endif
 
             if (Application.Current != null &&
                 !Application.Current.Dispatcher.HasShutdownStarted)

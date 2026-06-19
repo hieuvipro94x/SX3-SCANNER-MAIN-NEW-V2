@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -637,7 +637,7 @@ namespace SX3_SCANER.Helper
 
         private static void ShowError(string message)
         {
-            MessageBox.Show(
+            SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                 message,
                 "SX3 Scanner - Lỗi cập nhật",
                 MessageBoxButton.OK,

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Kết quả scan: NG"
         Width="760"
-        Height="520"
+        SizeToContent="Height"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -14,99 +14,101 @@
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <Style x:Key="WarningLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="24"/>
+        <Style x:Key="DialogLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="Black"/>
-            <Setter Property="Foreground" Value="#334155"/>
-            <Setter Property="Margin" Value="0,4,16,4"/>
-            <Setter Property="VerticalAlignment" Value="Top"/>
-        </Style>
-
-        <Style x:Key="WarningValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="Foreground" Value="#0F172A"/>
-            <Setter Property="Margin" Value="0,4,0,4"/>
+            <Setter Property="Foreground" Value="#64748B"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="LineHeight" Value="28"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+        <Style x:Key="DialogValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="25"/>
         </Style>
     </Window.Resources>
 
-    <Border Margin="16"
-            Padding="24"
-            Background="#FFF7F7"
-            BorderBrush="#DC2626"
-            BorderThickness="4"
-            CornerRadius="24">
+    <Border Margin="18" Padding="0" Background="White" BorderBrush="#DC2626" BorderThickness="1.5" CornerRadius="24">
         <Border.Effect>
-            <DropShadowEffect Color="#7F1D1D"
-                              BlurRadius="26"
-                              ShadowDepth="5"
-                              Opacity="0.34"/>
+            <DropShadowEffect Color="#334155" BlurRadius="30" ShadowDepth="0" Opacity="0.28"/>
         </Border.Effect>
 
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="76"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="70"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Background="#DC2626"
-                    CornerRadius="14">
-                <TextBlock Text="KẾT QUẢ SCAN: NG"
-                           FontSize="42"
-                           FontWeight="Black"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           TextAlignment="Center"/>
+            <Border Grid.Row="0" Background="#FEF2F2" CornerRadius="24,24,0,0" Padding="24,20" BorderBrush="#FECACA" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="72"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="58" Height="58" CornerRadius="29" Background="#DC2626" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock Text="!" FontSize="36" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="KẾT QUẢ SCAN: NG" FontSize="30" FontWeight="Black" Foreground="#991B1B"/>
+                        <TextBlock Text="Tem không đạt điều kiện kiểm tra. Xem rõ tiêu chuẩn và dữ liệu thực tế bên dưới." FontSize="14" FontWeight="SemiBold" Foreground="#7F1D1D" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Grid Grid.Row="1"
-                  Margin="8,10,8,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="174"/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
+            <Grid Grid.Row="1" Margin="24,22,24,18">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Text="Chi tiết lỗi" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="DetailText"
-                           Foreground="#B91C1C" FontWeight="Bold"
-                           Style="{StaticResource WarningValueStyle}" Margin="0,4,0,4"/>
+                <Border Grid.Row="0" CornerRadius="14" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <TextBlock Text="CHI TIẾT LỖI" Style="{StaticResource DialogLabelStyle}" Foreground="#B91C1C"/>
+                        <TextBlock x:Name="DetailText" Style="{StaticResource DialogValueStyle}" Foreground="#991B1B" FontWeight="Black"/>
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Grid.Row="1" Text="Tiêu chuẩn" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StandardText"
-                           Style="{StaticResource WarningValueStyle}" Margin="0,4,0,4"/>
+                <Border Grid.Row="2" CornerRadius="14" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <TextBlock Text="TIÊU CHUẨN" Style="{StaticResource DialogLabelStyle}"/>
+                        <TextBlock x:Name="StandardText" Style="{StaticResource DialogValueStyle}"/>
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Grid.Row="2" Text="Thực tế" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ActualText"
-                           Foreground="#B91C1C" FontWeight="Bold"
-                           Style="{StaticResource WarningValueStyle}" Margin="0,4,0,4"/>
+                <Border Grid.Row="4" CornerRadius="14" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <TextBlock Text="THỰC TẾ" Style="{StaticResource DialogLabelStyle}" Foreground="#C2410C"/>
+                        <TextBlock x:Name="ActualText" Style="{StaticResource DialogValueStyle}" Foreground="#C2410C" FontWeight="Black"/>
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Grid.Row="3" Text="Cần xác nhận" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ResolutionText"
-                           Style="{StaticResource WarningValueStyle}" Margin="0,4,0,4"/>
+                <Border Grid.Row="6" CornerRadius="14" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <TextBlock Text="CẦN XÁC NHẬN" Style="{StaticResource DialogLabelStyle}" Foreground="#1D4ED8"/>
+                        <TextBlock x:Name="ResolutionText" Style="{StaticResource DialogValueStyle}"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
-            <Button Grid.Row="2"
-                    Content="ĐÃ HIỂU"
-                    Width="240"
-                    Height="58"
-                    FontSize="24"
-                    FontWeight="Black"
-                    Foreground="White"
-                    Background="#DC2626"
-                    BorderThickness="0"
-                    HorizontalAlignment="Center"
-                    IsDefault="True"
-                    Click="Close_Click"/>
+            <Border Grid.Row="2" Background="#F8FAFC" CornerRadius="0,0,24,24" Padding="24,16" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+                <Button Content="ĐÃ HIỂU - QUAY LẠI SCAN" Width="280" Height="50" FontSize="16" FontWeight="Black" Foreground="White" Background="#DC2626" BorderThickness="0" HorizontalAlignment="Center" IsDefault="True" Click="Close_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="14" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Border>
         </Grid>
     </Border>
-
 </Window>

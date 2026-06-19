@@ -8,7 +8,7 @@ namespace SX3_SCANER.Model
 {
     internal class DatabaseInitialize
     {
-        private const int MainDatabaseSchemaVersion = 5;
+        private const int MainDatabaseSchemaVersion = 6;
         private const int ProductDatabaseSchemaVersion = 1;
         private const string LastIntegrityCheckKey = "LastIntegrityCheckUtc";
         private static readonly TimeSpan IntegrityCheckInterval = TimeSpan.FromDays(7);
@@ -178,7 +178,14 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxDate_Result ON ScanHistoryView(BoxDate, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ID_ScanTime ON ScanHistoryView(ID DESC, ScanTime DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData ON ScanHistoryView(ScanData);");
-            TryExecute("CREATE UNIQUE INDEX IF NOT EXISTS UX_ScanHistoryView_PassScanData ON ScanHistoryView(ScanData COLLATE NOCASE) WHERE ScanResult = 1 AND ScanData IS NOT NULL AND TRIM(ScanData) <> '';");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData_Result ON ScanHistoryView(ScanData COLLATE NOCASE, ScanResult);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ProductPartNumber_ID ON ScanHistoryView(ProductPartNumber COLLATE NOCASE, ID DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_SealNo_ID ON ScanHistoryView(SealNo COLLATE NOCASE, ID DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_ID ON ScanHistoryView(ScanTime DESC, ID DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxDate_ID ON ScanHistoryView(BoxDate DESC, ID DESC);");
+            ExecuteCritical(
+                "CREATE UNIQUE INDEX IF NOT EXISTS UX_ScanHistoryView_PassScanData ON ScanHistoryView(ScanData COLLATE NOCASE) WHERE ScanResult = 1 AND ScanData IS NOT NULL AND TRIM(ScanData) <> '';",
+                "Khong tao duoc unique index chong trung ScanData PASS. Hay kiem tra/xu ly du lieu PASS trung truoc khi chay tiep.");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanMessage ON ScanHistoryView(ScanMessage);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanWorker ON ScanHistoryView(ScanWorker);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxType ON ScanHistoryView(BoxType);");
@@ -294,6 +301,20 @@ PRAGMA busy_timeout = 5000;";
             catch (Exception ex)
             {
                 StartupManager.Log("Khong tao duoc index tuy chon. SQL=" + sql + ". Chi tiet: " + ex);
+            }
+        }
+
+        private static void ExecuteCritical(string sql, string failureMessage)
+        {
+            try
+            {
+                DatabaseRepository.ExecuteNonQuery(sql);
+            }
+            catch (Exception ex)
+            {
+                StartupManager.SetStatus(failureMessage);
+                StartupManager.Log(failureMessage + " SQL=" + sql + ". Chi tiet: " + ex);
+                throw new InvalidOperationException(failureMessage, ex);
             }
         }
 

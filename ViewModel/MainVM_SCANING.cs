@@ -1,4 +1,4 @@
-using SX3_SCANER.Helper;
+﻿using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using SX3_SCANER.View;
@@ -59,13 +59,15 @@ namespace SX3_SCANER.ViewModel
 
                 OnPropertyChanged();
 
-                BtnSTART_CONTENT = value ? "STOP" : "START";
+                BtnSTART_CONTENT = value ? "TẠM DỪNG" : "BẮT ĐẦU";
 
                 CanChangeProductInfo = !value;
 
                 NotifyCurrentBoxStatusChanged();
 
                 AppConfigHelper.Modify(AppConfigStringKey.Injob, value ? "1" : "0");
+
+                CommandManager.InvalidateRequerySuggested();
 
                 if (value)
                 {
@@ -89,6 +91,9 @@ namespace SX3_SCANER.ViewModel
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 OnPropertyChanged(nameof(ScanQuantityText));
+                OnPropertyChanged(nameof(CurrentPassCount));
+                OnPropertyChanged(nameof(CurrentNgCount));
+                OnPropertyChanged(nameof(CurrentProgressPercentText));
                 NotifyCurrentBoxStatusChanged();
                 CommandManager.InvalidateRequerySuggested();
             }
@@ -105,12 +110,12 @@ namespace SX3_SCANER.ViewModel
 
         public bool CanSwitchProduct
         {
-            get { return !_isScanBusy; }
+            get { return IsApplicationReady && !_isScanBusy; }
         }
 
         public bool CanModifySessionSelection
         {
-            get { return !_isScanBusy && !HasOpenScanSession; }
+            get { return IsApplicationReady && !_isScanBusy && !HasOpenScanSession; }
         }
 
         public bool IsFullBoxReadyToComplete
@@ -148,7 +153,8 @@ namespace SX3_SCANER.ViewModel
                 if (_InputScanCodeCMD == null)
                 {
                     _InputScanCodeCMD = new RelayCommand<object>(
-                        o => InJob &&
+                        o => IsApplicationReady &&
+                            InJob &&
                             !string.IsNullOrWhiteSpace(InputScanCode) &&
                             !IsFullBoxReadyToComplete,
                         async o => await ScanDataAsync(InputScanCode));
@@ -441,7 +447,7 @@ namespace SX3_SCANER.ViewModel
                     StartupManager.Log("Khong luu duoc lich su scan. Database path: " +
                         Model.Respository.DatabaseRepository.DatabasePath + ". Chi tiet: " + ex);
 
-                    MessageBox.Show(
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                         "Không lưu được dữ liệu scan vào database.\nVui lòng kiểm tra quyền ghi database và liên hệ kỹ thuật.",
                         "LOI LUU DATABASE",
                         MessageBoxButton.OK,
@@ -609,7 +615,7 @@ namespace SX3_SCANER.ViewModel
                     OnPropertyChanged(nameof(HasOpenScanSession));
                 }
 
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không lưu được lỗi scan vào database.\nVui lòng kiểm tra quyền ghi database và liên hệ kỹ thuật.",
                     "LỖI LƯU DATABASE",
                     MessageBoxButton.OK,
@@ -633,7 +639,7 @@ namespace SX3_SCANER.ViewModel
             {
                 Detail = scanMessage,
                 Standard = "Tem hợp lệ, chưa bị trùng và thùng chưa đủ số lượng",
-                Actual = DisplayActualValue(inputScanCode),
+                Actual = ScanValidationService.DisplayValue(inputScanCode),
                 Resolution = displayMessage
             };
             ScanResultDetailText = error.ToDisplayText();
@@ -675,7 +681,7 @@ namespace SX3_SCANER.ViewModel
                 {
                     StartupManager.Log(
                         "Khong mo duoc man hinh xac nhan dong thung le. Chi tiet: " + ex);
-                    MessageBox.Show(
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                         "Không thể mở màn hình xác nhận đóng thùng lẻ.\n\n" + ex.Message,
                         "Lỗi giao diện",
                         MessageBoxButton.OK,
@@ -770,7 +776,7 @@ namespace SX3_SCANER.ViewModel
             {
                 StartupManager.Log(
                     "Khong hoan tat duoc thung " + completedBoxName + ". Chi tiet: " + ex);
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không hoàn tất được thùng trong database.\nDữ liệu hiện tại vẫn được giữ nguyên để thử lại.",
                     "LỖI HOÀN TẤT THÙNG",
                     MessageBoxButton.OK,
@@ -816,11 +822,17 @@ namespace SX3_SCANER.ViewModel
             string message = isPartial
                 ? "HO\u00C0N TH\u00C0NH TH\u00D9NG L\u1EBA"
                 : "HO\u00C0N TH\u00C0NH TH\u00D9NG \u0110\u1EE6";
-            MessageBox.Show(message, "TH\u00D4NG B\u00C1O", MessageBoxButton.OK, MessageBoxImage.Information);
+            SX3_SCANER.Helper.ProfessionalMessageBox.Show(message, "TH\u00D4NG B\u00C1O", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private async Task<bool> IsDuplicateLotAsync(string input)
         {
+            // Format mới: PARTNO,SERIAL (ví dụ K32000-22400,2606172001)
+            // không có SealNo/LotNo theo cấu trúc cũ nên không kiểm tra trùng LotNo.
+            // Trùng tem vẫn được chặn bằng ScanData gốc ở phía trên.
+            if (ScanValidationService.IsPartNoCommaSerialFormat(input))
+                return false;
+
             if (string.IsNullOrWhiteSpace(input) || input.Length != CodeLengthExpected)
                 return false;
 
@@ -875,7 +887,112 @@ namespace SX3_SCANER.ViewModel
         {
             _CurrentScanHistory.ScanTime = GetBusinessScanTime();
 
+            // Format mới cho mã hàng Car HE EV:
+            // PART NO/PARTNAME: K32000-22400
+            // QR thực tế: K32000-22400,2606172001
+            // Cấu trúc: <PartNo>,<Serial>
+            if (ScanValidationService.IsPartNoCommaSerialFormat(input))
+            {
+                return ScanPartNoCommaSerial(input);
+            }
+
             return CheckLength(input);
+        }
+
+        private bool TryParsePartNoCommaSerial(
+            string input,
+            out string partNo,
+            out string serial)
+        {
+            partNo = string.Empty;
+            serial = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            string[] parts = input.Trim().Split(',');
+            if (parts.Length != 2)
+                return false;
+
+            partNo = parts[0].Trim();
+            serial = parts[1].Trim();
+
+            return !string.IsNullOrWhiteSpace(partNo) &&
+                !string.IsNullOrWhiteSpace(serial);
+        }
+
+        private bool ScanPartNoCommaSerial(string input)
+        {
+            CodeLengthScanResult = input?.Length ?? 0;
+
+            if (!TryParsePartNoCommaSerial(input, out string scannedPartNo, out string scannedSerial))
+            {
+                Length_OK = 0;
+                _ScanMess = "NG - Sai định dạng QR dấu phẩy";
+                return false;
+            }
+
+            if (CodeLengthExpected > 0 && input.Length != CodeLengthExpected)
+            {
+                Length_OK = 0;
+                _ScanMess = "NG - Sai độ dài";
+                return false;
+            }
+
+            Length_OK = 1;
+
+            if (!string.IsNullOrWhiteSpace(PrefixExpected) &&
+                !scannedPartNo.StartsWith(PrefixExpected, StringComparison.OrdinalIgnoreCase))
+            {
+                Prefix_OK = 0;
+                _ScanMess = "NG - Sai đầu mã / Prefix";
+                return false;
+            }
+
+            PrefixScanResut = PrefixExpected ?? string.Empty;
+            Prefix_OK = 1;
+
+            string expectedPartName = ScanValidationService.NormalizeQrProductCode(PNameExpected);
+            string expectedPartNumber = ScanValidationService.NormalizeQrProductCode(SelectedPartNumber);
+            string actualPartNo = ScanValidationService.NormalizeQrProductCode(scannedPartNo);
+
+            if (string.IsNullOrWhiteSpace(actualPartNo) ||
+                (actualPartNo != expectedPartName && actualPartNo != expectedPartNumber))
+            {
+                PName_OK = 0;
+                PNameScanResult = scannedPartNo;
+                _ScanMess = "NG - Sai mã sản phẩm / PartName";
+                return false;
+            }
+
+            PName_OK = 1;
+            PNameScanResult = scannedPartNo;
+            _CurrentScanHistory.ProductPartName = PNameExpected;
+
+            // QR mới không chứa ngày sản xuất/SealNo theo format cũ.
+            // Vẫn lưu SealNo theo ngày tem đang chọn để báo cáo/thống kê không bị rỗng.
+            SealNo_OK = 1;
+            SealnoScanResult = ScanLabelDate.ToString("yyMMdd");
+            _CurrentScanHistory.SealNo = SealnoScanResult;
+
+            if (!string.IsNullOrWhiteSpace(SuffixExpected) &&
+                !scannedSerial.EndsWith(SuffixExpected, StringComparison.OrdinalIgnoreCase))
+            {
+                Suffix_OK = 0;
+                SuffixScanResult = scannedSerial;
+                _ScanMess = "NG - Sai cuối mã / Suffix";
+                return false;
+            }
+
+            Suffix_OK = 1;
+            SuffixScanResult = SuffixExpected ?? string.Empty;
+
+            LotNo_OK = 1;
+            LotNoExpected = scannedSerial;
+            LotNoScanResult = scannedSerial;
+            _CurrentScanHistory.LotNo = scannedSerial;
+
+            return true;
         }
 
         private DateTime GetBusinessScanTime()
@@ -890,7 +1007,7 @@ namespace SX3_SCANER.ViewModel
             {
                 Detail = "NG - Tr\u00F9ng tem",
                 Standard = "M\u1ED7i tem ch\u1EC9 \u0111\u01B0\u1EE3c scan m\u1ED9t l\u1EA7n",
-                Actual = DisplayActualValue(scanData),
+                Actual = ScanValidationService.DisplayValue(scanData),
                 Resolution = "Ki\u1EC3m tra l\u1EA1i tem v\u00E0 l\u1ECBch s\u1EED scan."
             };
             ScanResultDetailText = error.ToDisplayText();
@@ -924,7 +1041,7 @@ namespace SX3_SCANER.ViewModel
             {
                 StartupManager.Log(
                     "Khong mo duoc man hinh ket qua scan NG. Chi tiet: " + ex);
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     error.ToDisplayText() + "\n\nChi tiết lỗi giao diện: " + ex.Message,
                     "KẾT QUẢ SCAN: NG",
                     MessageBoxButton.OK,
@@ -1099,11 +1216,11 @@ namespace SX3_SCANER.ViewModel
             string lotNo = !string.IsNullOrWhiteSpace(_CurrentScanHistory?.LotNo)
                 ? _CurrentScanHistory.LotNo
                 : TryExtractLotNo(inputScanCode);
-            string actualPartName = ExtractScanSegment(
+            string actualPartName = ScanValidationService.ExtractSegment(
                 inputScanCode,
                 PrefixExpected?.Length ?? 0,
                 PNameExpected?.Length ?? 0);
-            string actualSealNo = ExtractScanSegment(
+            string actualSealNo = ScanValidationService.ExtractSegment(
                 inputScanCode,
                 (PrefixExpected?.Length ?? 0) + (PNameExpected?.Length ?? 0),
                 SealNoExpected?.Length ?? 0);
@@ -1117,7 +1234,7 @@ namespace SX3_SCANER.ViewModel
                     Standard = isDuplicate
                         ? "LotNo ch\u01B0a \u0111\u01B0\u1EE3c scan trong th\u00F9ng ho\u1EB7c l\u1ECBch s\u1EED"
                         : "LotNo t\u1EEB 2000 \u0111\u1EBFn 2999",
-                    Actual = DisplayActualValue(lotNo),
+                    Actual = ScanValidationService.DisplayValue(lotNo),
                     Resolution = isDuplicate
                         ? "Ki\u1EC3m tra l\u1EA1i tem, tr\u00E1nh scan tr\u00F9ng LotNo."
                         : "Ki\u1EC3m tra l\u1EA1i LotNo tr\u00EAn tem."
@@ -1130,8 +1247,8 @@ namespace SX3_SCANER.ViewModel
                 return new ScanErrorPresentation
                 {
                     Detail = "NG - Sai ng\u00E0y s\u1EA3n xu\u1EA5t",
-                    Standard = DisplayActualValue(SealNoExpected),
-                    Actual = DisplayActualValue(actualSealNo),
+                    Standard = ScanValidationService.DisplayValue(SealNoExpected),
+                    Actual = ScanValidationService.DisplayValue(actualSealNo),
                     Resolution = "Ki\u1EC3m tra l\u1EA1i ng\u00E0y \u0111ang ch\u1ECDn ho\u1EB7c tem \u0111ang scan."
                 };
             }
@@ -1143,9 +1260,21 @@ namespace SX3_SCANER.ViewModel
                 return new ScanErrorPresentation
                 {
                     Detail = "NG - Sai m\u00E3 s\u1EA3n ph\u1EA9m",
-                    Standard = DisplayActualValue(PNameExpected),
-                    Actual = DisplayActualValue(actualPartName),
+                    Standard = ScanValidationService.DisplayValue(PNameExpected),
+                    Actual = ScanValidationService.DisplayValue(actualPartName),
                     Resolution = "Ki\u1EC3m tra l\u1EA1i s\u1EA3n ph\u1EA9m \u0111ang ch\u1ECDn v\u00E0 tem scan."
+                };
+            }
+
+            if (normalizedMessage.Contains("DINH DANG") ||
+                normalizedMessage.Contains("FORMAT"))
+            {
+                return new ScanErrorPresentation
+                {
+                    Detail = "NG - Sai định dạng QR",
+                    Standard = "Định dạng đúng: " + ScanValidationService.DisplayValue(PNameExpected) + ",<Serial>  |  Ví dụ: K32000-22400,2606172001",
+                    Actual = ScanValidationService.DisplayValue(inputScanCode),
+                    Resolution = "Kiểm tra lại QR phải có đúng 1 dấu phẩy, phần trước là mã sản phẩm, phần sau là serial."
                 };
             }
 
@@ -1167,8 +1296,8 @@ namespace SX3_SCANER.ViewModel
                 return new ScanErrorPresentation
                 {
                     Detail = "NG - Sai \u0111\u1EA7u m\u00E3",
-                    Standard = DisplayActualValue(PrefixExpected),
-                    Actual = DisplayActualValue(ExtractScanSegment(
+                    Standard = ScanValidationService.DisplayValue(PrefixExpected),
+                    Actual = ScanValidationService.DisplayValue(ScanValidationService.ExtractSegment(
                         inputScanCode,
                         0,
                         PrefixExpected?.Length ?? 0)),
@@ -1183,8 +1312,8 @@ namespace SX3_SCANER.ViewModel
                 return new ScanErrorPresentation
                 {
                     Detail = "NG - Sai cu\u1ED1i m\u00E3",
-                    Standard = DisplayActualValue(SuffixExpected),
-                    Actual = DisplayActualValue(ExtractScanSegment(
+                    Standard = ScanValidationService.DisplayValue(SuffixExpected),
+                    Actual = ScanValidationService.DisplayValue(ScanValidationService.ExtractSegment(
                         inputScanCode,
                         Math.Max(0, (inputScanCode?.Length ?? 0) - suffixLength),
                         suffixLength)),
@@ -1195,30 +1324,10 @@ namespace SX3_SCANER.ViewModel
             return new ScanErrorPresentation
             {
                 Detail = ScanHistory.NormalizeScanMessage(_ScanMess),
-                Standard = DisplayActualValue(FullCodeExpected),
-                Actual = DisplayActualValue(inputScanCode),
+                Standard = ScanValidationService.DisplayValue(FullCodeExpected),
+                Actual = ScanValidationService.DisplayValue(inputScanCode),
                 Resolution = "Ki\u1EC3m tra l\u1EA1i tem v\u00E0 s\u1EA3n ph\u1EA9m \u0111ang ch\u1ECDn."
             };
-        }
-
-        private static string ExtractScanSegment(string input, int startIndex, int length)
-        {
-            if (string.IsNullOrEmpty(input) ||
-                startIndex < 0 ||
-                length <= 0 ||
-                startIndex >= input.Length)
-            {
-                return string.Empty;
-            }
-
-            return input.Substring(startIndex, Math.Min(length, input.Length - startIndex));
-        }
-
-        private static string DisplayActualValue(string value)
-        {
-            return string.IsNullOrWhiteSpace(value)
-                ? "Kh\u00F4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c"
-                : value;
         }
 
         private sealed class ScanErrorPresentation
@@ -1268,7 +1377,7 @@ namespace SX3_SCANER.ViewModel
             {
                 StartupManager.Log(
                     "Khong mo duoc man hinh xac nhan huy thung. Chi tiet: " + ex);
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không thể mở màn hình xác nhận hủy thùng.\n\n" + ex.Message,
                     "Lỗi giao diện",
                     MessageBoxButton.OK,
@@ -1338,7 +1447,7 @@ namespace SX3_SCANER.ViewModel
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
 
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "ĐÃ HỦY THÙNG HIỆN TẠI",
                     "THÔNG BÁO",
                     MessageBoxButton.OK,
@@ -1348,7 +1457,7 @@ namespace SX3_SCANER.ViewModel
             {
                 StartupManager.Log(
                     "Khong huy duoc thung " + _CurrentBoxName + ". Chi tiet: " + ex);
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không hủy được thùng trong database. Dữ liệu hiện tại vẫn được giữ nguyên.",
                     "LỖI HỦY THÙNG",
                     MessageBoxButton.OK,
@@ -1384,7 +1493,7 @@ namespace SX3_SCANER.ViewModel
             {
                 StartupManager.Log(
                     "Khong mo duoc man hinh xac nhan huy thung. Chi tiet: " + ex);
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không thể mở màn hình xác nhận hủy thùng.\n\n" + ex.Message,
                     "Lỗi giao diện",
                     MessageBoxButton.OK,
@@ -1422,7 +1531,7 @@ namespace SX3_SCANER.ViewModel
             InJob = false;
             OnPropertyChanged(nameof(HasOpenScanSession));
 
-            MessageBox.Show("ĐÃ HỦY THÙNG HIỆN TẠI", "THÔNG BÁO", MessageBoxButton.OK, MessageBoxImage.Information);
+            SX3_SCANER.Helper.ProfessionalMessageBox.Show("ĐÃ HỦY THÙNG HIỆN TẠI", "THÔNG BÁO", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private bool ShowWorkerCompletePopup()
@@ -1486,7 +1595,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (string.IsNullOrWhiteSpace(txtWorker.Text))
                 {
-                    MessageBox.Show(
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                         "Vui lòng nhập tên công nhân",
                         "THIẾU THÔNG TIN",
                         MessageBoxButton.OK,
@@ -1513,7 +1622,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (!isConfirmed)
                 {
-                    MessageBox.Show(
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                         "Bạn phải xác nhận tên công nhân mới được tiếp tục.",
                         "BẮT BUỘC XÁC NHẬN",
                         MessageBoxButton.OK,

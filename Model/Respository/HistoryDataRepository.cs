@@ -11,6 +11,7 @@ namespace SX3_SCANER.Model.Respository
     {
         internal const string ScanHistorySource = "ScanHistoryView";
         internal const string BoxProductSource = "BoxProduct";
+        private const int MaxSearchLimit = 50000;
 
         private static readonly string[] AllowedSources =
         {
@@ -43,10 +44,12 @@ namespace SX3_SCANER.Model.Respository
             string sealNo,
             string scanMessage,
             bool? result,
+            DateTime? fromDate,
+            DateTime? toDate,
             int limit)
         {
             string validatedSource = ValidateSource(source);
-            int safeLimit = Math.Max(1, Math.Min(limit, 2000));
+            int safeLimit = Math.Max(1, Math.Min(limit, MaxSearchLimit));
 
             List<HistoryDataRow> rows = (
                 validatedSource == ScanHistorySource
@@ -56,12 +59,16 @@ namespace SX3_SCANER.Model.Respository
                         sealNo,
                         scanMessage,
                         result,
+                        fromDate,
+                        toDate,
                         safeLimit)
                     : SearchBoxProduct(
                         keyword,
                         partNumber,
                         sealNo,
                         result,
+                        fromDate,
+                        toDate,
                         safeLimit)).ToList();
 
             rows = SortNewestFirst(rows);
@@ -93,6 +100,8 @@ namespace SX3_SCANER.Model.Respository
             string sealNo,
             string scanMessage,
             bool? result,
+            DateTime? fromDate,
+            DateTime? toDate,
             int limit)
         {
             ObservableCollection<ScanHistory> histories =
@@ -102,6 +111,8 @@ namespace SX3_SCANER.Model.Respository
                     sealNo,
                     scanMessage,
                     result,
+                    fromDate,
+                    toDate,
                     limit);
 
             return histories.Select(history => new HistoryDataRow
@@ -131,6 +142,8 @@ namespace SX3_SCANER.Model.Respository
             string partNumber,
             string sealNo,
             bool? result,
+            DateTime? fromDate,
+            DateTime? toDate,
             int limit)
         {
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
@@ -224,6 +237,27 @@ namespace SX3_SCANER.Model.Respository
                             "@Keyword",
                             "%" + EscapeLikeValue(normalizedKeyword) + "%"));
                     }
+                }
+
+                string dateColumn = FirstExisting(
+                    columns,
+                    "BoxDate",
+                    "ScanLabelDate",
+                    "CreatedAt",
+                    "CreateTime",
+                    "ScanTime",
+                    "DateTime",
+                    "Time");
+                if (fromDate.HasValue && dateColumn != null)
+                {
+                    sql += " AND date(bp.[" + dateColumn + "]) >= date(@FromDate)";
+                    parameters.Add(new SQLiteParameter("@FromDate", fromDate.Value.Date));
+                }
+
+                if (toDate.HasValue && dateColumn != null)
+                {
+                    sql += " AND date(bp.[" + dateColumn + "]) <= date(@ToDate)";
+                    parameters.Add(new SQLiteParameter("@ToDate", toDate.Value.Date));
                 }
 
                 if (hasScanHistory)

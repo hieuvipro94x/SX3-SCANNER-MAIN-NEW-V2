@@ -1,7 +1,10 @@
-using SX3_SCANER.Helper;
+﻿using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using SX3_SCANER.View;
+using System;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -13,16 +16,76 @@ namespace SX3_SCANER.ViewModel
         {
             SCAN = 0,
             CRUD = 1,
-            QUERY = 2
+            QUERY = 2,
+            MAINTENANCE = 3
         }
 
 
         private bool _AdminCRUD;
+        private bool _isApplicationReady;
+        private bool _isApplicationInitializing;
+        private bool _hasStartupError;
+        private string _startupDatabaseStatusText = "Đang chờ kiểm tra database...";
 
         public bool AdminCRUD
         {
             get { return _AdminCRUD; }
             set { _AdminCRUD = value; OnPropertyChanged(); }
+        }
+
+        public bool IsApplicationReady
+        {
+            get { return _isApplicationReady; }
+            private set
+            {
+                if (_isApplicationReady == value) return;
+                _isApplicationReady = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsStartupCheckVisible));
+                OnPropertyChanged(nameof(CanModifySessionSelection));
+                OnPropertyChanged(nameof(CanSwitchProduct));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool IsApplicationInitializing
+        {
+            get { return _isApplicationInitializing; }
+            private set
+            {
+                if (_isApplicationInitializing == value) return;
+                _isApplicationInitializing = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsStartupCheckVisible));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool HasStartupError
+        {
+            get { return _hasStartupError; }
+            private set
+            {
+                if (_hasStartupError == value) return;
+                _hasStartupError = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsStartupCheckVisible));
+            }
+        }
+
+        public bool IsStartupCheckVisible
+        {
+            get { return !IsApplicationReady || HasStartupError; }
+        }
+
+        public string StartupDatabaseStatusText
+        {
+            get { return _startupDatabaseStatusText; }
+            private set
+            {
+                _startupDatabaseStatusText = value ?? string.Empty;
+                OnPropertyChanged();
+            }
         }
 
         private int _TabControlSelectedIndex;
@@ -37,10 +100,19 @@ namespace SX3_SCANER.ViewModel
                 OnPropertyChanged();
                 if (value == (int)JobIndex.SCAN)
                 {
-                    PartNumberList = new LabelProductInfoRepository().GetAllPartNumber();
+                    if (IsApplicationReady)
+                    {
+                        PartNumberList = new LabelProductInfoRepository().GetAllPartNumber();
+                    }
                 }
                 else if (value == (int)JobIndex.CRUD)
                 {
+                    if (!IsApplicationReady)
+                    {
+                        TabControlSelectedIndex = (int)JobIndex.SCAN;
+                        return;
+                    }
+
                     AdminCRUD = false;
                     AskPasswordWD askPasswordWD = new AskPasswordWD();
                     bool? result = askPasswordWD.ShowDialog();
@@ -57,7 +129,23 @@ namespace SX3_SCANER.ViewModel
                 }
                 else if (value == (int)JobIndex.QUERY)
                 {
+                    if (!IsApplicationReady)
+                    {
+                        TabControlSelectedIndex = (int)JobIndex.SCAN;
+                        return;
+                    }
+
                     LoadQueryLookupsAsync();
+                }
+                else if (value == (int)JobIndex.MAINTENANCE)
+                {
+                    if (!IsApplicationReady)
+                    {
+                        TabControlSelectedIndex = (int)JobIndex.SCAN;
+                        return;
+                    }
+
+                    RefreshMaintenanceInfo();
                 }
             }
         }
@@ -71,7 +159,7 @@ namespace SX3_SCANER.ViewModel
 
         private void ReadAppConfig()
         {
-            BtnSTART_CONTENT = "START";
+            BtnSTART_CONTENT = "BẮT ĐẦU";
             CanChangeProductInfo = true;
             InJob = false;
 
@@ -98,6 +186,7 @@ namespace SX3_SCANER.ViewModel
 
         private bool CAN_START()
         {
+            if (!IsApplicationReady) return false;
             if (string.IsNullOrEmpty(SelectedPartNumber)) return false;
             return SelectedQuantity > 0;
         }
@@ -124,12 +213,75 @@ namespace SX3_SCANER.ViewModel
             AppConfigHelper.EnsureCreate(AppConfigStringKey.LastWorker, "");
         }
 
+        public async Task InitializeApplicationAsync()
+        {
+            if (IsApplicationReady || IsApplicationInitializing)
+                return;
+
+            IsApplicationInitializing = true;
+            HasStartupError = false;
+            StartupDatabaseStatusText = "Đang kiểm tra database...";
+            StartupManager.SetStatus("Đang kiểm tra database...");
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    DatabaseInitialize initialize = new DatabaseInitialize();
+                    initialize.EnsureCreate();
+                });
+
+                StartupDatabaseStatusText = "Database sẵn sàng. Đang tải mã hàng...";
+                StartupManager.SetStatus("Đang tải danh sách mã hàng...");
+
+                LoadScanDataAfterDatabaseReady();
+                ReadAppConfig();
+                RefreshMaintenanceInfo();
+
+                IsApplicationReady = true;
+                IsApplicationInitializing = false;
+                StartupDatabaseStatusText = "Database sẵn sàng.";
+
+                StartDefaultScanSessionOnLaunch();
+            }
+            catch (Exception ex)
+            {
+                IsApplicationInitializing = false;
+                HasStartupError = true;
+                IsApplicationReady = false;
+
+                StartupManager.LogStartupError(
+                    ex,
+                    DatabaseRepository.DatabasePath +
+                    " | " +
+                    DatabaseRepository.ProductDatabasePath);
+
+                string diagnosis = StartupManager.GetDatabaseDiagnosis(ex);
+                StartupDatabaseStatusText = "Lỗi database: " + diagnosis;
+                StartupManager.SetStatus("Lỗi database: " + diagnosis);
+
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
+                    "Không thể chuẩn bị database SX3 SCANER." +
+                    Environment.NewLine +
+                    "Nguyên nhân: " + diagnosis +
+                    Environment.NewLine +
+                    "Chi tiết: " + ex.Message,
+                    "SX3 SCANER",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
         public MainViewModel()
         {
             EnsureCreateAppConfig();
             InitializeScaningPropeties();
-            ReadAppConfig();
             InitializeOnlineAnnouncement();
+            InitializeMaintenanceProperties();
         }
     }
 

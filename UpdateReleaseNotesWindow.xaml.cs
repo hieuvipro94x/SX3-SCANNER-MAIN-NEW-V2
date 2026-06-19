@@ -1,4 +1,4 @@
-using Markdig;
+﻿using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using SX3_SCANER.Helper;
@@ -320,7 +320,7 @@ namespace SX3_SCANER
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Không thể mở liên kết.\n\n" + ex.Message,
                     "SX3 Scanner",
                     MessageBoxButton.OK,

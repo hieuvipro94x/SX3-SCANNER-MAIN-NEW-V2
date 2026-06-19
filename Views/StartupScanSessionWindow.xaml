@@ -1,0 +1,128 @@
+<Window x:Class="SX3_SCANER.Views.StartupScanSessionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Đổi phiên quét"
+        Width="720"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <Style x:Key="DialogFieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="14" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="18" Background="White" BorderBrush="#2563EB" BorderThickness="1.5" CornerRadius="24">
+        <Border.Effect>
+            <DropShadowEffect Color="#334155" BlurRadius="30" ShadowDepth="0" Opacity="0.25"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="0,0,0,1" CornerRadius="24,24,0,0" Padding="24,20">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Width="56" Height="56" CornerRadius="28" Background="#2563EB">
+                        <TextBlock Text="▦" FontSize="30" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="CHỌN / ĐỔI PHIÊN QUÉT" FontSize="28" FontWeight="Black" Foreground="#1E3A8A"/>
+                        <TextBlock Text="Cấu hình mã hàng, ngày box, ngày tem và số lượng trước khi tiếp tục scan." FontSize="14" FontWeight="SemiBold" Foreground="#1D4ED8" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="24,22,24,18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="12"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <TextBlock Text="MÃ HÀNG" Style="{StaticResource DialogFieldLabelStyle}" Foreground="#2563EB"/>
+                        <ComboBox x:Name="ProductComboBox"
+                                  Grid.Row="1"
+                                  Height="40"
+                                  FontSize="15"
+                                  FontWeight="SemiBold"
+                                  ItemsSource="{Binding PartNumberList}"
+                                  SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+                </Border>
+
+                <UniformGrid Grid.Row="2" Columns="3">
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,0,6,0">
+                        <StackPanel>
+                            <TextBlock Text="NGÀY BOX" Style="{StaticResource DialogFieldLabelStyle}"/>
+                            <DatePicker Height="36" FontSize="14" SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="6,0">
+                        <StackPanel>
+                            <TextBlock Text="NGÀY TEM" Style="{StaticResource DialogFieldLabelStyle}"/>
+                            <DatePicker Height="36" FontSize="14" SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="6,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="SỐ LƯỢNG" Style="{StaticResource DialogFieldLabelStyle}"/>
+                            <TextBox Height="36" FontSize="15" FontWeight="Black" TextAlignment="Center" VerticalContentAlignment="Center" Text="{Binding SelectedQuantity}"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <Border Grid.Row="4" Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="14" Padding="14,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="✓" FontSize="24" FontWeight="Black" Foreground="#16A34A" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="1" Text="Sau khi xác nhận, màn hình sẽ quay về vùng scan và tự focus ô nhập tem." FontSize="14" FontWeight="SemiBold" Foreground="#166534" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" CornerRadius="0,0,24,24" Padding="24,16">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="BẮT ĐẦU QUÉT" Style="{StaticResource DialogButtonStyle}" Foreground="White" Background="#2563EB" BorderBrush="#1D4ED8" BorderThickness="1" IsDefault="True" Click="Begin_Click"/>
+                    <Button Grid.Column="2" Content="HỦY" Style="{StaticResource DialogButtonStyle}" Foreground="#0F172A" Background="White" BorderBrush="#CBD5E1" BorderThickness="1" IsCancel="True" Click="Cancel_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

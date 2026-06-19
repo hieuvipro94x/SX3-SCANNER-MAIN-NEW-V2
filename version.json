@@ -1,9 +1,0 @@
-{
-  "version": "7.5.2",
-  "tagName": "v7.5.2",
-  "fileName": "SX3ScannerSetup-7.5.2.exe",
-  "fileSize": 8372740,
-  "downloadUrl": "https://github.com/hieuvipro94x/sx3-scanner-release/releases/download/v7.5.2/SX3ScannerSetup-7.5.2.exe",
-  "sha256": "59a327b0561112424290d9d2f117447cf0286f9fee23b3e42ce081c5208889b9",
-  "releaseNotes": "# SX3 Scanner v7.5.2\n\nCập nhật về độ ổn định và hiệu năng.\n\nManifest này chỉ được giữ để các phiên bản cũ như v7.2.2 chuyển tiếp sang updater mới dùng GitHub Releases API."
-}

@@ -21,7 +21,6 @@ namespace SX3_SCANER.Helper
         {
             Cache,
             Tailscale,
-            Cdn,
             Realtime
         }
 
@@ -29,16 +28,12 @@ namespace SX3_SCANER.Helper
             "ws://100.72.125.42:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
             "http://100.72.125.42:5055/api/announcements/current";
-        private const string DefaultFallbackCdnUrl =
-            "https://cdn.jsdelivr.net/gh/hieuvipro94x/sx3-scanner-release@main/announcement.json";
-
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
         private readonly CancellationTokenSource _lifetimeCts =
             new CancellationTokenSource();
         private readonly string _realtimeUrl;
         private readonly string _snapshotUrl;
-        private readonly string _fallbackCdnUrl;
         private readonly string _cachePath;
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _connectionTimeout;
@@ -59,9 +54,6 @@ namespace SX3_SCANER.Helper
             _snapshotUrl = ReadSetting(
                 "AnnouncementPrimaryHttpUrl",
                 DefaultSnapshotUrl);
-            _fallbackCdnUrl = ReadSetting(
-                "AnnouncementFallbackCdnUrl",
-                DefaultFallbackCdnUrl);
             _pollInterval = TimeSpan.FromSeconds(
                 ReadPositiveIntSetting("AnnouncementPollSeconds", 60));
             _connectionTimeout = TimeSpan.FromSeconds(
@@ -71,7 +63,7 @@ namespace SX3_SCANER.Helper
             _cachePath = Path.Combine(
                 DatabaseRepository.AppDataDirectory,
                 "cache",
-                "announcement.json");
+                "announcement-cache.json");
 
             _httpClient = new HttpClient
             {
@@ -236,25 +228,13 @@ namespace SX3_SCANER.Helper
                 return;
             }
 
-            StartupManager.Log(
-                "[Announcement] Tailscale unavailable, fallback to CDN");
-            if (await TryLoadHttpAsync(
-        _fallbackCdnUrl,
-        AnnouncementSource.Cdn,
-        token).ConfigureAwait(false))
-            {
-                StartupManager.SetAnnouncementServerStatus(
-                    AnnouncementServerStatusInfo.FallbackConnected("CDN jsDelivr"));
-                return;
-            }
-
             StartupManager.SetAnnouncementServerStatus(
     AnnouncementServerStatusInfo.Failed(
         "Announcement Server",
-        "Tailscale và CDN đều không kết nối được, đang dùng cache nếu có."));
+        "Không kết nối được máy chủ announcement, đang dùng cache nếu có."));
 
             StartupManager.Log(
-                "[Announcement] CDN unavailable, using cached announcement");
+                "[Announcement] Server unavailable, using cached announcement");
             await LoadCachedAnnouncementAsync().ConfigureAwait(false);
         }
 

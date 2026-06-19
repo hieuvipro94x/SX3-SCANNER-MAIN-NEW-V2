@@ -3,313 +3,382 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:SX3_SCANER"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
-             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
+
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="TodayViewCenterTextStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextAlignment" Value="Center"/>
+                <Setter Property="TextWrapping" Value="NoWrap"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="TodayViewLeftTextStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextAlignment" Value="Left"/>
+                <Setter Property="TextWrapping" Value="NoWrap"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
-<Grid Grid.Row="1"
-      Grid.Column="1"
-      Margin="4,4">
-    <Grid.RowDefinitions>
-        <RowDefinition Height="Auto"/>
-        <RowDefinition Height="*"/>
-    </Grid.RowDefinitions>
+
     <Grid Margin="4">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="8"/>
+            <RowDefinition Height="10"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-
-        <!-- MÃ QR MẪU / EXPECTED -->
-        <Border Grid.Row="0"
-        CornerRadius="14"
-        Background="#FFFBEB"
-        BorderBrush="#F59E0B"
-        BorderThickness="1.5"
-        Padding="14,10">
-
+        <!-- Expected QR: neutral professional, not warning color -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Padding="16,12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="8"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-
-                <TextBlock Text="MÃ QR YÊU CẦU"
-   FontSize="14"
-   FontWeight="Bold"
-   Foreground="#B45309"/>
-
-                <TextBlock Grid.Row="2"
-   d:Text="WH3224652605120001"
-   Text="{Binding FullCodeExpected}"
-   FontSize="18"
-   FontWeight="Bold"
-   Foreground="#0F172A"
-   TextAlignment="Center"
-   HorizontalAlignment="Stretch"
-   TextWrapping="Wrap"/>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="11" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
+                        <TextBlock Text="QR" FontSize="12" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="MÃ QR YÊU CẦU" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="Dùng để so sánh với tem đang scan." Style="{StaticResource SectionSubTitleStyle}"/>
+                    </StackPanel>
+                </Grid>
+                <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="12,10">
+                    <TextBlock Text="{Binding FullCodeExpected}"
+                               d:Text="K32000-22400,2606172001"
+                               FontSize="23"
+                               FontWeight="Black"
+                               Foreground="{StaticResource TextMainBrush}"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Stretch"
+                               TextWrapping="Wrap"/>
+                </Border>
             </Grid>
         </Border>
 
-
-        <!-- NHẬP MÃ SCAN -->
-        <Border Grid.Row="2"
-        CornerRadius="14"
-        Background="White"
-        BorderBrush="#CBD5E1"
-        BorderThickness="1.5"
-        Padding="10">
-
+        <!-- Main scanner input -->
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="16">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="96"/>
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="SCAN TEM TẠI ĐÂY" Style="{StaticResource SectionTitleStyle}" FontSize="17" Foreground="{StaticResource PrimaryBrush}"/>
+                        <TextBlock Text="Sau khi mở app, ô scan tự focus. Bấm Enter để kiểm tra tem." Style="{StaticResource SectionSubTitleStyle}"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" CornerRadius="12" Padding="10,6" Background="{Binding CurrentBoxStatusBackground}" BorderBrush="{Binding CurrentBoxStatusBorderBrush}" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CurrentBoxStatusText}" FontSize="11" FontWeight="Black" Foreground="{Binding CurrentBoxStatusForeground}"/>
+                    </Border>
+                </Grid>
 
-                <TextBox x:Name="TbxInputCode"
- Grid.Column="0"
- Height="56"
- FontSize="20"
- d:Text="THIS IS THE TEXTBOX INPUT SCAN DATA"
- Text="{Binding InputScanCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
- TextAlignment="Center"
- VerticalContentAlignment="Center"
- FontWeight="Bold"
- Foreground="#020617"
- Background="#F8FAFC"
- BorderBrush="#2563EB"
- BorderThickness="3">
-                    <TextBox.InputBindings>
-                        <KeyBinding Gesture="Enter"
-            Command="{Binding InputScanCodeCMD}"
-            CommandParameter="{Binding ElementName=TbxInputCode, Path=Text}" />
-                    </TextBox.InputBindings>
-                </TextBox>
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition Width="164"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="TbxInputCode"
+                             Grid.Column="0"
+                             Height="72"
+                             Style="{StaticResource ScanResultTextBoxStyle}"
+                             IsEnabled="{Binding IsApplicationReady}"
+                             Text="{Binding InputScanCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Quét tem hoặc nhập mã rồi bấm Enter">
+                        <TextBox.InputBindings>
+                            <KeyBinding Gesture="Enter"
+                                        Command="{Binding InputScanCodeCMD}"
+                                        CommandParameter="{Binding ElementName=TbxInputCode, Path=Text}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+
                     <Button Grid.Column="2"
-        Height="56"
-        Width="90"
-        Padding="0"
-        Margin="6,0,0,0"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Center"
-        Foreground="White"
-        BorderThickness="0"
-        Command="{Binding STARTCMD}"
-        CommandParameter="{Binding ElementName=TbxInputCode}"
-        ToolTip="Bắt đầu / Dừng phiên scan"
-        Cursor="Hand"
-        SnapsToDevicePixels="True"
-        UseLayoutRounding="True">
-
+                            Height="72"
+                            Width="164"
+                            Padding="0"
+                            Foreground="White"
+                            BorderThickness="0"
+                            Command="{Binding STARTCMD}"
+                            CommandParameter="{Binding ElementName=TbxInputCode}"
+                            ToolTip="Bắt đầu / Tạm dừng scan"
+                            FocusVisualStyle="{x:Null}"
+                            Cursor="Hand">
                         <Button.Style>
                             <Style TargetType="Button">
-                                <Setter Property="Background" Value="#16A34A"/>
-                                <Setter Property="Opacity" Value="1"/>
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#22C55E" Offset="0"/>
+                                            <GradientStop Color="#15803D" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="BorderBrush" Value="#34D399"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
-                                        <Setter Property="Background" Value="#DC2626"/>
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#F43F5E" Offset="0"/>
+                                                    <GradientStop Color="#BE123C" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="BorderBrush" Value="#FB7185"/>
                                     </DataTrigger>
-
-                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
-                                        <Setter Property="Background" Value="#DC2626"/>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="TẠM DỪNG">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                    <GradientStop Color="#F43F5E" Offset="0"/>
+                                                    <GradientStop Color="#BE123C" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="BorderBrush" Value="#FB7185"/>
                                     </DataTrigger>
-
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Opacity" Value="0.94"/>
-                                    </Trigger>
-
-                                    <Trigger Property="IsPressed" Value="True">
-                                        <Setter Property="Opacity" Value="0.86"/>
-                                    </Trigger>
-
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter Property="Opacity" Value="0.45"/>
-                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
-
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="MainBorder"
-                    Width="{TemplateBinding Width}"
-                    Height="{TemplateBinding Height}"
-                    CornerRadius="12"
-                    Background="{TemplateBinding Background}"
-                    BorderThickness="1"
-                    BorderBrush="#BBF7D0"
-                    SnapsToDevicePixels="True">
+                                <Grid x:Name="ButtonSurface" RenderTransformOrigin="0.5,0.5">
+                                    <Grid.RenderTransform>
+                                        <ScaleTransform x:Name="ButtonScale" ScaleX="1" ScaleY="1"/>
+                                    </Grid.RenderTransform>
 
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="10"
-                                      ShadowDepth="0"
-                                      Color="#16A34A"
-                                      Opacity="0.28"/>
-                                    </Border.Effect>
+                                    <Border x:Name="ShadowHost"
+                                            Margin="2"
+                                            CornerRadius="17"
+                                            Background="{TemplateBinding Background}">
+                                        <Border.Effect>
+                                            <DropShadowEffect x:Name="ButtonShadow"
+                                                              Color="#0F172A"
+                                                              BlurRadius="13"
+                                                              ShadowDepth="4"
+                                                              Direction="270"
+                                                              Opacity="0.24"/>
+                                        </Border.Effect>
+                                    </Border>
 
-                                    <Grid ClipToBounds="True">
-                                        <Border CornerRadius="12"
-                            Height="24"
-                            VerticalAlignment="Top"
-                            Background="White"
-                            Opacity="0.16"/>
+                                    <Border x:Name="MainBorder"
+                                            Margin="2"
+                                            CornerRadius="17"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="1">
+                                        <Grid ClipToBounds="True">
+                                            <Border Height="29"
+                                                    VerticalAlignment="Top"
+                                                    CornerRadius="16,16,10,10"
+                                                    Background="#18FFFFFF"/>
 
-                                        <Grid HorizontalAlignment="Center"
-                          VerticalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="26"/>
-                                                <RowDefinition Height="18"/>
-                                            </Grid.RowDefinitions>
+                                            <Grid Margin="12,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="38"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
 
-                                            <Border Grid.Row="0"
-                                Width="26"
-                                Height="26"
-                                CornerRadius="13"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Background="White">
+                                                <Border Width="38" Height="38"
+                                                        CornerRadius="12"
+                                                        Background="#24FFFFFF"
+                                                        BorderBrush="#42FFFFFF"
+                                                        BorderThickness="1">
+                                                    <Grid>
+                                                        <Path x:Name="StartIcon"
+                                                              Width="14" Height="16"
+                                                              Data="M 1,0 L 14,8 L 1,16 Z"
+                                                              Fill="White"
+                                                              Stretch="Fill"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                                        <Rectangle x:Name="StopIcon"
+                                                                   Width="13" Height="13"
+                                                                   RadiusX="2.5" RadiusY="2.5"
+                                                                   Fill="White"
+                                                                   Visibility="Collapsed"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
 
-                                                <materialDesign:PackIcon Width="18"
-                                                     Height="18"
-                                                     HorizontalAlignment="Center"
-                                                     VerticalAlignment="Center"
-                                                     Foreground="{TemplateBinding Background}">
-                                                    <materialDesign:PackIcon.Style>
-                                                        <Style TargetType="materialDesign:PackIcon">
-                                                            <Setter Property="Kind" Value="PlayCircle"/>
-
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
-                                                                    <Setter Property="Kind" Value="StopCircle"/>
-                                                                </DataTrigger>
-
-                                                                <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
-                                                                    <Setter Property="Kind" Value="StopCircle"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </materialDesign:PackIcon.Style>
-                                                </materialDesign:PackIcon>
-                                            </Border>
-
-                                            <TextBlock Grid.Row="1"
-                                   Text="{Binding BtnSTART_CONTENT}"
-                                   FontSize="12"
-                                   FontWeight="Black"
-                                   Foreground="White"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   TextAlignment="Center"/>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding BtnSTART_CONTENT}"
+                                                               FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="White"
+                                                               TextAlignment="Left"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                        <Ellipse x:Name="StatusDot"
+                                                                 Width="5" Height="5"
+                                                                 Margin="0,0,5,0"
+                                                                 Fill="#D1FAE5"
+                                                                 VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="StatusCaption"
+                                                                   Text="Sẵn sàng quét"
+                                                                   FontSize="9.5"
+                                                                   Foreground="#E8FFF0"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Grid>
                                         </Grid>
-                                    </Grid>
-                                </Border>
-
+                                    </Border>
+                                </Grid>
                                 <ControlTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
-                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FECACA"/>
-                                        <Setter TargetName="MainBorder" Property="Effect">
-                                            <Setter.Value>
-                                                <DropShadowEffect BlurRadius="10"
-                                              ShadowDepth="0"
-                                              Color="#DC2626"
-                                              Opacity="0.28"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </DataTrigger>
-
-                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="DỪNG">
-                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="#FECACA"/>
-                                        <Setter TargetName="MainBorder" Property="Effect">
-                                            <Setter.Value>
-                                                <DropShadowEffect BlurRadius="10"
-                                              ShadowDepth="0"
-                                              Color="#DC2626"
-                                              Opacity="0.28"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </DataTrigger>
-
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="White"/>
+                                        <Trigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleX" To="1.025" Duration="0:0:0.14"/>
+                                                    <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleY" To="1.025" Duration="0:0:0.14"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.EnterActions>
+                                        <Trigger.ExitActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.16"/>
+                                                    <DoubleAnimation Storyboard.TargetName="ButtonScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.16"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.ExitActions>
                                     </Trigger>
-
                                     <Trigger Property="IsPressed" Value="True">
-                                        <Setter TargetName="MainBorder" Property="RenderTransform">
-                                            <Setter.Value>
-                                                <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Setter TargetName="MainBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                                        <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.88"/>
                                     </Trigger>
-
-                                    <Trigger Property="IsEnabled" Value="False">
-                                        <Setter TargetName="MainBorder" Property="Effect" Value="{x:Null}"/>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter TargetName="MainBorder" Property="BorderBrush" Value="White"/>
+                                        <Setter TargetName="MainBorder" Property="BorderThickness" Value="2"/>
                                     </Trigger>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="STOP">
+                                        <Setter TargetName="StartIcon" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="StopIcon" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="StatusCaption" Property="Text" Value="Đang hoạt động"/>
+                                        <Setter TargetName="StatusCaption" Property="Foreground" Value="#FFE4E6"/>
+                                        <Setter TargetName="StatusDot" Property="Fill" Value="#FFE4E6"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding BtnSTART_CONTENT}" Value="TẠM DỪNG">
+                                        <Setter TargetName="StartIcon" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="StopIcon" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="StatusCaption" Property="Text" Value="Đang hoạt động"/>
+                                        <Setter TargetName="StatusCaption" Property="Foreground" Value="#FFE4E6"/>
+                                        <Setter TargetName="StatusDot" Property="Fill" Value="#FFE4E6"/>
+                                    </DataTrigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
                 </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Current box scan history: reduced columns to avoid visual overload -->
+        <Border Grid.Row="4" Style="{StaticResource CardBorderStyle}" Padding="14" MinHeight="260">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="5" Height="22" CornerRadius="3" Background="{StaticResource PrimaryBrush}" Margin="0,0,8,0"/>
+                        <StackPanel>
+                            <TextBlock Text="LỊCH SỬ TEM TRONG THÙNG" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="Chỉ giữ các cột quan trọng để dễ nhìn khi vận hành." Style="{StaticResource SectionSubTitleStyle}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Border Grid.Column="1" CornerRadius="14" Padding="12,7" Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ScanQuantityText}" FontSize="13" FontWeight="Black" Foreground="{StaticResource OkBrush}"/>
+                    </Border>
+                </Grid>
+
+                <DataGrid Grid.Row="2"
+                          ItemsSource="{Binding ScanHistoryView}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          FontSize="13"
+                          RowHeight="38"
+                          ColumnHeaderHeight="40"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserResizeRows="False"
+                          CanUserResizeColumns="True"
+                          CanUserReorderColumns="False"
+                          CanUserSortColumns="False"
+                          BorderThickness="1"
+                          BorderBrush="#E2E8F0"
+                          Background="White"
+                          RowBackground="White"
+                          AlternatingRowBackground="#F8FAFC"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          EnableRowVirtualization="True"
+                          EnableColumnVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          ColumnHeaderStyle="{StaticResource UnifiedScanDataGridColumnHeaderStyle}"
+                          RowStyle="{StaticResource UnifiedScanRowStyle}">
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Padding" Value="8,0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#DBEAFE"/>
+                                    <Setter Property="Foreground" Value="#1E3A8A"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding RowIndex}" Width="46" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding ScanTime, StringFormat=HH:mm:ss}" Width="95" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="MÃ SCAN" Binding="{Binding ScanData}" Width="*" MinWidth="220" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
+                        <DataGridTextColumn Header="KQ" Binding="{Binding ResultText}" Width="70" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="THÔNG BÁO" Binding="{Binding ScanMessage}" Width="210" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
         </Border>
     </Grid>
-
-    <Border Grid.Row="1" Margin="4,8,4,0" CornerRadius="14" Background="White" BorderBrush="#E2E8F0" BorderThickness="1">
-        <DataGrid
-      ItemsSource="{Binding ScanHistoryView}"
-      IsReadOnly="True"
-      AutoGenerateColumns="True"
-      AutoGeneratingColumn="HideRowIndex_AutoGeneratingColumn"
-      LoadingRow="DataGrid_LoadingRow"
-      FontSize="11"
-      RowHeight="28"
-      ColumnHeaderHeight="30"
-      HeadersVisibility="All"
-      GridLinesVisibility="Horizontal"
-      CanUserAddRows="False"
-      CanUserDeleteRows="False"
-      CanUserResizeRows="False"
-      CanUserResizeColumns="False"
-      CanUserSortColumns="False"
-      HorizontalScrollBarVisibility="Visible"
-      VerticalScrollBarVisibility="Auto"
-      ScrollViewer.HorizontalScrollBarVisibility="Visible"
-      ScrollViewer.VerticalScrollBarVisibility="Auto"
-      ScrollViewer.CanContentScroll="True"
-      EnableRowVirtualization="True"
-      EnableColumnVirtualization="True"
-      VirtualizingPanel.IsVirtualizing="True"
-      VirtualizingPanel.VirtualizationMode="Recycling"
-      ColumnWidth="SizeToCells"
-      MinColumnWidth="82"
-      Background="White"
-      ColumnHeaderStyle="{StaticResource UnifiedScanDataGridColumnHeaderStyle}"
-      RowStyle="{StaticResource UnifiedScanRowStyle}"
-      BorderThickness="0" Margin="0">
-
-            <DataGrid.CellStyle>
-                <Style TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="3,0"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="TextBlock.TextAlignment" Value="Center"/>
-                    <Setter Property="TextBlock.TextWrapping" Value="NoWrap"/>
-                </Style>
-            </DataGrid.CellStyle>
-
-        </DataGrid>
-    </Border>
-</Grid>
 </UserControl>

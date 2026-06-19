@@ -1,4 +1,6 @@
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace SX3_SCANER.Views.Controls
 {
@@ -7,52 +9,19 @@ namespace SX3_SCANER.Views.Controls
         public ScanInputHistoryPanel()
         {
             InitializeComponent();
+            Loaded += ScanInputHistoryPanel_Loaded;
         }
 
-        private void HideRowIndex_AutoGeneratingColumn(
-            object sender,
-            DataGridAutoGeneratingColumnEventArgs e)
+        private void ScanInputHistoryPanel_Loaded(object sender, RoutedEventArgs e)
         {
-            if (e.PropertyName == "RowIndex" || e.PropertyName == "ID")
+            try
             {
-                e.Cancel = true;
-                return;
+                TbxInputCode.Focus();
+                Keyboard.Focus(TbxInputCode);
             }
-
-            if (e.PropertyName == "ScanTime")
-                e.Column.Width = 150;
-
-            if (e.PropertyName == "BoxName")
-                e.Column.Width = 150;
-
-            if (e.PropertyName == "ProductPartNumber")
-                e.Column.Width = 150;
-
-            if (e.PropertyName == "ProductPartName")
-                e.Column.Width = 160;
-
-            if (e.PropertyName == "SealNo")
-                e.Column.Width = 100;
-
-            if (e.PropertyName == "LotNo")
-                e.Column.Width = 100;
-
-            if (e.PropertyName == "ScanData")
-                e.Column.Width = 260;
-
-            if (e.PropertyName == "ScanMessage")
-                e.Column.Width = 260;
-
-            if (e.PropertyName == "ScanWorker")
-                e.Column.Width = 120;
-
-            if (e.PropertyName == "ResultText")
-                e.Column.Width = 100;
-        }
-
-        private void DataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            e.Row.Header = (e.Row.GetIndex() + 1).ToString();
+            catch
+            {
+            }
         }
     }
 }

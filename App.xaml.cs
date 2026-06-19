@@ -1,8 +1,8 @@
-using SX3_SCANER.Helper;
-using SX3_SCANER.Model;
+﻿using SX3_SCANER.Helper;
 using System;
+using System.IO;
+using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace SX3_SCANER
@@ -11,6 +11,29 @@ namespace SX3_SCANER
     {
         private const string SingleInstanceMutexName = @"Local\SX3_SCANER_SingleInstance";
         private Mutex _singleInstanceMutex;
+
+        public App()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += ResolveLocalAssembly;
+        }
+
+        private static Assembly ResolveLocalAssembly(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                AssemblyName requested = new AssemblyName(args.Name);
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                string candidate = Path.Combine(baseDirectory, requested.Name + ".dll");
+
+                return File.Exists(candidate)
+                    ? Assembly.LoadFrom(candidate)
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
@@ -27,21 +50,27 @@ namespace SX3_SCANER
 
             try
             {
-                StartupManager.SetStatus("\u0110ang kh\u1EDFi \u0111\u1ED9ng \u1EE9ng d\u1EE5ng...");
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                StartupManager.SetStatus("Đang khởi động ứng dụng...");
                 startupWindow = new StartupStatusWindow();
                 startupWindow.Show();
 
-                await Task.Run(() =>
-                {
-                    DatabaseInitialize initialize = new DatabaseInitialize();
-                    initialize.EnsureCreate();
-                });
+                ViewModel.MainViewModel mainViewModel = new ViewModel.MainViewModel();
 
-                StartupManager.SetStatus("\u0110ang t\u1EA3i c\u1EA5u h\u00ECnh...");
+                await mainViewModel.InitializeApplicationAsync();
+
+                if (!mainViewModel.IsApplicationReady)
+                {
+                    startupWindow.Close();
+                    Shutdown();
+                    return;
+                }
+
+                StartupManager.SetStatus("Đã kiểm tra xong. Đang mở màn quét...");
 
                 MainWindow mainWindow = new MainWindow
                 {
-                    DataContext = new ViewModel.MainViewModel()
+                    DataContext = mainViewModel
                 };
 
                 if (StartupManager.HasArgument(e.Args, "--minimized"))
@@ -49,10 +78,11 @@ namespace SX3_SCANER
                     mainWindow.WindowState = WindowState.Minimized;
                 }
 
-                mainWindow.Show();
+                Application.Current.MainWindow = mainWindow;
                 startupWindow.Close();
-
-                StartupManager.SetStatus("S\u1EB5n s\u00E0ng");
+                startupWindow = null;
+                mainWindow.Show();
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
             }
             catch (Exception ex)
             {
@@ -68,14 +98,12 @@ namespace SX3_SCANER
 
                 string diagnosis = StartupManager.GetDatabaseDiagnosis(ex);
 
-                MessageBox.Show(
+                SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                     "Kh\u00F4ng th\u1EC3 kh\u1EDFi \u0111\u1ED9ng SX3 SCANER." +
                     Environment.NewLine +
                     "Nguy\u00EAn nh\u00E2n: " + diagnosis +
                     Environment.NewLine +
-                    "Chi ti\u1EBFt: " + ex.Message +
-                    Environment.NewLine +
-                    "Log: " + StartupManager.ErrorLogPath,
+                    "Chi ti\u1EBFt: " + ex.Message,
                     "SX3 SCANER",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

@@ -3,754 +3,251 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:SX3_SCANER"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
-             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <Style x:Key="CheckStatusDotStyle" TargetType="Border">
+                <Setter Property="Width" Value="28"/>
+                <Setter Property="Height" Value="28"/>
+                <Setter Property="CornerRadius" Value="14"/>
+                <Setter Property="Background" Value="#F1F5F9"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="HorizontalAlignment" Value="Right"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="1">
+                        <Setter Property="Background" Value="#ECFDF5"/>
+                        <Setter Property="BorderBrush" Value="#22C55E"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="0">
+                        <Setter Property="Background" Value="#FEF2F2"/>
+                        <Setter Property="BorderBrush" Value="#DC2626"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+            <Style x:Key="CheckStatusTextStyle" TargetType="TextBlock">
+                <Setter Property="Text" Value="•"/>
+                <Setter Property="FontSize" Value="15"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#94A3B8"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Border}, Path=Tag}" Value="1">
+                        <Setter Property="Text" Value="✓"/>
+                        <Setter Property="Foreground" Value="#16A34A"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=Border}, Path=Tag}" Value="0">
+                        <Setter Property="Text" Value="!"/>
+                        <Setter Property="Foreground" Value="#DC2626"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
-<Grid Grid.Row="1" Grid.Column="0">
-    <Grid.RowDefinitions>
-        <RowDefinition Height="auto" />
-        <RowDefinition />
-    </Grid.RowDefinitions>
-    <materialDesign:Card Margin="4"
-                         Padding="0"
-                         UniformCornerRadius="14"
-                         Background="White">
-        <Border CornerRadius="14"
-                Background="White"
-                BorderBrush="#E2E8F0"
-                BorderThickness="1">
-            <Grid Margin="10">
+
+    <Grid Margin="4">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Box / session settings -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="12"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="10"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Grid.Resources>
-                        <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
-                            <Setter Property="FontSize" Value="11.5"/>
-                            <Setter Property="FontWeight" Value="Black"/>
-                            <Setter Property="Foreground" Value="#1E40AF"/>
-                            <Setter Property="Margin" Value="0,0,0,4"/>
-                            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
-                        </Style>
-
-                        <Style x:Key="HotInfoLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoLabelStyle}">
-                            <Setter Property="FontSize" Value="12"/>
-                            <Setter Property="FontWeight" Value="Black"/>
-                            <Setter Property="Foreground" Value="#DC2626"/>
-                        </Style>
-
-                        <Style x:Key="ProductInfoLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoLabelStyle}">
-                            <Setter Property="FontSize" Value="12"/>
-                            <Setter Property="FontWeight" Value="Black"/>
-                            <Setter Property="Foreground" Value="#7C3AED"/>
-                        </Style>
-
-                        <Style x:Key="ProgressTitleStyle" TargetType="TextBlock">
-                            <Setter Property="FontSize" Value="14"/>
-                            <Setter Property="FontWeight" Value="Black"/>
-                            <Setter Property="Foreground" Value="#1D4ED8"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                        </Style>
-
-                        <Style x:Key="InfoValueStyle" TargetType="TextBlock">
-                        <Setter Property="FontSize" Value="13"/>
-                        <Setter Property="FontWeight" Value="Bold"/>
-                        <Setter Property="Foreground" Value="#0F172A"/>
-                        <Setter Property="VerticalAlignment" Value="Center"/>
-                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                    </Style>
-                </Grid.Resources>
-
-                <!-- HEADER THÔNG TIN BOX -->
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="5"
-                                Height="18"
-                                CornerRadius="4"
-                                Background="#2563EB"
-                                Margin="0,0,7,0"/>
-                        <TextBlock Text="THÔNG TIN BOX"
-                                   FontSize="13"
-                                   FontWeight="Black"
-                                   Foreground="#0F172A"
-                                   VerticalAlignment="Center"/>
+                        <Border Width="5" Height="22" CornerRadius="3" Background="{StaticResource PrimaryBrush}" Margin="0,0,8,0"/>
+                        <TextBlock Text="THIẾT LẬP THÙNG" Style="{StaticResource SectionTitleStyle}"/>
                     </StackPanel>
-
-                    <Border Grid.Column="1"
-                            CornerRadius="999"
-                            Padding="8,3"
-                            Background="{Binding CurrentBoxStatusBackground}"
-                            BorderBrush="{Binding CurrentBoxStatusBorderBrush}"
-                            BorderThickness="1"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="{Binding CurrentBoxStatusText}"
-                                   FontSize="10.5"
-                                   FontWeight="Bold"
-                                   Foreground="{Binding CurrentBoxStatusForeground}"
-                                   TextTrimming="CharacterEllipsis"/>
+                    <Border Grid.Column="1" CornerRadius="12" Padding="8,4" Background="{Binding CurrentBoxStatusBackground}" BorderBrush="{Binding CurrentBoxStatusBorderBrush}" BorderThickness="1">
+                        <TextBlock Text="{Binding CurrentBoxStatusText}" FontSize="10.5" FontWeight="Black" Foreground="{Binding CurrentBoxStatusForeground}" TextTrimming="CharacterEllipsis"/>
                     </Border>
                 </Grid>
 
-                <!-- PRODUCT SELECTOR: KHÔNG BỊ BÓP KHI START -->
-                <Border Grid.Row="2"
-                        CornerRadius="10"
-                        Background="#F8FAFC"
-                        BorderBrush="#E2E8F0"
-                        BorderThickness="1"
-                        Padding="8,6">
+                <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="10,8">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="6"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0"
-           Text="MÃ HÀNG / NAME"
-           Style="{StaticResource ProductInfoLabelStyle}"/>
-
-                            <ComboBox Grid.Row="1"
+                        <TextBlock Text="MÃ HÀNG" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource PrimaryBrush}"/>
+                        <ComboBox Grid.Row="2"
                                   MinWidth="0"
-                                  Height="31"
+                                  Height="34"
                                   FontSize="13"
                                   FontWeight="SemiBold"
-                                  HorizontalAlignment="Stretch"
                                   ItemsSource="{Binding PartNumberList}"
                                   SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding CanSwitchProduct}" />
+                                  IsEnabled="{Binding CanModifySessionSelection}" />
                     </Grid>
                 </Border>
 
-                <!-- FORM DATE / QTY / STATUS: CHIA CARD NHỎ GỌN -->
-                <UniformGrid Grid.Row="4"
-                             Columns="2"
-                             Rows="2">
-                        <Border CornerRadius="10"
-        Background="#FFFFFF"
-        BorderBrush="#E2E8F0"
-        BorderThickness="1"
-        Padding="8,6"
-        Margin="0,0,4,4">
-                            <StackPanel>
-                                <TextBlock Text="NGÀY BOX"
-           FontSize="12"
-           FontWeight="Black"
-           Foreground="#2563EB"
-           Margin="0,0,0,4"/>
-
-                                <DatePicker MinWidth="0"
-                    Height="28"
-                    FontSize="12.5"
-                    HorizontalAlignment="Stretch"
-                    SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                        </Border>
-
-                        <Border CornerRadius="10"
-                            Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            Padding="8,6"
-                            Margin="4,0,0,4">
+                <UniformGrid Grid.Row="4" Columns="2" Rows="2">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="9,7" Margin="0,0,5,5">
                         <StackPanel>
-                                <TextBlock Text="NGÀY TEM"
-           FontSize="12"
-           FontWeight="Black"
-           Foreground="#DC2626"
-           Margin="0,0,0,4"/>
-                                <DatePicker MinWidth="0"
-                                        Height="28"
+                            <TextBlock Text="NGÀY BOX" Style="{StaticResource FieldLabelStyle}"/>
+                            <DatePicker Height="30"
                                         FontSize="12.5"
-                                        HorizontalAlignment="Stretch"
-                                        SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        Language="vi-VN"
+                                        SelectedDate="{Binding BoxDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        IsEnabled="{Binding CanSwitchProduct}" />
                         </StackPanel>
                     </Border>
-
-                    <Border CornerRadius="10"
-                            Background="#FFFFFF"
-                            BorderBrush="#E2E8F0"
-                            BorderThickness="1"
-                            Padding="8,6"
-                            Margin="0,4,4,0">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="9,7" Margin="5,0,0,5">
                         <StackPanel>
-                            <TextBlock Text="SỐ LƯỢNG"
-                                       Style="{StaticResource InfoLabelStyle}"/>
-                            <TextBox MinWidth="0"
-                                     Height="28"
-                                     FontSize="13"
-                                     FontWeight="Bold"
-                                     HorizontalContentAlignment="Center"
-                                     Text="{Binding SelectedQuantity}"
-                                     IsEnabled="{Binding CanChangeProductInfo}" />
+                            <TextBlock Text="NGÀY TEM" Style="{StaticResource FieldLabelStyle}"/>
+                            <DatePicker Height="30"
+                                        FontSize="12.5"
+                                        Language="vi-VN"
+                                        SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        IsEnabled="{Binding IsApplicationReady}" />
                         </StackPanel>
                     </Border>
-
-                    <Border CornerRadius="10"
-                            Background="{Binding CurrentBoxStatusBackground}"
-                            BorderBrush="{Binding CurrentBoxStatusBorderBrush}"
-                            BorderThickness="1"
-                            Padding="8,6"
-                            Margin="4,4,0,0">
+                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="9,7" Margin="0,5,5,0">
                         <StackPanel>
-                            <TextBlock Text="TRẠNG THÁI"
-                                       Style="{StaticResource InfoLabelStyle}"/>
-                            <TextBlock Text="{Binding CurrentBoxStatusText}"
-                                       FontSize="13"
-                                       FontWeight="Black"
-                                       Foreground="{Binding CurrentBoxStatusForeground}"
-                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="SỐ LƯỢNG/BOX" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBox Height="30" FontSize="13" FontWeight="Bold" HorizontalContentAlignment="Center" Text="{Binding SelectedQuantity}" IsEnabled="{Binding CanModifySessionSelection}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="12" Padding="9,7" Margin="5,5,0,0">
+                        <StackPanel>
+                            <TextBlock Text="ĐÃ PASS" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource OkBrush}"/>
+                            <TextBlock Text="{Binding ScanQuantityText}" FontSize="15" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
 
-                <!-- NÚT THAO TÁC PHỤ: ĐƯA XUỐNG DƯỚI, KHÔNG LÀM HẸP FORM -->
-                <StackPanel Grid.Row="6"
-                            Orientation="Horizontal"
-                            HorizontalAlignment="Center">
-                    <Button Width="112"
-                            Height="40"
-                            Margin="0,0,8,0"
-                            FontSize="12"
-                            FontWeight="Bold"
-                            Foreground="White"
-                            Background="#DC2626"
-                            BorderThickness="0"
-                            Command="{Binding CancelBoxCMD}"
-                            Cursor="Hand">
-                        <TextBlock Text="HỦY THÙNG"
-                                   TextAlignment="Center"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="White"
-                                   FontWeight="Bold"/>
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border CornerRadius="10"
-                                        Background="{TemplateBinding Background}">
-                                    <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasOpenScanSession}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Opacity" Value="0.92"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-
-                    <Button Width="122"
-                            Height="40"
-                            FontSize="12"
-                            FontWeight="Bold"
-                            Foreground="White"
-                            Background="#F59E0B"
-                            BorderThickness="0"
-                            Command="{Binding ClosePartialBoxCMD}"
-                            Cursor="Hand">
-                        <TextBlock Text="ĐÓNG THÙNG LẺ"
-                                   TextAlignment="Center"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Foreground="White"
-                                   FontWeight="Bold"/>
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border CornerRadius="10"
-                                        Background="{TemplateBinding Background}">
-                                    <ContentPresenter HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center"/>
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
-    </materialDesign:Card>
-    <materialDesign:Card Grid.Row="1"
-                         Margin="4,8,4,4"
-                         Padding="10"
-                         UniformCornerRadius="14">
-        <Grid>
-
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="6"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- TIẾN ĐỘ -->
-            <Border Grid.Row="0"
-        CornerRadius="8"
-        Background="#EEF4FF"
-        BorderBrush="#D9E6FA"
-        BorderThickness="1"
-        Padding="8,5">
-
-                <Grid>
+                <Grid Grid.Row="6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0"
-           Text="TIẾN ĐỘ SCAN"
-           FontSize="14"
-           FontWeight="Black"
-           Foreground="#1D4ED8"
-           VerticalAlignment="Center"
-           TextTrimming="CharacterEllipsis"/>
-
-                        <TextBlock Grid.Column="1"
-           Text="{Binding ScanQuantityText}"
-           FontSize="22"
-           FontWeight="Black"
-           Foreground="#DC2626"
-           HorizontalAlignment="Right"
-           TextAlignment="Right"
-           MinWidth="76"
-           Margin="12,0,0,0"/>
-
+                    <Button Grid.Column="0" Height="38" Content="HỦY THÙNG" FontSize="10" Style="{StaticResource DangerButton}" Command="{Binding CancelBoxCMD}">
+                        <Button.Visibility>
+                            <Binding Path="HasOpenScanSession" Converter="{StaticResource BooleanToVisibilityConverter}"/>
+                        </Button.Visibility>
+                    </Button>
+                    <Button Grid.Column="2" Height="38" Content="ĐỔI PHIÊN" FontSize="10" Style="{StaticResource SecondaryButton}" Command="{Binding OpenSessionSetupCMD}"/>
+                    <Button Grid.Column="4" Height="38" Content="ĐÓNG LẺ" FontSize="10" Style="{StaticResource WarningButton}" Command="{Binding ClosePartialBoxCMD}"/>
                 </Grid>
-
-            </Border>
-
-            <!-- DANH SÁCH KIỂM TRA -->
-            <Grid Grid.Row="2">
-
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="5"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="5"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="5"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="5"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="6"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="78"/>
-                    <ColumnDefinition Width="1.15*"/>
-                    <ColumnDefinition Width="1.15*"/>
-                    <ColumnDefinition Width="34"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- HEADER -->
-                <TextBlock Grid.Row="0"
-   Grid.Column="0"
-   Text="MỤC"
-   FontWeight="Bold"
-   Foreground="#64748B"/>
-
-                <TextBlock Grid.Row="0"
-   Grid.Column="1"
-   Text="YÊU CẦU"
-   HorizontalAlignment="Center"
-   FontWeight="Bold"
-   Foreground="#64748B"/>
-
-                <TextBlock Grid.Row="0"
-   Grid.Column="2"
-   Text="ĐÃ SCAN"
-   HorizontalAlignment="Center"
-   FontWeight="Bold"
-   Foreground="#64748B"/>
-
-                <TextBlock Grid.Row="0"
-   Grid.Column="3"
-   Text="KQ"
-   HorizontalAlignment="Center"
-   FontWeight="Bold"
-   Foreground="#64748B"/>
-
-                <!-- PNAME -->
-                <TextBlock Grid.Row="2"
-   Grid.Column="0"
-   Text="PName"
-   FontWeight="Bold"
-   VerticalAlignment="Center"/>
-
-                <Border Grid.Row="2"
-Grid.Column="1"
-CornerRadius="8"
-Background="#FFF8E1"
-Padding="6,3"
-Margin="2">
-
-                    <TextBlock Text="{Binding PNameExpected}"
-   FontSize="13"
-   FontWeight="Bold"
-   TextTrimming="CharacterEllipsis"/>
-
-                </Border>
-
-                <TextBox Grid.Row="2"
- Grid.Column="2"
- Text="{Binding PNameScanResult}"
- FontSize="13"
- FontWeight="SemiBold"
- Margin="2"
- IsReadOnly="True"/>
-
-                <Border Grid.Row="2"
-Grid.Column="3"
-CornerRadius="8"
-Margin="2">
-
-                    <TextBlock HorizontalAlignment="Center"
-   VerticalAlignment="Center"
-   FontWeight="Bold">
-
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-
-                                <Style.Triggers>
-
-                                    <DataTrigger Binding="{Binding PName_OK}" Value="1">
-                                        <Setter Property="Text" Value="OK"/>
-                                        <Setter Property="Foreground" Value="#16A34A"/>
-                                    </DataTrigger>
-
-                                    <DataTrigger Binding="{Binding PName_OK}" Value="0">
-                                        <Setter Property="Text" Value="NG"/>
-                                        <Setter Property="Foreground" Value="#DC2626"/>
-                                    </DataTrigger>
-
-                                </Style.Triggers>
-
-                            </Style>
-                        </TextBlock.Style>
-
-                    </TextBlock>
-
-                </Border>
-
-                <!-- DATE -->
-                <TextBlock Grid.Row="4"
-   Grid.Column="0"
-Text="Ngày scan"
-   FontWeight="Bold"
-   VerticalAlignment="Center"/>
-
-                <Border Grid.Row="4"
-Grid.Column="1"
-CornerRadius="8"
-Background="#FFF8E1"
-Padding="6,3"
-Margin="2">
-
-                    <TextBlock Text="{Binding SealNoExpected}"
-   FontSize="13"
-   FontWeight="Bold"
-   TextTrimming="CharacterEllipsis"/>
-
-                </Border>
-
-                <TextBox Grid.Row="4"
- Grid.Column="2"
- Text="{Binding SealnoScanResult}"
- FontSize="13"
- FontWeight="SemiBold"
- Margin="2"
- IsReadOnly="True"/>
-
-                <TextBlock Grid.Row="4"
-   Grid.Column="3"
-   HorizontalAlignment="Center"
-   VerticalAlignment="Center"
-   FontWeight="Bold">
-
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-
-                            <Style.Triggers>
-
-                                <DataTrigger Binding="{Binding SealNo_OK}" Value="1">
-                                    <Setter Property="Text" Value="OK"/>
-                                    <Setter Property="Foreground" Value="#16A34A"/>
-                                </DataTrigger>
-
-                                <DataTrigger Binding="{Binding SealNo_OK}" Value="0">
-                                    <Setter Property="Text" Value="NG"/>
-                                    <Setter Property="Foreground" Value="#DC2626"/>
-                                </DataTrigger>
-
-                            </Style.Triggers>
-
-                        </Style>
-                    </TextBlock.Style>
-
-                </TextBlock>
-
-                <!-- LOT -->
-                <TextBlock Grid.Row="6"
-   Grid.Column="0"
-   Text="Lot"
-   FontWeight="Bold"
-   VerticalAlignment="Center"/>
-
-                <Border Grid.Row="6"
-Grid.Column="1"
-CornerRadius="8"
-Background="#FFF8E1"
-Padding="6,3"
-Margin="2">
-
-                    <TextBlock Text="{Binding LotNoExpected}"
-   FontSize="13"
-   FontWeight="Bold"
-   TextTrimming="CharacterEllipsis"/>
-
-                </Border>
-
-                <TextBox Grid.Row="6"
- Grid.Column="2"
- Text="{Binding LotNoScanResult}"
- FontSize="13"
- FontWeight="SemiBold"
- Margin="2"
- IsReadOnly="True"/>
-
-                <TextBlock Grid.Row="6"
-   Grid.Column="3"
-   HorizontalAlignment="Center"
-   VerticalAlignment="Center"
-   FontWeight="Bold">
-
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-
-                            <Style.Triggers>
-
-                                <DataTrigger Binding="{Binding LotNo_OK}" Value="1">
-                                    <Setter Property="Text" Value="OK"/>
-                                    <Setter Property="Foreground" Value="#16A34A"/>
-                                </DataTrigger>
-
-                                <DataTrigger Binding="{Binding LotNo_OK}" Value="0">
-                                    <Setter Property="Text" Value="NG"/>
-                                    <Setter Property="Foreground" Value="#DC2626"/>
-                                </DataTrigger>
-
-                            </Style.Triggers>
-
-                        </Style>
-                    </TextBlock.Style>
-
-                </TextBlock>
-
-                <!-- SUFFIX -->
-                <TextBlock Grid.Row="8"
-   Grid.Column="0"
-   Text="Số Cuối"
-   FontWeight="Bold"
-   VerticalAlignment="Center"/>
-
-                <Border Grid.Row="8"
-Grid.Column="1"
-CornerRadius="8"
-Background="#FFF8E1"
-Padding="6,3"
-Margin="2">
-
-                    <TextBlock Text="{Binding SuffixExpected}"
-   FontSize="13"
-   FontWeight="Bold"
-   TextTrimming="CharacterEllipsis"/>
-
-                </Border>
-
-                <TextBox Grid.Row="8"
- Grid.Column="2"
- Text="{Binding SuffixScanResult}"
- FontSize="13"
- FontWeight="SemiBold"
- Margin="2"
- IsReadOnly="True"/>
-
-                <TextBlock Grid.Row="8"
-   Grid.Column="3"
-   HorizontalAlignment="Center"
-   VerticalAlignment="Center"
-   FontWeight="Bold">
-
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-
-                            <Style.Triggers>
-
-                                <DataTrigger Binding="{Binding Suffix_OK}" Value="1">
-                                    <Setter Property="Text" Value="OK"/>
-                                    <Setter Property="Foreground" Value="#16A34A"/>
-                                </DataTrigger>
-
-                                <DataTrigger Binding="{Binding Suffix_OK}" Value="0">
-                                    <Setter Property="Text" Value="NG"/>
-                                    <Setter Property="Foreground" Value="#DC2626"/>
-                                </DataTrigger>
-
-                            </Style.Triggers>
-
-                        </Style>
-                    </TextBlock.Style>
-
-                </TextBlock>
-
-                <!-- LENGTH -->
-                <Border Grid.Row="10"
-Grid.ColumnSpan="4"
-Background="#F8FAFC"
-CornerRadius="10"
-Padding="6"
-BorderBrush="#E2E8F0"
-BorderThickness="1">
-
-                    <Grid>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="38"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="46"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Text="{Binding CodeLengthExpected}"
-       FontSize="18"
-       FontWeight="Bold"
-       Foreground="#2563EB"
-       HorizontalAlignment="Center"/>
-
-                        <TextBlock Grid.Column="1"
-       Text="→"
-       FontSize="18"
-       FontWeight="Bold"
-       HorizontalAlignment="Center"/>
-
-                        <TextBlock Grid.Column="2"
-       Text="{Binding CodeLengthScanResult}"
-       FontSize="18"
-       FontWeight="Bold"
-       Foreground="#16A34A"
-       HorizontalAlignment="Center"/>
-
-                        <TextBlock Grid.Column="3"
-       HorizontalAlignment="Center"
-       VerticalAlignment="Center"
-       FontWeight="Bold"
-       FontSize="15">
-
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-
-                                    <Style.Triggers>
-
-                                        <DataTrigger Binding="{Binding Length_OK}" Value="1">
-                                            <Setter Property="Text" Value="OK"/>
-                                            <Setter Property="Foreground" Value="#16A34A"/>
-                                        </DataTrigger>
-
-                                        <DataTrigger Binding="{Binding Length_OK}" Value="0">
-                                            <Setter Property="Text" Value="NG"/>
-                                            <Setter Property="Foreground" Value="#DC2626"/>
-                                        </DataTrigger>
-
-                                    </Style.Triggers>
-
-                                </Style>
-                            </TextBlock.Style>
-
-                        </TextBlock>
-
-                    </Grid>
-
-                </Border>
-
-                <!-- VERSION + NGÀY GIỜ: hiển thị to, không chồng chữ, đặt đúng vùng trống dưới khung quét tem -->
-                <Border Grid.Row="12"
-    Grid.ColumnSpan="4"
-    Margin="4,5,4,3"
-    MinHeight="70"
-    MaxHeight="88"
-    CornerRadius="8"
-    Background="#F8FAFC"
-    BorderBrush="#CBD5E1"
-    BorderThickness="1">
-
-                    <Grid Margin="8">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0"
-       x:Name="txtAppVersion"
-       Text="SCANER V..."
-       FontSize="18"
-       FontWeight="ExtraBold"
-       Foreground="#2563EB"
-       HorizontalAlignment="Center"
-       Margin="0,2,0,0"/>
-
-                        <TextBlock Grid.Row="1"
-   x:Name="txtDateTimeVersion"
-   Text="--/--/---- --:--:--"
-   FontSize="22"
-   FontWeight="Black"
-   Foreground="#DC2626"
-   HorizontalAlignment="Center"
-   VerticalAlignment="Center"
-   TextAlignment="Center"
-   TextWrapping="NoWrap"/>
-
-                        <TextBlock Grid.Row="2"
-  
-   FontSize="12"
-   FontWeight="SemiBold"
-   Foreground="#64748B"
-   HorizontalAlignment="Center"
-   Margin="0,0,0,2"/>
-                    </Grid>
-                </Border>
             </Grid>
+        </Border>
 
-        </Grid>
-    </materialDesign:Card>
-</Grid>
+        <!-- Expected code structure -->
+        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Padding="14,12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="CHUẨN KIỂM TRA" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="Các thành phần QR được dùng để đối chiếu khi scan." Style="{StaticResource SectionSubTitleStyle}" Margin="0,3,0,0"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{StaticResource ExpectedValueBorderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="P.NAME" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="{Binding PNameExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Tag="{Binding PName_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="3" Style="{StaticResource ExpectedValueBorderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="DATE / SEAL" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="{Binding SealNoExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Tag="{Binding SealNo_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="4" Style="{StaticResource ExpectedValueBorderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="LOT" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="{Binding LotNoExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Tag="{Binding LotNo_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="5" Style="{StaticResource ExpectedValueBorderStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="SUFFIX" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="{Binding SuffixExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Tag="{Binding Suffix_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="6" Style="{StaticResource ExpectedValueBorderStyle}" Margin="0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="ĐỘ DÀI QR" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="{Binding CodeLengthExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Tag="{Binding Length_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="4" CornerRadius="14" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="txtAppVersion" Text="SCANER V" FontSize="11" FontWeight="Black" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="txtDateTimeVersion" Grid.Column="1" Text="--/--/---- --:--:--" FontSize="11" FontWeight="Black" Foreground="{StaticResource TextMainBrush}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
 </UserControl>

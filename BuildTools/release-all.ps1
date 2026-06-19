@@ -363,6 +363,27 @@ New-Item -ItemType Directory -Force -Path $PackageDir | Out-Null
 Write-Step "[2/9] Copy bin\$Platform\$Configuration vao PackageFiles..."
 Copy-Item -Path (Join-Path $BinRelease "*") -Destination $PackageDir -Recurse -Force
 
+# Release package chi chua runtime files. Symbol, XML documentation va native
+# binary sai kien truc khong can thiet cho ban x64 chinh thuc.
+Get-ChildItem -LiteralPath $PackageDir -Recurse -File |
+    Where-Object { $_.Extension -in @(".pdb", ".xml") } |
+    Remove-Item -Force
+
+$PackageX86 = Join-Path $PackageDir "x86"
+if (Test-Path -LiteralPath $PackageX86) {
+    Remove-Item -LiteralPath $PackageX86 -Recurse -Force
+}
+
+$UnexpectedReleaseFiles = Get-ChildItem -LiteralPath $PackageDir -Recurse -File |
+    Where-Object {
+        $_.Name -like "FIX_*.ps1" -or
+        $_.Name -like "README_FIX_*" -or
+        $_.Extension -in @(".log", ".tmp", ".bak")
+    }
+if ($UnexpectedReleaseFiles) {
+    Fail "Package con file tam/log/backup: $($UnexpectedReleaseFiles.FullName -join ', ')"
+}
+
 $PackagedOkSound = Join-Path $PackageDir "Sounds\OK.wav"
 $PackagedNgSound = Join-Path $PackageDir "Sounds\NG.wav"
 if (-not (Test-Path -LiteralPath $PackagedOkSound)) {
@@ -445,7 +466,6 @@ Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 [Files]
 Source: "$EscapedPackageDir\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "$EscapedPackageDir\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "$EscapedPackageDir\x86\*"; DestDir: "{app}\x86"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "$EscapedPackageDir\Sounds\*.wav"; DestDir: "{app}\Sounds"; Flags: ignoreversion
 
 [Icons]

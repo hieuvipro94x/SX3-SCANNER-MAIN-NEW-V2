@@ -1,4 +1,4 @@
-using SX3_SCANER.Helper;
+﻿using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.View;
 using SX3_SCANER.ViewModel.TodayBoxVM;
@@ -121,6 +121,7 @@ namespace SX3_SCANER.ViewModel
                 }
 
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentSessionProductText));
                 OnPropertyChanged(nameof(CanSwitchProduct));
                 CommandManager.InvalidateRequerySuggested();
             }
@@ -238,14 +239,11 @@ namespace SX3_SCANER.ViewModel
                 if (BoxDate.Date == next)
                     return;
 
-                if (HasOpenScanSession &&
-                    ScanHistorySource != null &&
-                    ScanHistorySource.Count > 0)
-                {
-                    ShowBoxDateChangeBlockedDialog();
+                DateTime previous = BoxDate.Date;
 
-                    OnPropertyChanged(nameof(BoxDate));
-                    OnPropertyChanged(nameof(BoxDateText));
+                if (HasOpenScanSession)
+                {
+                    ApplyBoxDateChangeForOpenSession(previous, next);
                     return;
                 }
 
@@ -254,6 +252,7 @@ namespace SX3_SCANER.ViewModel
 
                 OnPropertyChanged(nameof(BoxDate));
                 OnPropertyChanged(nameof(BoxDateText));
+                OnPropertyChanged(nameof(CurrentSessionDateText));
 
                 ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(BoxDate);
 
@@ -266,6 +265,61 @@ namespace SX3_SCANER.ViewModel
                 RefreshDashboardStats();
                 CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        private void ApplyBoxDateChangeForOpenSession(DateTime previous, DateTime next)
+        {
+            string currentBoxName = _CurrentBoxName;
+
+            _SelectedBoxDate = next;
+            _currentBoxCreatedDate = next;
+
+            if (ScanHistorySource != null)
+            {
+                foreach (ScanHistory item in ScanHistorySource)
+                {
+                    if (item != null)
+                    {
+                        item.BoxDate = next;
+                    }
+                }
+            }
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(currentBoxName))
+                {
+                    _boxProductRepository.UpdateBoxDate(currentBoxName, next);
+                    _scanHistoryRepository.UpdateBoxDateByBoxName(currentBoxName, next);
+                }
+
+                if (!string.IsNullOrWhiteSpace(SelectedPartNumber))
+                {
+                    _scanSessionService.RemoveSession(SelectedPartNumber, previous);
+                }
+
+                SaveCurrentScanSession(InJob);
+
+                StartupManager.SetStatus(
+                    "Đã đổi ngày box sang " + BoxDateText +
+                    ". Thùng hiện tại vẫn giữ mã " + CurrentBoxNameText + ".");
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log("Khong cap nhat duoc ngay box cho thung dang mo: " + ex);
+                StartupManager.SetStatus("Lỗi đổi ngày box: " + ex.Message);
+            }
+
+            OnPropertyChanged(nameof(BoxDate));
+            OnPropertyChanged(nameof(BoxDateText));
+            OnPropertyChanged(nameof(CurrentSessionDateText));
+
+            ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(BoxDate);
+
+            RefreshDashboardStats();
+            NotifySessionHeaderChanged();
+            NotifyCurrentBoxStatusChanged();
+            CommandManager.InvalidateRequerySuggested();
         }
 
 
@@ -586,6 +640,12 @@ namespace SX3_SCANER.ViewModel
             OnPropertyChanged(nameof(CurrentBoxStatusBackground));
             OnPropertyChanged(nameof(CurrentBoxStatusBorderBrush));
             OnPropertyChanged(nameof(CurrentBoxStatusForeground));
+            OnPropertyChanged(nameof(CurrentBoxNameText));
+            OnPropertyChanged(nameof(CurrentSessionProductText));
+            OnPropertyChanged(nameof(CurrentSessionDateText));
+            OnPropertyChanged(nameof(CurrentPassCount));
+            OnPropertyChanged(nameof(CurrentNgCount));
+            OnPropertyChanged(nameof(CurrentProgressPercentText));
         }
 
         public DateTime SelectedDate
@@ -829,7 +889,11 @@ namespace SX3_SCANER.ViewModel
                 _ScanHistorySource = value;
                 SubscribeDashboardScanHistory(value);
                 ScanHistoryView = value == null ? null : CollectionViewSource.GetDefaultView(value);
+                ApplyCurrentBoxHistoryFilter();
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentPassCount));
+                OnPropertyChanged(nameof(CurrentNgCount));
+                OnPropertyChanged(nameof(CurrentProgressPercentText));
                 OnPropertyChanged(nameof(HasOpenScanSession));
                 OnPropertyChanged(nameof(CanModifySessionSelection));
                 OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
@@ -857,6 +921,13 @@ namespace SX3_SCANER.ViewModel
             OnPropertyChanged(nameof(BoxDate));
             OnPropertyChanged(nameof(BoxDateText));
 
+            ToDayBoxSource = new ObservableCollection<BoxProduct>();
+            ScanHistorySource = new ObservableCollection<ScanHistory>();
+            PartNumberList = new List<string>();
+        }
+
+        private void LoadScanDataAfterDatabaseReady()
+        {
             ToDayBoxSource = new BoxProductRepository().GetAllTodayBox(BoxDate);
             LoadInitialListsAsync();
         }

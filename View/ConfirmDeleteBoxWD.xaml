@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Cảnh báo hủy thùng"
-        Width="760"
-        Height="520"
+        Width="720"
+        SizeToContent="Height"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -12,114 +12,62 @@
         ShowInTaskbar="False"
         FontFamily="Segoe UI">
 
-    <Window.Resources>
-        <Style x:Key="WarningLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="FontWeight" Value="Black"/>
-            <Setter Property="Foreground" Value="#334155"/>
-            <Setter Property="Margin" Value="0,7,16,7"/>
-            <Setter Property="VerticalAlignment" Value="Top"/>
-        </Style>
-
-        <Style x:Key="WarningValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="Foreground" Value="#0F172A"/>
-            <Setter Property="Margin" Value="0,7,0,7"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="LineHeight" Value="29"/>
-        </Style>
-    </Window.Resources>
-
-    <Border Margin="16"
-            Padding="24"
-            Background="#FFF7F7"
-            BorderBrush="#DC2626"
-            BorderThickness="4"
-            CornerRadius="24">
+    <Border Margin="18" Background="White" BorderBrush="#DC2626" BorderThickness="1.5" CornerRadius="24">
         <Border.Effect>
-            <DropShadowEffect Color="#7F1D1D"
-                              BlurRadius="26"
-                              ShadowDepth="5"
-                              Opacity="0.34"/>
+            <DropShadowEffect Color="#334155" BlurRadius="30" ShadowDepth="0" Opacity="0.26"/>
         </Border.Effect>
-
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="76"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="70"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Background="#DC2626"
-                    CornerRadius="14">
-                <TextBlock Text="⚠ CẢNH BÁO HỦY THÙNG"
-                           FontSize="42"
-                           FontWeight="Black"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           TextAlignment="Center"/>
+            <Border Grid.Row="0" Background="#FEF2F2" CornerRadius="24,24,0,0" Padding="24,20" BorderBrush="#FECACA" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Width="56" Height="56" CornerRadius="28" Background="#DC2626">
+                        <TextBlock Text="!" FontSize="34" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="XÁC NHẬN HỦY THÙNG" FontSize="28" FontWeight="Black" Foreground="#991B1B"/>
+                        <TextBlock Text="Thao tác này dùng khi tạo nhầm thùng hoặc cần scan lại từ đầu." FontSize="14" FontWeight="SemiBold" Foreground="#7F1D1D" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
             </Border>
 
-            <Grid Grid.Row="1"
-                  Margin="8,16,8,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="155"/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <StackPanel Grid.Row="1" Margin="24,22,24,18">
+                <Border CornerRadius="14" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Padding="14,12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="TRẠNG THÁI" FontSize="13" FontWeight="Black" Foreground="#B91C1C"/>
+                        <TextBlock Text="Chuẩn bị hủy thùng đang mở" FontSize="19" FontWeight="Black" Foreground="#991B1B" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="14" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Padding="14,12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="ẢNH HƯỞNG" FontSize="13" FontWeight="Black" Foreground="#64748B"/>
+                        <TextBlock Text="Dữ liệu scan của thùng hiện tại sẽ bị xóa khỏi phiên làm việc và không thể khôi phục trong thao tác này." FontSize="17" FontWeight="Bold" Foreground="#0F172A" TextWrapping="Wrap" LineHeight="25" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="14" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <TextBlock Text="LƯU Ý" FontSize="13" FontWeight="Black" Foreground="#B45309"/>
+                        <TextBlock Text="Chỉ xác nhận khi chắc chắn thùng đang mở không còn sử dụng." FontSize="17" FontWeight="Bold" Foreground="#92400E" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
 
-                <TextBlock Text="Trạng thái" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,0,16,0" VerticalAlignment="Center"/>
-                <TextBlock Grid.Row="0" Grid.Column="1"
-                           Text="Chuẩn bị hủy thùng đang mở"
-                           Foreground="#B91C1C"
-                           FontWeight="Bold"
-                           Style="{StaticResource WarningValueStyle}" Margin="0,7,0,7"/>
-
-                <TextBlock Grid.Row="1" Text="Chi tiết" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,7,16,0"/>
-                <TextBlock Grid.Row="1" Grid.Column="1"
-                           Text="Dữ liệu scan của thùng hiện tại sẽ bị xóa khỏi phiên làm việc và không thể khôi phục."
-                           Style="{StaticResource WarningValueStyle}" Margin="0,7,0,7"/>
-
-                <TextBlock Grid.Row="2" Text="Xác nhận" Style="{StaticResource WarningLabelStyle}" Height="32" Margin="0,7,16,0"/>
-                <TextBlock Grid.Row="2" Grid.Column="1"
-                           Text="Chỉ xác nhận khi tạo nhầm thùng hoặc cần scan lại từ đầu."
-                           Style="{StaticResource WarningValueStyle}" Margin="0,7,0,7"/>
-            </Grid>
-
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition/>
-                </Grid.ColumnDefinitions>
-
-                <Button Grid.Column="0"
-                        Content="XÁC NHẬN HỦY"
-                        Height="58"
-                        FontSize="24"
-                        FontWeight="Black"
-                        Foreground="White"
-                        Background="#DC2626"
-                        BorderThickness="0"
-                        IsDefault="True"
-                        Click="BtnDelete_Click"/>
-
-                <Button Grid.Column="2"
-                        Content="↩ QUAY LẠI SCAN"
-                        Height="58"
-                        FontSize="24"
-                        FontWeight="Black"
-                        Foreground="White"
-                        Background="#2563EB"
-                        BorderThickness="0"
-                        Click="BtnCancel_Click"/>
-            </Grid>
+            <Border Grid.Row="2" Background="#F8FAFC" CornerRadius="0,0,24,24" Padding="24,16" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="XÁC NHẬN HỦY" Height="50" FontSize="16" FontWeight="Black" Foreground="White" Background="#DC2626" BorderThickness="0" IsDefault="True" Click="BtnDelete_Click">
+                        <Button.Template><ControlTemplate TargetType="Button"><Border CornerRadius="14" Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Button.Template>
+                    </Button>
+                    <Button Grid.Column="2" Content="QUAY LẠI SCAN" Height="50" FontSize="16" FontWeight="Black" Foreground="#0F172A" Background="White" BorderBrush="#CBD5E1" BorderThickness="1" Click="BtnCancel_Click">
+                        <Button.Template><ControlTemplate TargetType="Button"><Border CornerRadius="14" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
         </Grid>
     </Border>
-
 </Window>

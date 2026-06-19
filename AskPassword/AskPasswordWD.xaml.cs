@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Input;
 
@@ -24,7 +24,7 @@ namespace SX3_SCANER.View
                 }
                 else
                 {
-                    MessageBox.Show("Incorrect password.");
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show("Incorrect password.");
                     this.DialogResult = false;
 
                 }

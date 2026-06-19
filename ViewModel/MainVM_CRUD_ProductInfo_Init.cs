@@ -1,4 +1,4 @@
-
+﻿
 using SX3_SCANER.Model;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -98,7 +98,7 @@ namespace SX3_SCANER.ViewModel
 
                             SearchProductInfo();
 
-                            MessageBox.Show("Xóa thành công");
+                            SX3_SCANER.Helper.ProfessionalMessageBox.Show("Xóa thành công");
                         }
                     });
                 }
@@ -133,12 +133,12 @@ namespace SX3_SCANER.ViewModel
 
                         if (rep.CheckIfExist(CURR_PARTNAME, CURR_PARTNUMBER))
                         {
-                            MessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
+                            SX3_SCANER.Helper.ProfessionalMessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
                             return;
                         }
                         rep.INSERTLabelProductInfo(labelProductInfo);
                         LabelProductInfoSource = new LabelProductInfoRepository().GetAllLabelProductInfo();
-                        MessageBox.Show("Thêm mới thành công");
+                        SX3_SCANER.Helper.ProfessionalMessageBox.Show("Thêm mới thành công");
                         CURR_CAR = string.Empty;
                         CURR_PARTNUMBER = "WH";
                         CURR_PARTNAME = string.Empty;
@@ -184,7 +184,7 @@ namespace SX3_SCANER.ViewModel
                         };
                         if (new LabelProductInfoRepository().CheckIfExist(CURR_PARTNAME, CURR_PARTNUMBER, CURR_ID))
                         {
-                            MessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
+                            SX3_SCANER.Helper.ProfessionalMessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
                             return;
                         }
                         new LabelProductInfoRepository().UpdateLabelProductInfo(labelProductInfo);

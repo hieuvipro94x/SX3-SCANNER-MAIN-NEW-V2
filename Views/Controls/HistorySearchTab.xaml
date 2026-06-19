@@ -3,291 +3,422 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:SX3_SCANER"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
-             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="HistoryCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="14"/>
+            </Style>
+
+            <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="10.5"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Foreground" Value="#64748B"/>
+                <Setter Property="Margin" Value="2,0,0,5"/>
+            </Style>
+
+            <Style x:Key="HistoryTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="Padding" Value="12,0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="Background" Value="#F8FAFC"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryComboBoxStyle" TargetType="ComboBox">
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="Background" Value="#F8FAFC"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryDatePickerStyle" TargetType="DatePicker">
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="Background" Value="#F8FAFC"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryPrimaryButtonStyle" TargetType="Button">
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="MinWidth" Value="118"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="#2563EB"/>
+                <Setter Property="BorderBrush" Value="#1D4ED8"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="FontSize" Value="12.5"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Surface"
+                                    CornerRadius="11"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Surface" Property="Opacity" Value="0.90"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Surface" Property="Opacity" Value="0.76"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="Surface" Property="Opacity" Value="0.45"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="HistoryColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Height" Value="42"/>
+                <Setter Property="Background" Value="#F1F5F9"/>
+                <Setter Property="Foreground" Value="#334155"/>
+                <Setter Property="FontSize" Value="10.5"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Padding" Value="8,0"/>
+                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            </Style>
+
+            <Style x:Key="HistoryCellStyle" TargetType="DataGridCell">
+                <Setter Property="Padding" Value="9,0"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="BorderBrush" Value="#F1F5F9"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#DBEAFE"/>
+                        <Setter Property="Foreground" Value="#1E3A8A"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="CenterHistoryTextStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextAlignment" Value="Center"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="LeftHistoryTextStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextAlignment" Value="Left"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
-<Grid Margin="10" Background="#F8FAFC">
-    <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="*" />
-        <RowDefinition Height="42" />
-    </Grid.RowDefinitions>
 
-    <!-- Bộ lọc tìm kiếm -->
-    <materialDesign:Card Padding="12"
-             Margin="0,0,0,10"
-             UniformCornerRadius="8">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="14"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+    <Grid Margin="12" Background="{StaticResource AppBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="42"/>
+        </Grid.RowDefinitions>
 
-            <TextBlock Text="Bộ lọc dữ liệu scan"
-           FontSize="18"
-           FontWeight="SemiBold"
-           Foreground="#1E293B"/>
-
-            <Grid Grid.Row="2">
+        <!-- Page heading and primary actions -->
+        <Border Grid.Row="0" Style="{StaticResource HistoryCardStyle}" Padding="16,12">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.2*" MinWidth="150" />
-                    <ColumnDefinition Width="1.35*" MinWidth="175" />
-                    <ColumnDefinition Width="1.25*" MinWidth="170" />
-                    <ColumnDefinition Width="1.1*" MinWidth="150" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="1.25*" MinWidth="170" />
-                    <ColumnDefinition Width="58" />
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <ComboBox Grid.Column="0"
-              Margin="0,0,6,0"
-              Height="40"
-              FontSize="14"
-              IsEnabled="True"
-              ItemsSource="{Binding HistoryDataSources}"
-              SelectedItem="{Binding SelectedHistoryDataSource, Mode=TwoWay}"
-              ToolTip="Chọn nguồn dữ liệu thực tế đang tồn tại"
-              materialDesign:HintAssist.Hint="Nguồn dữ liệu" />
+                <Border Width="42" Height="42" CornerRadius="13" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
+                    <materialDesign:PackIcon Kind="History" Width="22" Height="22" Foreground="#2563EB" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
 
-                <TextBox Grid.Column="1"
-              Margin="0,0,6,0"
-              Height="40"
-              FontSize="14"
-              FontWeight="SemiBold"
-              VerticalContentAlignment="Center"
-              Text="{Binding HistorySearchKeyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=220}"
-              Padding="10,0"
-              ToolTip="Tìm theo Product Part Number. Ví dụ nhập 028 sẽ ra WH322028"
-              Foreground="#0F172A"
-              materialDesign:HintAssist.Hint="Tìm Part Number" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Text="LỊCH SỬ SCAN &amp; XUẤT EXCEL" FontSize="17" FontWeight="Black" Foreground="#0F172A"/>
+                    <TextBlock Text="Tra cứu dữ liệu theo điều kiện và xuất báo cáo Excel khi cần đối soát." FontSize="11.5" Foreground="#64748B" Margin="0,2,0,0"/>
+                </StackPanel>
 
-                <ComboBox Grid.Column="2"
-              Margin="0,0,6,0"
-              Height="40"
-              FontSize="14"
-              ItemsSource="{Binding ScanViewDistinctProductNumberList}"
-              SelectedItem="{Binding SelectedDistinctProductNumber}"
-              materialDesign:HintAssist.Hint="Part Number" />
-
-                <ComboBox Grid.Column="3"
-              Margin="0,0,6,0"
-              Height="40"
-              FontSize="14"
-              ItemsSource="{Binding ScanViewDistinctSealNoList}"
-              SelectedItem="{Binding SelectedDistinctSealNo}"
-              materialDesign:HintAssist.Hint="Seal No" />
-
-                <ComboBox Grid.Column="4"
-              Margin="0,0,6,0"
-              Height="40"
-              MinWidth="90"
-              FontSize="14"
-              ItemsSource="{Binding ScanResultFilterOptions}"
-              SelectedItem="{Binding SelectedScanResultFilter, Mode=TwoWay}"
-              materialDesign:HintAssist.Hint="Kết quả" />
-
-                <ComboBox Grid.Column="5"
-              Margin="0,0,6,0"
-              Height="40"
-              FontSize="14"
-              ItemsSource="{Binding ScanNGMessageList}"
-              SelectedItem="{Binding SelectedScanNGMessage}"
-              materialDesign:HintAssist.Hint="Lỗi / Scan Message" />
-
-                <Button Grid.Column="6"
-        Width="40"
-        Height="32"
-        Margin="0"
-        Padding="0"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Center"
-        Command="{Binding QueryCMD}">
-                    <materialDesign:PackIcon Kind="Search"
-             Width="20"
-             Height="20"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center"/>
-                </Button>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding QueryCMD}" Style="{StaticResource HistoryPrimaryButtonStyle}" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Magnify" Width="17" Height="17" Margin="0,0,7,0"/>
+                            <TextBlock Text="TÌM KIẾM" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding ExportHistoryCMD}"
+                            Style="{StaticResource HistoryPrimaryButtonStyle}"
+                            MinWidth="142"
+                            Background="#16A34A"
+                            BorderBrush="#15803D">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="MicrosoftExcel" Width="18" Height="18" Margin="0,0,7,0"/>
+                            <TextBlock Text="XUẤT EXCEL" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </Grid>
-        </Grid>
-    </materialDesign:Card>
+        </Border>
 
-    <!-- Bảng kết quả -->
-    <materialDesign:Card Grid.Row="1"
-             Padding="8"
-             UniformCornerRadius="8">
-        <DataGrid ItemsSource="{Binding HistoryResults}"
-          AutoGenerateColumns="False"
-          LoadingRow="SQLiteTable_LoadingRow"
-          IsReadOnly="True"
-          FontSize="12"
-          RowHeight="32"
-          HeadersVisibility="Column"
-          GridLinesVisibility="Horizontal"
-          CanUserAddRows="False"
-          CanUserDeleteRows="False"
-          CanUserResizeRows="False"
-          CanUserResizeColumns="False"
-          CanUserReorderColumns="False"
-          CanUserSortColumns="False"
-          SelectionMode="Single"
-          Background="White"
-          BorderThickness="0"
-          HorizontalScrollBarVisibility="Auto"
-          VerticalScrollBarVisibility="Auto"
-          ScrollViewer.CanContentScroll="True"
-          EnableRowVirtualization="True"
-          EnableColumnVirtualization="True"
-          VirtualizingPanel.IsVirtualizing="True"
-          VirtualizingPanel.VirtualizationMode="Recycling"
-          ColumnWidth="*"
-          RowStyle="{StaticResource UnifiedScanRowStyle}">
-            <DataGrid.Resources>
-                <Style TargetType="TextBlock">
-                    <Setter Property="TextAlignment" Value="Center"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                    <Setter Property="TextWrapping" Value="NoWrap"/>
-                </Style>
-                <Style TargetType="CheckBox">
-                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                </Style>
-                <Style x:Key="CenterTextColumnStyle" TargetType="TextBlock">
-                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                    <Setter Property="TextAlignment" Value="Center"/>
-                    <Setter Property="TextWrapping" Value="NoWrap"/>
-                </Style>
-                <Style x:Key="LeftTextColumnStyle" TargetType="TextBlock">
-                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                    <Setter Property="TextAlignment" Value="Left"/>
-                    <Setter Property="TextWrapping" Value="NoWrap"/>
-                </Style>
-                <Style x:Key="CenterCheckBoxStyle" TargetType="CheckBox">
-                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                </Style>
-                <Style x:Key="ColumnHeaderStyle" TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#F8FAFC"/>
-                    <Setter Property="Foreground" Value="#0F172A"/>
-                    <Setter Property="FontWeight" Value="Bold"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                    <Setter Property="Padding" Value="6,0"/>
-                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
-                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                </Style>
-                <Style x:Key="CellStyle" TargetType="DataGridCell">
-                    <Setter Property="Padding" Value="6,0"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="VerticalContentAlignment" Value="Center"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                </Style>
-            </DataGrid.Resources>
-            <DataGrid.ColumnHeaderStyle>
-                <StaticResource ResourceKey="ColumnHeaderStyle"/>
-            </DataGrid.ColumnHeaderStyle>
-            <DataGrid.CellStyle>
-                <StaticResource ResourceKey="CellStyle"/>
-            </DataGrid.CellStyle>
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="ScanTime"
-                    Binding="{Binding ScanTime, StringFormat=dd/MM/yyyy HH:mm:ss}"
-                    Width="1.3*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="BoxName"
-                    Binding="{Binding BoxName}"
-                    Width="1.1*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="ProductPartNumber"
-                    Binding="{Binding ProductPartNumber}"
-                    Width="1.2*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="ProductPartName"
-                    Binding="{Binding ProductPartName}"
-                    Width="1.2*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="SealNo"
-                    Binding="{Binding SealNo}"
-                    Width="0.8*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="LotNo"
-                    Binding="{Binding LotNo}"
-                    Width="0.7*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="ScanData"
-                    Binding="{Binding ScanData}"
-                    Width="1.8*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridCheckBoxColumn Header="ScanResult"
-                    Binding="{Binding ScanResult, Mode=OneWay}"
-                    Width="0.8*"
-                    ElementStyle="{StaticResource CenterCheckBoxStyle}"/>
-                <DataGridTextColumn Header="ScanMessage"
-                    Binding="{Binding ScanMessage}"
-                    Width="1.5*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="ScanWorker"
-                    Binding="{Binding ScanWorker}"
-                    Width="0.8*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="ResultText"
-                    Binding="{Binding ResultText}"
-                    Width="0.8*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-                <DataGridTextColumn Header="Loại thùng"
-                    Binding="{Binding BoxTypeText}"
-                    Width="1.0*"
-                    ElementStyle="{StaticResource CenterTextColumnStyle}"/>
-            </DataGrid.Columns>
-        </DataGrid>
-    </materialDesign:Card>
+        <!-- Search filters -->
+        <Border Grid.Row="2" Style="{StaticResource HistoryCardStyle}" Padding="16,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-    <!-- Thanh trạng thái -->
-    <Border Grid.Row="2"
-Margin="0,12,0,0"
-CornerRadius="10"
-Background="#E2E8F0">
-        <Grid Margin="14,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="24" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="4" Height="18" CornerRadius="2" Background="#2563EB" Margin="0,0,8,0"/>
+                        <TextBlock Text="BỘ LỌC DỮ LIỆU" FontSize="12.5" FontWeight="Black" Foreground="#0F172A"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Padding="9,4" CornerRadius="9" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Fill="#3B82F6" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Tự động cập nhật khi đổi bộ lọc" FontSize="10.5" FontWeight="SemiBold" Foreground="#1D4ED8"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-            <TextBlock Text="{Binding QueryStatus}"
-           VerticalAlignment="Center"
-           FontSize="13"
-           FontWeight="SemiBold"
-           Foreground="#475569" />
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.6*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="145"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="120"/>
+                    </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="1"
-           VerticalAlignment="Center"
-           FontSize="13"
-           FontWeight="SemiBold"
-           Foreground="#0F172A"
-           Text="{Binding QueryTimes, StringFormat=Thời gian: {0} ms}" />
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="TỪ KHÓA / PART NUMBER" Style="{StaticResource FilterLabelStyle}"/>
+                        <TextBox Style="{StaticResource HistoryTextBoxStyle}"
+                                 Text="{Binding HistorySearchKeyword, UpdateSourceTrigger=PropertyChanged}"
+                                 materialDesign:HintAssist.Hint="Nhập mã cần tìm..."
+                                 ToolTip="Có thể nhập một phần mã hàng, ví dụ 028 để tìm WH322028"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="TỪ NGÀY" Style="{StaticResource FilterLabelStyle}"/>
+                        <DatePicker Style="{StaticResource HistoryDatePickerStyle}"
+                                    SelectedDate="{Binding HistoryFromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="ĐẾN NGÀY" Style="{StaticResource FilterLabelStyle}"/>
+                        <DatePicker Style="{StaticResource HistoryDatePickerStyle}"
+                                    SelectedDate="{Binding HistoryToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="6">
+                        <TextBlock Text="KẾT QUẢ" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox Style="{StaticResource HistoryComboBoxStyle}"
+                                  ItemsSource="{Binding ScanResultFilterOptions}"
+                                  SelectedItem="{Binding SelectedScanResultFilter, Mode=TwoWay}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="8">
+                        <TextBlock Text="SỐ DÒNG" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox Style="{StaticResource HistoryComboBoxStyle}"
+                                  ItemsSource="{Binding QueryLimitOptions}"
+                                  SelectedItem="{Binding SelectedQueryLimit}"/>
+                    </StackPanel>
+                </Grid>
 
-            <TextBlock Grid.Column="3"
-           VerticalAlignment="Center"
-           FontSize="13"
-           FontWeight="SemiBold"
-           Foreground="#0F172A"
-           Text="{Binding RowCounts, StringFormat=Số dòng: {0}}" />
-        </Grid>
-    </Border>
-</Grid>
+                <Grid Grid.Row="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.05*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="1.05*"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="1.4*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="MÃ HÀNG" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox Style="{StaticResource HistoryComboBoxStyle}"
+                                  ItemsSource="{Binding ScanViewDistinctProductNumberList}"
+                                  SelectedItem="{Binding SelectedDistinctProductNumber}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="SEAL NO" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox Style="{StaticResource HistoryComboBoxStyle}"
+                                  ItemsSource="{Binding ScanViewDistinctSealNoList}"
+                                  SelectedItem="{Binding SelectedDistinctSealNo}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="LỖI / THÔNG BÁO" Style="{StaticResource FilterLabelStyle}"/>
+                        <ComboBox Style="{StaticResource HistoryComboBoxStyle}"
+                                  ItemsSource="{Binding ScanNGMessageList}"
+                                  SelectedItem="{Binding SelectedScanNGMessage}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Result table -->
+        <Border Grid.Row="4" Style="{StaticResource HistoryCardStyle}" ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="48"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Margin="14,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <materialDesign:PackIcon Kind="TableLarge" Width="18" Height="18" Foreground="#2563EB" Margin="0,0,8,0"/>
+                        <TextBlock Text="DỮ LIỆU LỊCH SỬ" FontSize="12.5" FontWeight="Black" Foreground="#0F172A"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" Padding="10,5" CornerRadius="10" Background="#F1F5F9" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RowCounts, StringFormat={}{0:N0} dòng}" FontSize="11" FontWeight="Bold" Foreground="#475569"/>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <DataGrid ItemsSource="{Binding HistoryResults}"
+                              AutoGenerateColumns="False"
+                              LoadingRow="SQLiteTable_LoadingRow"
+                              IsReadOnly="True"
+                              FontSize="12"
+                              RowHeight="36"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              CanUserResizeRows="False"
+                              CanUserResizeColumns="True"
+                              CanUserReorderColumns="False"
+                              CanUserSortColumns="False"
+                              SelectionMode="Single"
+                              Background="White"
+                              RowBackground="White"
+                              AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="1,1,0,0"
+                              BorderBrush="#E2E8F0"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              ColumnHeaderStyle="{StaticResource HistoryColumnHeaderStyle}"
+                              CellStyle="{StaticResource HistoryCellStyle}"
+                              RowStyle="{StaticResource UnifiedScanRowStyle}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding ScanTime, StringFormat=dd/MM/yyyy HH:mm:ss}" Width="145" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="TÊN THÙNG" Binding="{Binding BoxName}" Width="120" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="MÃ HÀNG" Binding="{Binding ProductPartNumber}" Width="125" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="TÊN SẢN PHẨM" Binding="{Binding ProductPartName}" Width="150" ElementStyle="{StaticResource LeftHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="SEAL NO" Binding="{Binding SealNo}" Width="105" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="LOT NO" Binding="{Binding LotNo}" Width="95" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="MÃ SCAN" Binding="{Binding ScanData}" Width="220" ElementStyle="{StaticResource LeftHistoryTextStyle}"/>
+                            <DataGridTemplateColumn Header="KẾT QUẢ" Width="82">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="ResultBadge" Padding="8,3" CornerRadius="9" Background="#F1F5F9" HorizontalAlignment="Center">
+                                            <TextBlock x:Name="ResultLabel" Text="{Binding ResultText}" FontSize="10.5" FontWeight="Black" Foreground="#475569"/>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding ResultText}" Value="PASS">
+                                                <Setter TargetName="ResultBadge" Property="Background" Value="#DCFCE7"/>
+                                                <Setter TargetName="ResultLabel" Property="Foreground" Value="#15803D"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ResultText}" Value="NG">
+                                                <Setter TargetName="ResultBadge" Property="Background" Value="#FEE2E2"/>
+                                                <Setter TargetName="ResultLabel" Property="Foreground" Value="#B91C1C"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="THÔNG BÁO" Binding="{Binding ScanMessage}" Width="180" ElementStyle="{StaticResource LeftHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="NGƯỜI QUÉT" Binding="{Binding ScanWorker}" Width="105" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                            <DataGridTextColumn Header="LOẠI THÙNG" Binding="{Binding BoxTypeText}" Width="105" ElementStyle="{StaticResource CenterHistoryTextStyle}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HistoryResults.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Border Width="54" Height="54" CornerRadius="27" Background="#F1F5F9" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="DatabaseSearch" Width="26" Height="26" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Chưa có dữ liệu phù hợp" FontSize="13" FontWeight="Bold" Foreground="#475569" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                        <TextBlock Text="Hãy thay đổi bộ lọc hoặc chọn khoảng ngày khác." FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Query status -->
+        <Border Grid.Row="6" CornerRadius="12" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" Padding="14,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Ellipse Width="7" Height="7" Fill="#3B82F6" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding QueryStatus}" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="#475569" TextTrimming="CharacterEllipsis"/>
+                <Border Grid.Column="3" Padding="9,4" CornerRadius="8" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding QueryTimes, StringFormat=Thời gian: {0} ms}" FontSize="10.5" FontWeight="Bold" Foreground="#475569"/>
+                </Border>
+                <Border Grid.Column="5" Padding="9,4" CornerRadius="8" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding RowCounts, StringFormat=Số dòng: {0:N0}}" FontSize="10.5" FontWeight="Bold" Foreground="#475569"/>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
 </UserControl>

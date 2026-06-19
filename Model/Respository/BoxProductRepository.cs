@@ -294,14 +294,25 @@ namespace SX3_SCANER.Model
             using (SQLiteCommand command = connection.CreateCommand())
             {
                 command.CommandText = @"
-                    SELECT BoxSealNo
+                    SELECT BoxDate, BoxSealNo
                     FROM BoxProduct
                     WHERE BoxName = @BoxName
                     ORDER BY ID DESC
                     LIMIT 1";
                 command.Parameters.AddWithValue("@BoxName", boxName);
 
-                string boxSealNo = Convert.ToString(command.ExecuteScalar());
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                        return null;
+
+                    string boxDateText = Convert.ToString(reader["BoxDate"]);
+                    if (DateTime.TryParse(boxDateText, out DateTime boxDate))
+                    {
+                        return boxDate.Date;
+                    }
+
+                    string boxSealNo = Convert.ToString(reader["BoxSealNo"]);
                 if (DateTime.TryParseExact(
                     boxSealNo,
                     "yyMMdd",
@@ -311,9 +322,29 @@ namespace SX3_SCANER.Model
                 {
                     return boxCreatedDate.Date;
                 }
+                }
             }
 
             return null;
+        }
+
+        public void UpdateBoxDate(string boxName, DateTime boxDate)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+                return;
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    UPDATE BoxProduct
+                    SET BoxDate = @BoxDate
+                    WHERE BoxName = @BoxName
+                      AND BoxComplete = 0";
+                command.Parameters.AddWithValue("@BoxDate", boxDate.Date);
+                command.Parameters.AddWithValue("@BoxName", boxName);
+                command.ExecuteNonQuery();
+            }
         }
 
         public string GetLatestNotComplete(string partNumber)

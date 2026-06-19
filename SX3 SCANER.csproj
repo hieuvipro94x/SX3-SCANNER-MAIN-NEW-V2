@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\EntityFramework.6.5.2\build\EntityFramework.props" Condition="Exists('packages\EntityFramework.6.5.2\build\EntityFramework.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -61,12 +60,6 @@
     <ApplicationIcon>scan.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>packages\EntityFramework.6.5.2\lib\net45\EntityFramework.dll</HintPath>
-    </Reference>
-    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>packages\EntityFramework.6.5.2\lib\net45\EntityFramework.SqlServer.dll</HintPath>
-    </Reference>
     <Reference Include="MaterialDesignColors, Version=5.2.1.0, Culture=neutral, PublicKeyToken=df2a72020bd7962a, processorArchitecture=MSIL">
       <HintPath>packages\MaterialDesignColors.5.2.1\lib\net462\MaterialDesignColors.dll</HintPath>
     </Reference>
@@ -79,15 +72,12 @@
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.8, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.8\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.VisualC" />
     <Reference Include="Microsoft.Xaml.Behaviors, Version=1.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Xaml.Behaviors.Wpf.1.1.142\lib\net462\Microsoft.Xaml.Behaviors.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.VisualC" />
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="OpenAI_API, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\OpenAI_Newtonsoft.json_13.0.1.1.2.1\lib\netstandard2.0\OpenAI_API.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
@@ -95,12 +85,6 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Data.SQLite, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
       <HintPath>packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\lib\net46\System.Data.SQLite.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Data.SQLite.EF6, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
-      <HintPath>packages\System.Data.SQLite.EF6.1.0.119.0\lib\net46\System.Data.SQLite.EF6.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Data.SQLite.Linq, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
-      <HintPath>packages\System.Data.SQLite.Linq.1.0.119.0\lib\net46\System.Data.SQLite.Linq.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
@@ -143,10 +127,14 @@
       <DependentUpon>AskPasswordWD.xaml</DependentUpon>
     </Compile>
     <Compile Include="Helper\AppConfigHelper.cs" />
+    <Compile Include="Helper\DataBackupService.cs" />
+    <Compile Include="Helper\XlsxExportService.cs" />
     <Compile Include="Helper\UpdateInfo.cs" />
     <Compile Include="Helper\UpdateService.cs" />
     <Compile Include="Helper\OnlineAnnouncementService.cs" />
+    <Compile Include="Helper\ProfessionalMessageBox.cs" />
     <Compile Include="Helper\ScanSoundService.cs" />
+    <Compile Include="Helper\ScanValidationService.cs" />
     <Compile Include="Helper\ScanRowBrushConverters.cs" />
     <Compile Include="Helper\StartupManager.cs" />
     <Compile Include="Helper\StartupStatusWindow.cs" />
@@ -160,21 +148,27 @@
     <Compile Include="Model\Respository\DatabaseRepository.cs" />
     <Compile Include="Model\Respository\LabelProductInfoRepository.cs" />
     <Compile Include="Model\Respository\ScanHistoryRepository.cs" />
+    <Compile Include="Model\Respository\ScanResultMapper.cs" />
     <Compile Include="Model\Respository\ScanSessionService.cs" />
     <Compile Include="Model\ScanHistory.cs" />
     <Compile Include="Model\ScanSessionState.cs" />
     <Compile Include="UpdateReleaseNotesWindow.xaml.cs">
       <DependentUpon>UpdateReleaseNotesWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\StartupScanSessionWindow.xaml.cs">
+      <DependentUpon>StartupScanSessionWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ViewModel\MainViewModel.cs" />
     <Compile Include="ViewModel\MainVM_BoxChosing.cs" />
     <Compile Include="ViewModel\MainVM_CRUD_ProductInfo_Init.cs" />
     <Compile Include="ViewModel\MainVM_DashboardStats.cs" />
+    <Compile Include="ViewModel\MainVM_DataMaintenance.cs" />
     <Compile Include="ViewModel\MainVM_Query_Init.cs" />
     <Compile Include="ViewModel\MainVM_SCANING.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_PASS.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_Init.cs" />
     <Compile Include="ViewModel\MainVM_OnlineAnnouncement.cs" />
+    <Compile Include="ViewModel\MainVM_UISession.cs" />
     <Compile Include="ViewModel\TodayBoxVM\TodayBoxViewModel.cs" />
     <Compile Include="ViewModel\ViewModelBase.cs" />
     <Compile Include="View\ConfirmDeleteBoxWD.xaml.cs">
@@ -197,6 +191,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\StartupScanSessionWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Resources\MainWindowResources.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -210,6 +208,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\Controls\HistorySearchTab.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Controls\DataMaintenanceTab.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -248,6 +250,9 @@
     </Compile>
     <Compile Include="Views\Controls\DashboardStatsPanel.xaml.cs">
       <DependentUpon>DashboardStatsPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Controls\DataMaintenanceTab.xaml.cs">
+      <DependentUpon>DataMaintenanceTab.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Controls\ScanLeftPanel.xaml.cs">
       <DependentUpon>ScanLeftPanel.xaml</DependentUpon>
@@ -297,7 +302,6 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <None Include="announcement.json" />
     <Content Include="Sounds\OK.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -326,21 +330,21 @@
     <PropertyGroup>
       <SQLiteStubDir>$(MSBuildProjectDirectory)\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46</SQLiteStubDir>
     </PropertyGroup>
-    <MakeDir Directories="$(TargetDir)x86" />
+    <MakeDir Directories="$(TargetDir)x86" Condition="'$(Platform)' != 'x64'" />
     <MakeDir Directories="$(TargetDir)x64" />
-    <Copy SourceFiles="$(SQLiteStubDir)\x86\SQLite.Interop.dll" DestinationFiles="$(TargetDir)x86\SQLite.Interop.dll" SkipUnchangedFiles="true" Condition="Exists('$(SQLiteStubDir)\x86\SQLite.Interop.dll')" />
+    <Copy SourceFiles="$(SQLiteStubDir)\x86\SQLite.Interop.dll" DestinationFiles="$(TargetDir)x86\SQLite.Interop.dll" SkipUnchangedFiles="true" Condition="'$(Platform)' != 'x64' And Exists('$(SQLiteStubDir)\x86\SQLite.Interop.dll')" />
     <Copy SourceFiles="$(SQLiteStubDir)\x64\SQLite.Interop.dll" DestinationFiles="$(TargetDir)x64\SQLite.Interop.dll" SkipUnchangedFiles="true" Condition="Exists('$(SQLiteStubDir)\x64\SQLite.Interop.dll')" />
   </Target>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\EntityFramework.6.5.2\build\EntityFramework.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\EntityFramework.6.5.2\build\EntityFramework.props'))" />
-    <Error Condition="!Exists('packages\EntityFramework.6.5.2\build\EntityFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\EntityFramework.6.5.2\build\EntityFramework.targets'))" />
     <Error Condition="!Exists('packages\MaterialDesignThemes.5.2.1\build\MaterialDesignThemes.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\MaterialDesignThemes.5.2.1\build\MaterialDesignThemes.targets'))" />
     <Error Condition="!Exists('packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets'))" />
   </Target>
-  <Import Project="packages\EntityFramework.6.5.2\build\EntityFramework.targets" Condition="Exists('packages\EntityFramework.6.5.2\build\EntityFramework.targets')" />
   <Import Project="packages\MaterialDesignThemes.5.2.1\build\MaterialDesignThemes.targets" Condition="Exists('packages\MaterialDesignThemes.5.2.1\build\MaterialDesignThemes.targets')" />
   <Import Project="packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets" Condition="Exists('packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets')" />
+  <Target Name="RemoveUnusedX86SQLiteInterop" AfterTargets="Build" Condition="'$(Platform)' == 'x64'">
+    <RemoveDir Directories="$(TargetDir)x86" Condition="Exists('$(TargetDir)x86')" />
+  </Target>
 </Project>

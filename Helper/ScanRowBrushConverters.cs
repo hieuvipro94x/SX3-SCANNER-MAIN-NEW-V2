@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace SX3_SCANER
+namespace SX3_SCANER.Helper
 {
     public class ScanRowBackgroundBrushConverter : IValueConverter
     {

@@ -1,4 +1,4 @@
-using SX3_SCANER.Model;
+﻿using SX3_SCANER.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,7 +25,10 @@ namespace SX3_SCANER.Helper
 
         internal static string ErrorLogPath
         {
-            get { return string.Empty; }
+            get
+            {
+                return "Đã tắt ghi log file.";
+            }
         }
 
         internal static string CurrentStatus
@@ -203,6 +206,7 @@ namespace SX3_SCANER.Helper
         internal static void Log(string message)
         {
             Debug.WriteLine("[StartupManager] " + message);
+            TryAppendLog(message);
         }
 
         internal static void LogOnce(string key, string message)
@@ -241,6 +245,11 @@ namespace SX3_SCANER.Helper
                 "Chẩn đoán: " + GetDatabaseDiagnosis(exception);
 
             ShowError("Lỗi khởi động ứng dụng", detail);
+        }
+
+        private static void TryAppendLog(string message)
+        {
+            // Tắt ghi log ra AppData\Local\SX3_SCANER để không phát sinh file log khi chạy máy sản xuất.
         }
 
         internal static string GetDatabaseDiagnosis(Exception exception)
@@ -316,7 +325,7 @@ namespace SX3_SCANER.Helper
                 Application.Current?.Dispatcher?.BeginInvoke(
                     new Action(() =>
                     {
-                        MessageBox.Show(
+                        SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                             message ?? string.Empty,
                             string.IsNullOrWhiteSpace(title)
                                 ? "SX3 Scanner"
@@ -329,7 +338,7 @@ namespace SX3_SCANER.Helper
             {
                 try
                 {
-                    MessageBox.Show(
+                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
                         message ?? string.Empty,
                         string.IsNullOrWhiteSpace(title)
                             ? "SX3 Scanner"

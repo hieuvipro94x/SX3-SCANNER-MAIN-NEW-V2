@@ -3,11 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:SX3_SCANER"
              xmlns:controls="clr-namespace:SX3_SCANER.Views.Controls"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             xmlns:viewmodel="clr-namespace:SX3_SCANER.ViewModel"
-             d:DataContext="{d:DesignInstance Type=viewmodel:MainViewModel}"
              mc:Ignorable="d">
     <UserControl.Resources>
         <ResourceDictionary>
@@ -17,28 +14,118 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Margin="10">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <!-- Layout tối ưu: mở rộng panel scan để không che/mất chữ khi scan -->
-            <ColumnDefinition Width="330" MinWidth="310" MaxWidth="360"/>
-            <ColumnDefinition Width="*" MinWidth="0"/>
-            <ColumnDefinition Width="520" MinWidth="500" MaxWidth="540"/>
-        </Grid.ColumnDefinitions>
 
-        <controls:DashboardStatsPanel Grid.Row="0"
-                                      Grid.ColumnSpan="3"/>
+        <Border Grid.Row="0"
+                Margin="0,0,0,8"
+                Background="#FFFBEB"
+                BorderBrush="#F59E0B"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12,9"
+                Visibility="{Binding IsStartupCheckVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="28" Height="28" CornerRadius="14" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1">
+                    <TextBlock Text="DB" FontSize="11" FontWeight="Black" Foreground="#92400E" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Text="KIỂM TRA DATABASE" FontSize="12" FontWeight="Black" Foreground="#92400E"/>
+                    <TextBlock Text="{Binding StartupDatabaseStatusText}" FontSize="13" FontWeight="SemiBold" Foreground="#78350F" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <controls:ScanLeftPanel Grid.Row="1"
-                                Grid.Column="0"/>
+        <UniformGrid Grid.Row="1" Columns="4">
+            <Border CornerRadius="12" Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" Padding="12,8" Margin="0,0,5,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="17" Background="#DCFCE7" BorderBrush="#22C55E" BorderThickness="1">
+                        <TextBlock Text="OK" FontSize="11" FontWeight="Black" Foreground="#15803D" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="TỔNG PASS" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource OkBrush}"/>
+                        <TextBlock Text="{Binding TodayPassCount}" FontSize="24" FontWeight="Black" Foreground="#15803D"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-        <controls:ScanInputHistoryPanel Grid.Row="1"
-                                        Grid.Column="1"/>
+            <Border CornerRadius="12" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Padding="12,8" Margin="5,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="17" Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1">
+                        <TextBlock Text="NG" FontSize="11" FontWeight="Black" Foreground="#B91C1C" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="TỔNG NG" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource NgBrush}"/>
+                        <TextBlock Text="{Binding TodayFailCount}" FontSize="24" FontWeight="Black" Foreground="#DC2626"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-        <controls:ScanRightPanel Grid.Row="1"
-                                 Grid.Column="2"/>
+            <Border CornerRadius="12" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Padding="12,8" Margin="5,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="17" Background="#DBEAFE" BorderBrush="#3B82F6" BorderThickness="1">
+                        <TextBlock Text="Đ" FontSize="14" FontWeight="Black" Foreground="#1D4ED8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="THÙNG ĐỦ" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource PrimaryBrush}"/>
+                        <TextBlock Text="{Binding TodayFullBoxCount}" FontSize="24" FontWeight="Black" Foreground="#1D4ED8"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border CornerRadius="12" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" Padding="12,8" Margin="5,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="34" Height="34" CornerRadius="17" Background="#FFEDD5" BorderBrush="#FB923C" BorderThickness="1">
+                        <TextBlock Text="L" FontSize="14" FontWeight="Black" Foreground="#C2410C" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="THÙNG LẺ" Style="{StaticResource FieldLabelStyle}" Foreground="#C2410C"/>
+                        <TextBlock Text="{Binding TodayPartialBoxCount}" FontSize="24" FontWeight="Black" Foreground="#EA580C"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </UniformGrid>
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" MinWidth="280" MaxWidth="330" />
+                <ColumnDefinition Width="*" MinWidth="520" />
+                <ColumnDefinition Width="370" MinWidth="350" MaxWidth="410" />
+            </Grid.ColumnDefinitions>
+
+            <controls:ScanLeftPanel Grid.Column="0" />
+            <controls:ScanInputHistoryPanel Grid.Column="1" />
+            <controls:ScanRightPanel Grid.Column="2" />
+        </Grid>
     </Grid>
 </UserControl>

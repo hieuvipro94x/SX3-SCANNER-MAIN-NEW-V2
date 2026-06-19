@@ -1,4 +1,4 @@
-using SX3_SCANER.Helper;
+﻿using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using System;
 using System.Collections.ObjectModel;
@@ -226,6 +226,10 @@ namespace SX3_SCANER.ViewModel
 
         private void DashboardScanHistory_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
+            OnPropertyChanged(nameof(CurrentPassCount));
+            OnPropertyChanged(nameof(CurrentNgCount));
+            OnPropertyChanged(nameof(CurrentProgressPercentText));
+            ScanHistoryView?.Refresh();
             RefreshDashboardStats();
         }
 

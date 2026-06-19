@@ -85,14 +85,14 @@ namespace SX3_SCANER.Model
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                string selectQuery = "SELECT * FROM ScanHistoryView";
+                string selectQuery = "SELECT " + ScanResultMapper.BuildSelectColumns(connection) + " FROM ScanHistoryView";
                 using (SQLiteCommand command = new SQLiteCommand(selectQuery, connection))
                 {
                     using (SQLiteDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            scanHistoryItems.Add(ReadScanHistory(reader));
+                            scanHistoryItems.Add(ScanResultMapper.Read(reader));
                         }
                     }
                 }
@@ -165,10 +165,9 @@ namespace SX3_SCANER.Model
         public ObservableCollection<ScanHistory> GetByBoxName(string boxname)
         {
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
-                string selectQuery = "SELECT * FROM ScanHistoryView WHERE BoxName = @BoxName";
+                string selectQuery = "SELECT " + ScanResultMapper.BuildSelectColumns(connection) + " FROM ScanHistoryView WHERE BoxName = @BoxName";
                 using (SQLiteCommand command = new SQLiteCommand(selectQuery, connection))
                 {
                     command.Parameters.AddWithValue("@BoxName", boxname);
@@ -176,7 +175,7 @@ namespace SX3_SCANER.Model
                     {
                         while (reader.Read())
                         {
-                            scanHistoryItems.Add(ReadScanHistory(reader));
+                            scanHistoryItems.Add(ScanResultMapper.Read(reader));
                         }
                     }
                 }
@@ -253,6 +252,24 @@ namespace SX3_SCANER.Model
                 command.Parameters.AddWithValue("@IsPartialBox", scanHistory.IsPartialBox ? 1 : 0);
                 command.Parameters.AddWithValue("@ActualQty", scanHistory.ActualQty);
                 command.Parameters.AddWithValue("@TargetQty", scanHistory.TargetQty);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public void UpdateBoxDateByBoxName(string boxName, DateTime boxDate)
+        {
+            if (string.IsNullOrWhiteSpace(boxName))
+                return;
+
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.CommandText = @"
+                    UPDATE ScanHistoryView
+                    SET BoxDate = @BoxDate
+                    WHERE BoxName = @BoxName";
+                command.Parameters.AddWithValue("@BoxDate", boxDate.Date);
+                command.Parameters.AddWithValue("@BoxName", boxName);
                 command.ExecuteNonQuery();
             }
         }
@@ -361,10 +378,9 @@ namespace SX3_SCANER.Model
         public ObservableCollection<ScanHistory> GetNotComplete(string boxname)
         {
             ObservableCollection<ScanHistory> notCompleteScans = new ObservableCollection<ScanHistory>();
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
-                string query = "SELECT * FROM ScanHistoryView WHERE BoxName = @BoxName";
+                string query = "SELECT " + ScanResultMapper.BuildSelectColumns(connection) + " FROM ScanHistoryView WHERE BoxName = @BoxName";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@BoxName", boxname);
@@ -372,7 +388,7 @@ namespace SX3_SCANER.Model
                     {
                         while (reader.Read())
                         {
-                            notCompleteScans.Add(ReadScanHistory(reader));
+                            notCompleteScans.Add(ScanResultMapper.Read(reader));
                         }
                     }
                 }
@@ -554,6 +570,8 @@ namespace SX3_SCANER.Model
             string sealNo,
             string scanMessage,
             bool? scanResult,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
             int limit = 500)
         {
             return GetScanned(
@@ -562,6 +580,8 @@ namespace SX3_SCANER.Model
                 scandata: keyword,
                 scanresult: scanResult,
                 scanmessage: scanMessage,
+                fromDate: fromDate,
+                toDate: toDate,
                 limit: limit);
         }
 
@@ -572,6 +592,8 @@ namespace SX3_SCANER.Model
             string scandata = null,
             bool? scanresult = null,
             string scanmessage = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
             int limit = 500)
         {
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
@@ -585,7 +607,7 @@ namespace SX3_SCANER.Model
 
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                bool hasBoxType = TableHasColumn(
+                bool hasBoxType = ScanResultMapper.TableHasColumn(
                     connection,
                     HistoryTableName,
                     "BoxType");
@@ -602,32 +624,32 @@ namespace SX3_SCANER.Model
                         ScanResult,
                         ScanMessage,
                         ScanWorker,
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "BoxType",
                             "'OPEN'") + @",
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "IsPartialBox",
                             "0") + @",
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "BoxDate",
                             "NULL") + @",
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "ScanLabelDate",
                             "NULL") + @",
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "ActualQty",
                             "0") + @",
-                        " + SelectColumnOrDefault(
+                        " + ScanResultMapper.SelectColumnOrDefault(
                             connection,
                             HistoryTableName,
                             "TargetQty",
@@ -658,6 +680,18 @@ namespace SX3_SCANER.Model
                 if (!string.IsNullOrWhiteSpace(normalizedScanMessage))
                 {
                     selectQuery += " AND COALESCE(ScanMessage, '') = @ScanMessage COLLATE NOCASE";
+                }
+
+                if (fromDate.HasValue)
+                {
+                    selectQuery += @"
+                        AND date(COALESCE(ScanTime, BoxDate, ScanLabelDate)) >= date(@FromDate)";
+                }
+
+                if (toDate.HasValue)
+                {
+                    selectQuery += @"
+                        AND date(COALESCE(ScanTime, BoxDate, ScanLabelDate)) <= date(@ToDate)";
                 }
 
                 if (searchTerms.Count > 0)
@@ -697,6 +731,14 @@ namespace SX3_SCANER.Model
                         command.Parameters.AddWithValue("@ScanResult", scanresult.Value ? 1 : 0);
                     if (!string.IsNullOrWhiteSpace(normalizedScanMessage))
                         command.Parameters.AddWithValue("@ScanMessage", normalizedScanMessage);
+                    if (fromDate.HasValue)
+                    {
+                        command.Parameters.AddWithValue("@FromDate", fromDate.Value.Date);
+                    }
+                    if (toDate.HasValue)
+                    {
+                        command.Parameters.AddWithValue("@ToDate", toDate.Value.Date);
+                    }
 
                     for (int i = 0; i < searchTerms.Count; i++)
                     {
@@ -717,7 +759,7 @@ namespace SX3_SCANER.Model
                     {
                         while (reader.Read())
                         {
-                            scanHistoryItems.Add(ReadScanHistory(reader));
+                            scanHistoryItems.Add(ScanResultMapper.Read(reader));
                         }
                     }
                 }
@@ -742,31 +784,6 @@ namespace SX3_SCANER.Model
             return trimmed;
         }
 
-        private static ScanHistory ReadScanHistory(SQLiteDataReader reader)
-        {
-            return new ScanHistory
-            {
-                ID = SafeInt(reader, "ID"),
-                RowIndex = 0,
-                ScanTime = SafeDateTime(reader, "ScanTime"),
-                BoxName = SafeString(reader, "BoxName"),
-                ProductPartNumber = SafeString(reader, "ProductPartNumber"),
-                ProductPartName = SafeString(reader, "ProductPartName"),
-                SealNo = SafeString(reader, "SealNo"),
-                LotNo = SafeString(reader, "LotNo"),
-                ScanData = SafeString(reader, "ScanData"),
-                ScanResult = SafeBool(reader, "ScanResult"),
-                ScanMessage = SafeString(reader, "ScanMessage"),
-                ScanWorker = SafeString(reader, "ScanWorker"),
-                BoxType = SafeString(reader, "BoxType", "OPEN"),
-                IsPartialBox = SafeBool(reader, "IsPartialBox"),
-                BoxDate = SafeDateTime(reader, "BoxDate") ?? SafeDateTime(reader, "ScanTime"),
-                ScanLabelDate = SafeDateTime(reader, "ScanLabelDate") ?? ParseSealDate(SafeString(reader, "SealNo")),
-                ActualQty = SafeInt(reader, "ActualQty"),
-                TargetQty = SafeInt(reader, "TargetQty")
-            };
-        }
-
         private static void RefreshRowIndex(ObservableCollection<ScanHistory> items)
         {
             if (items == null) return;
@@ -774,159 +791,6 @@ namespace SX3_SCANER.Model
             {
                 items[i].RowIndex = i + 1;
             }
-        }
-
-        private static string SafeString(SQLiteDataReader reader, string columnName, string defaultValue = "")
-        {
-            int ordinal;
-            if (!TryGetOrdinal(reader, columnName, out ordinal) ||
-                reader.IsDBNull(ordinal))
-            {
-                return defaultValue;
-            }
-
-            object value = reader.GetValue(ordinal);
-            return value == null || value == DBNull.Value ? defaultValue : Convert.ToString(value);
-        }
-
-        private static int SafeInt(SQLiteDataReader reader, string columnName)
-        {
-            int ordinal;
-            if (!TryGetOrdinal(reader, columnName, out ordinal) ||
-                reader.IsDBNull(ordinal))
-            {
-                return 0;
-            }
-
-            object value = reader.GetValue(ordinal);
-            int result;
-            return int.TryParse(Convert.ToString(value), out result) ? result : 0;
-        }
-
-        private static bool SafeBool(SQLiteDataReader reader, string columnName)
-        {
-            int ordinal;
-            if (!TryGetOrdinal(reader, columnName, out ordinal) ||
-                reader.IsDBNull(ordinal))
-            {
-                return false;
-            }
-
-            object value = reader.GetValue(ordinal);
-            if (value is bool) return (bool)value;
-
-            int numericValue;
-            if (int.TryParse(Convert.ToString(value), out numericValue))
-            {
-                return numericValue != 0;
-            }
-
-            bool boolValue;
-            return bool.TryParse(Convert.ToString(value), out boolValue) && boolValue;
-        }
-
-        private static DateTime? SafeDateTime(SQLiteDataReader reader, string columnName)
-        {
-            int ordinal;
-            if (!TryGetOrdinal(reader, columnName, out ordinal) ||
-                reader.IsDBNull(ordinal))
-            {
-                return null;
-            }
-
-            object value = reader.GetValue(ordinal);
-            DateTime result;
-            return DateTime.TryParse(Convert.ToString(value), out result)
-                ? (DateTime?)result
-                : null;
-        }
-
-        private static bool HasColumn(SQLiteDataReader reader, string columnName)
-        {
-            int ordinal;
-            return TryGetOrdinal(reader, columnName, out ordinal);
-        }
-
-        private static string SelectColumnOrDefault(
-            SQLiteConnection connection,
-            string tableName,
-            string columnName,
-            string defaultSql)
-        {
-            return TableHasColumn(connection, tableName, columnName)
-                ? columnName
-                : defaultSql + " AS " + columnName;
-        }
-
-        private static bool TableHasColumn(
-            SQLiteConnection connection,
-            string tableName,
-            string columnName)
-        {
-            using (SQLiteCommand command = new SQLiteCommand(
-                "PRAGMA table_info(" + tableName + ")",
-                connection))
-            using (SQLiteDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    if (string.Equals(
-                        SafeString(reader, "name"),
-                        columnName,
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static bool TryGetOrdinal(
-            SQLiteDataReader reader,
-            string columnName,
-            out int ordinal)
-        {
-            ordinal = -1;
-            if (reader == null || string.IsNullOrWhiteSpace(columnName))
-                return false;
-
-            try
-            {
-                ordinal = reader.GetOrdinal(columnName);
-                return ordinal >= 0;
-            }
-            catch (IndexOutOfRangeException)
-            {
-            }
-            catch (ArgumentException)
-            {
-            }
-
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                if (string.Equals(reader.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
-                {
-                    ordinal = i;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static DateTime? ParseSealDate(string sealNo)
-        {
-            DateTime value;
-            return DateTime.TryParseExact(
-                sealNo,
-                "yyMMdd",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None,
-                out value)
-                    ? (DateTime?)value.Date
-                    : null;
         }
 
         private static List<string> BuildSearchTerms(string keyword)
