@@ -25,9 +25,9 @@ namespace SX3_SCANER.Helper
         }
 
         private const string DefaultRealtimeUrl =
-            "ws://100.72.125.42:5055/ws/announcements";
+            "ws://sx3-announcement:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
-            "http://100.72.125.42:5055/api/announcements/current";
+            "http://sx3-announcement:5055/api/announcements/current";
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
         private readonly CancellationTokenSource _lifetimeCts =

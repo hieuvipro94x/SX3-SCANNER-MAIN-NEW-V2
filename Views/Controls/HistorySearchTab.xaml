@@ -338,7 +338,7 @@
                               CanUserAddRows="False"
                               CanUserDeleteRows="False"
                               CanUserResizeRows="False"
-                              CanUserResizeColumns="True"
+                              CanUserResizeColumns="False"
                               CanUserReorderColumns="False"
                               CanUserSortColumns="False"
                               SelectionMode="Single"

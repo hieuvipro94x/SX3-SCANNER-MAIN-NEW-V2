@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Media;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace SX3_SCANER.Helper
@@ -8,16 +9,8 @@ namespace SX3_SCANER.Helper
     internal static class ScanSoundService
     {
         private static readonly object SoundLock = new object();
-
-        private static readonly string OkPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Sounds",
-            "OK.wav");
-
-        private static readonly string NgPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Sounds",
-            "NG.wav");
+        private const string OkResourceName = "SX3_SCANER.Sounds.OK.wav";
+        private const string NgResourceName = "SX3_SCANER.Sounds.NG.wav";
 
         private static SoundPlayer _okPlayer;
         private static SoundPlayer _ngPlayer;
@@ -30,28 +23,22 @@ namespace SX3_SCANER.Helper
 
         public static void PlayOk()
         {
-            PlayCachedSound(ref _okPlayer, OkPath, "OK.wav");
+            PlayCachedSound(ref _okPlayer, OkResourceName, "OK.wav");
         }
 
         public static void PlayNg()
         {
-            PlayCachedSound(ref _ngPlayer, NgPath, "NG.wav");
+            PlayCachedSound(ref _ngPlayer, NgResourceName, "NG.wav");
         }
 
         private static void PreloadSounds()
         {
             try
             {
-                if (File.Exists(OkPath))
+                lock (SoundLock)
                 {
-                    _okPlayer = new SoundPlayer(OkPath);
-                    _okPlayer.Load();
-                }
-
-                if (File.Exists(NgPath))
-                {
-                    _ngPlayer = new SoundPlayer(NgPath);
-                    _ngPlayer.Load();
+                    _okPlayer = CreatePlayer(OkResourceName);
+                    _ngPlayer = CreatePlayer(NgResourceName);
                 }
             }
             catch (Exception ex)
@@ -60,19 +47,18 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        private static void PlayCachedSound(ref SoundPlayer player, string path, string fileName)
+        private static void PlayCachedSound(
+            ref SoundPlayer player,
+            string resourceName,
+            string fileName)
         {
             try
             {
-                if (!File.Exists(path))
-                    return;
-
                 lock (SoundLock)
                 {
                     if (player == null)
                     {
-                        player = new SoundPlayer(path);
-                        player.Load();
+                        player = CreatePlayer(resourceName);
                     }
 
                     // Khong dung queue + PlaySync nua vi scan nhanh se bi don hang gay delay.
@@ -86,6 +72,23 @@ namespace SX3_SCANER.Helper
                 StartupManager.Log(
                     "[ScanSound] Cannot play " + fileName + ". " + ex.Message);
             }
+        }
+
+        private static SoundPlayer CreatePlayer(string resourceName)
+        {
+            Stream resourceStream = Assembly
+                .GetExecutingAssembly()
+                .GetManifestResourceStream(resourceName);
+
+            if (resourceStream == null)
+            {
+                throw new InvalidOperationException(
+                    "Embedded sound resource not found: " + resourceName);
+            }
+
+            var player = new SoundPlayer(resourceStream);
+            player.Load();
+            return player;
         }
     }
 }

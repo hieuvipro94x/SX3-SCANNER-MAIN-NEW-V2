@@ -491,6 +491,7 @@ Name: "{commonappdata}\JBZVN\SX3 Scanner\config"; Permissions: users-modify
 Name: "{commonappdata}\JBZVN\SX3 Scanner\cache\updates"; Permissions: users-modify
 
 [InstallDelete]
+Type: filesandordirs; Name: "{app}\AnnouncementServer"
 Type: files; Name: "{userstartup}\SX3 SCANER.lnk"
 Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 
