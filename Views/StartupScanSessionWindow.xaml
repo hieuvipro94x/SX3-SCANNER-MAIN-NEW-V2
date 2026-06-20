@@ -57,7 +57,7 @@
                         <TextBlock Text="▦" FontSize="30" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="CHỌN / ĐỔI PHIÊN QUÉT" FontSize="28" FontWeight="Black" Foreground="#1E3A8A"/>
+                        <TextBlock Text="CHỌN / ĐỔI MÃ HÀNG" FontSize="28" FontWeight="Black" Foreground="#1E3A8A"/>
                         <TextBlock Text="Cấu hình mã hàng, ngày box, ngày tem và số lượng trước khi tiếp tục scan." FontSize="14" FontWeight="SemiBold" Foreground="#1D4ED8" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Grid>

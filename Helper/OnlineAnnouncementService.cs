@@ -28,6 +28,7 @@ namespace SX3_SCANER.Helper
             "ws://sx3-announcement:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
             "http://sx3-announcement:5055/api/announcements/current";
+
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
         private readonly CancellationTokenSource _lifetimeCts =
@@ -37,12 +38,21 @@ namespace SX3_SCANER.Helper
         private readonly string _cachePath;
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _connectionTimeout;
+
+        // Chống bắn thông báo quá dày làm UI nháy/giật.
+        // Có thể chỉnh trong App.config: AnnouncementMinimumApplyMilliseconds=180
+        private readonly TimeSpan _minimumApplyInterval;
+
+        private readonly object _syncRoot = new object();
+
         private bool _isStarted;
         private bool _isDisposed;
         private string _lastAnnouncementFingerprint;
+        private string _lastDisplayFingerprint;
         private string _lastAnnouncementVersion = string.Empty;
         private string _lastAnnouncementUpdatedAt = string.Empty;
         private bool? _lastAnnouncementEnabled;
+        private DateTime _lastAppliedUtc = DateTime.MinValue;
 
         public OnlineAnnouncementService()
         {
@@ -60,6 +70,10 @@ namespace SX3_SCANER.Helper
                 ReadPositiveIntSetting(
                     "AnnouncementHttpTimeoutSeconds",
                     3));
+            _minimumApplyInterval = TimeSpan.FromMilliseconds(
+                ReadPositiveIntSetting(
+                    "AnnouncementMinimumApplyMilliseconds",
+                    180));
             _cachePath = Path.Combine(
                 DatabaseRepository.AppDataDirectory,
                 "cache",
@@ -106,6 +120,10 @@ namespace SX3_SCANER.Helper
             {
                 try
                 {
+                    if (string.IsNullOrWhiteSpace(_realtimeUrl))
+                        throw new InvalidOperationException(
+                            "Announcement WebSocket URL is empty.");
+
                     using (var socket = new ClientWebSocket())
                     {
                         StartupManager.SetAnnouncementServerStatus(
@@ -122,7 +140,7 @@ namespace SX3_SCANER.Helper
                                 new Uri(_realtimeUrl),
                                 connectCts.Token).ConfigureAwait(false);
                             StartupManager.SetAnnouncementServerStatus(
-                             AnnouncementServerStatusInfo.Connected("Tailscale WebSocket"));
+                                AnnouncementServerStatusInfo.Connected("Tailscale WebSocket"));
                         }
 
                         StartupManager.Log(
@@ -144,7 +162,8 @@ namespace SX3_SCANER.Helper
                             await ProcessAnnouncementJsonAsync(
                                 json,
                                 saveCache: true,
-                                source: AnnouncementSource.Realtime)
+                                source: AnnouncementSource.Realtime,
+                                token: token)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -157,9 +176,9 @@ namespace SX3_SCANER.Helper
                 catch (Exception ex)
                 {
                     StartupManager.SetAnnouncementServerStatus(
-                     AnnouncementServerStatusInfo.Failed(
-                      "Tailscale WebSocket",
-                         ex.Message));
+                        AnnouncementServerStatusInfo.Failed(
+                            "Tailscale WebSocket",
+                            ex.Message));
                     Debug.WriteLine(
                         "[Announcement] WebSocket unavailable, fallback to HTTP polling");
                     StartupManager.Log(
@@ -216,9 +235,9 @@ namespace SX3_SCANER.Helper
                 return;
 
             if (await TryLoadHttpAsync(
-        _snapshotUrl,
-        AnnouncementSource.Tailscale,
-        token).ConfigureAwait(false))
+                _snapshotUrl,
+                AnnouncementSource.Tailscale,
+                token).ConfigureAwait(false))
             {
                 StartupManager.SetAnnouncementServerStatus(
                     AnnouncementServerStatusInfo.Connected("Tailscale HTTP"));
@@ -229,9 +248,9 @@ namespace SX3_SCANER.Helper
             }
 
             StartupManager.SetAnnouncementServerStatus(
-    AnnouncementServerStatusInfo.Failed(
-        "Announcement Server",
-        "Không kết nối được máy chủ announcement, đang dùng cache nếu có."));
+                AnnouncementServerStatusInfo.Failed(
+                    "Announcement Server",
+                    "Không kết nối được máy chủ announcement, đang dùng cache nếu có."));
 
             StartupManager.Log(
                 "[Announcement] Server unavailable, using cached announcement");
@@ -265,6 +284,7 @@ namespace SX3_SCANER.Helper
                     byte[] bytes = await response.Content.ReadAsByteArrayAsync()
                         .ConfigureAwait(false);
                     string json = Encoding.UTF8.GetString(bytes);
+
                     AnnouncementInfo parsed;
                     try
                     {
@@ -275,6 +295,7 @@ namespace SX3_SCANER.Helper
                         LogInvalidPayload(source, ex.Message);
                         return false;
                     }
+
                     if (ContainsInvalidEncoding(json) ||
                         ContainsInvalidEncoding(parsed))
                     {
@@ -282,12 +303,13 @@ namespace SX3_SCANER.Helper
                         return false;
                     }
 
-                    await ProcessAnnouncementJsonAsync(
+                    // Không parse JSON lần 2 nữa. Giảm tải khi polling/realtime dày.
+                    return await ProcessAnnouncementAsync(
+                        parsed,
                         json,
                         saveCache: true,
-                        source: source)
-                        .ConfigureAwait(false);
-                    return true;
+                        source: source,
+                        token: token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -297,12 +319,12 @@ namespace SX3_SCANER.Helper
             catch (Exception ex)
             {
                 StartupManager.SetAnnouncementServerStatus(
-                 AnnouncementServerStatusInfo.Failed(
-                  source.ToString(),
-                    ex.Message));
-                  Debug.WriteLine(
+                    AnnouncementServerStatusInfo.Failed(
+                        source.ToString(),
+                        ex.Message));
+                Debug.WriteLine(
                     "[Announcement] HTTP unavailable: " + ex.Message);
-                 StartupManager.Log(
+                StartupManager.Log(
                     "[Announcement] HTTP unavailable from " + url + ". " +
                     ex.Message);
                 return false;
@@ -312,7 +334,8 @@ namespace SX3_SCANER.Helper
         private async Task<bool> ProcessAnnouncementJsonAsync(
             string json,
             bool saveCache,
-            AnnouncementSource source)
+            AnnouncementSource source,
+            CancellationToken token = default(CancellationToken))
         {
             AnnouncementInfo announcement;
             try
@@ -332,26 +355,41 @@ namespace SX3_SCANER.Helper
                 return false;
             }
 
-            string fingerprint = BuildFingerprint(json);
+            return await ProcessAnnouncementAsync(
+                announcement,
+                json,
+                saveCache,
+                source,
+                token).ConfigureAwait(false);
+        }
 
-            if (!HasAnnouncementChanged(announcement, fingerprint))
+        private async Task<bool> ProcessAnnouncementAsync(
+            AnnouncementInfo announcement,
+            string rawJson,
+            bool saveCache,
+            AnnouncementSource source,
+            CancellationToken token)
+        {
+            string displayFingerprint = BuildDisplayFingerprint(announcement);
+
+            // So sánh theo nội dung hiển thị, không phụ thuộc UpdatedAt/Version.
+            // Tránh tình trạng server đổi timestamp nhưng message không đổi làm UI chạy lại animation.
+            if (!HasAnnouncementChanged(announcement, displayFingerprint))
+            {
+                return false;
+            }
+
+            await WaitForSmoothApplyWindowAsync(token).ConfigureAwait(false);
+
+            // Sau khi debounce, kiểm tra lại để tránh payload trùng vừa được apply.
+            if (!HasAnnouncementChanged(announcement, displayFingerprint))
             {
                 return false;
             }
 
             if (saveCache)
             {
-                try
-                {
-                    string directory = Path.GetDirectoryName(_cachePath);
-                    Directory.CreateDirectory(directory);
-                    File.WriteAllText(_cachePath, json, new UTF8Encoding(false));
-                }
-                catch (Exception ex)
-                {
-                    StartupManager.Log(
-                        "[Announcement] Could not save cache. " + ex.Message);
-                }
+                await SaveCacheAsync(rawJson).ConfigureAwait(false);
             }
 
             await _dispatcher.InvokeAsync(() =>
@@ -359,58 +397,154 @@ namespace SX3_SCANER.Helper
                 if (_isDisposed)
                     return;
 
-                _lastAnnouncementFingerprint = fingerprint;
-                _lastAnnouncementVersion = announcement.Version;
-                _lastAnnouncementUpdatedAt = announcement.UpdatedAt;
-                _lastAnnouncementEnabled = announcement.Enabled;
+                lock (_syncRoot)
+                {
+                    _lastAnnouncementFingerprint = displayFingerprint;
+                    _lastDisplayFingerprint = displayFingerprint;
+                    _lastAnnouncementVersion = announcement.Version;
+                    _lastAnnouncementUpdatedAt = announcement.UpdatedAt;
+                    _lastAnnouncementEnabled = announcement.Enabled;
+                    _lastAppliedUtc = DateTime.UtcNow;
+                }
+
                 StartupManager.Log(
                     "[Announcement] Applied " +
                     source.ToString().ToLowerInvariant() +
                     " announcement. Enabled=" + announcement.Enabled +
                     ", Version=" + announcement.Version +
                     ", UpdatedAt=" + announcement.UpdatedAt);
+
                 AnnouncementChanged?.Invoke(this, announcement);
-            }).Task.ConfigureAwait(false);
+            }, DispatcherPriority.Background).Task.ConfigureAwait(false);
+
             return true;
+        }
+
+        private async Task SaveCacheAsync(string json)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    string directory = Path.GetDirectoryName(_cachePath);
+                    Directory.CreateDirectory(directory);
+                    File.WriteAllText(
+                        _cachePath,
+                        json ?? string.Empty,
+                        new UTF8Encoding(false));
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log(
+                    "[Announcement] Could not save cache. " + ex.Message);
+            }
+        }
+
+        private async Task WaitForSmoothApplyWindowAsync(CancellationToken token)
+        {
+            int delayMilliseconds = 0;
+
+            lock (_syncRoot)
+            {
+                if (_lastAppliedUtc != DateTime.MinValue)
+                {
+                    TimeSpan elapsed = DateTime.UtcNow - _lastAppliedUtc;
+                    if (elapsed < _minimumApplyInterval)
+                    {
+                        delayMilliseconds =
+                            (int)Math.Ceiling(
+                                (_minimumApplyInterval - elapsed)
+                                .TotalMilliseconds);
+                    }
+                }
+            }
+
+            if (delayMilliseconds > 0)
+            {
+                await Task.Delay(delayMilliseconds, token)
+                    .ConfigureAwait(false);
+            }
         }
 
         private bool HasAnnouncementChanged(
             AnnouncementInfo announcement,
-            string fingerprint)
+            string displayFingerprint)
         {
-            if (!_lastAnnouncementEnabled.HasValue)
-                return true;
-
-            if (_lastAnnouncementEnabled.Value != announcement.Enabled)
-                return true;
-
-            if (!announcement.Enabled)
+            lock (_syncRoot)
             {
+                if (!_lastAnnouncementEnabled.HasValue)
+                    return true;
+
+                if (_lastAnnouncementEnabled.Value != announcement.Enabled)
+                    return true;
+
                 return !string.Equals(
-                    _lastAnnouncementFingerprint,
-                    fingerprint,
+                    _lastDisplayFingerprint,
+                    displayFingerprint,
                     StringComparison.Ordinal);
             }
+        }
 
-            bool hasVersionIdentity =
-                !string.IsNullOrWhiteSpace(announcement.Version) ||
-                !string.IsNullOrWhiteSpace(announcement.UpdatedAt);
-            if (hasVersionIdentity)
+        private static string BuildDisplayFingerprint(
+            AnnouncementInfo announcement)
+        {
+            var builder = new StringBuilder();
+
+            AppendPart(builder, announcement.Enabled ? "1" : "0");
+            AppendPart(builder, announcement.Level);
+            AppendPart(builder, announcement.Mode);
+            AppendPart(builder, announcement.Title);
+            AppendPart(builder, announcement.Message);
+            AppendPart(builder, announcement.BackgroundColor);
+            AppendPart(builder, announcement.ForegroundColor);
+            AppendPart(builder, announcement.CreatedBy);
+            AppendPart(builder, announcement.AutoHideSeconds.ToString());
+            AppendPart(builder, announcement.Priority.ToString());
+            AppendPart(builder, announcement.RotateSeconds.ToString());
+            AppendPart(builder, announcement.RepeatSeconds.ToString());
+            AppendPart(builder, announcement.MarqueeDirection);
+            AppendPart(builder, announcement.MarqueeSpeed.ToString());
+            AppendPart(builder, announcement.MarqueeDelaySeconds.ToString());
+
+            if (announcement.Messages != null)
             {
-                return !string.Equals(
-                           _lastAnnouncementVersion,
-                           announcement.Version,
-                           StringComparison.Ordinal) ||
-                       !string.Equals(
-                           _lastAnnouncementUpdatedAt,
-                           announcement.UpdatedAt,
-                           StringComparison.Ordinal);
+                AppendPart(builder, announcement.Messages.Count.ToString());
+                foreach (AnnouncementMessageInfo message in announcement.Messages)
+                {
+                    if (message == null)
+                    {
+                        AppendPart(builder, string.Empty);
+                        continue;
+                    }
+
+                    AppendPart(builder, message.Level);
+                    AppendPart(builder, message.Title);
+                    AppendPart(builder, message.Message);
+                    AppendPart(builder, message.BackgroundColor);
+                    AppendPart(builder, message.ForegroundColor);
+                    AppendPart(
+                        builder,
+                        message.AutoHideSeconds.HasValue
+                            ? message.AutoHideSeconds.Value.ToString()
+                            : string.Empty);
+                }
+            }
+            else
+            {
+                AppendPart(builder, "0");
             }
 
-            return !string.Equals(
-                _lastAnnouncementFingerprint,
-                fingerprint,
-                StringComparison.Ordinal);
+            return BuildFingerprint(builder.ToString());
+        }
+
+        private static void AppendPart(StringBuilder builder, string value)
+        {
+            value = value ?? string.Empty;
+            builder.Append(value.Length);
+            builder.Append(':');
+            builder.Append(value);
+            builder.Append('|');
         }
 
         private static AnnouncementInfo ParseAnnouncement(string json)
@@ -663,12 +797,12 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        private static string BuildFingerprint(string json)
+        private static string BuildFingerprint(string value)
         {
             using (SHA256 sha256 = SHA256.Create())
             {
                 byte[] hash = sha256.ComputeHash(
-                    Encoding.UTF8.GetBytes(json ?? string.Empty));
+                    Encoding.UTF8.GetBytes(value ?? string.Empty));
                 return BitConverter.ToString(hash).Replace("-", string.Empty);
             }
         }

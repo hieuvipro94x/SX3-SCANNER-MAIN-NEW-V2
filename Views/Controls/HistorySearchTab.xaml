@@ -5,6 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              mc:Ignorable="d"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True">
     <UserControl.Resources>
@@ -20,11 +22,104 @@
                 <Setter Property="CornerRadius" Value="14"/>
             </Style>
 
-            <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="10.5"/>
-                <Setter Property="FontWeight" Value="Bold"/>
+            <!-- Text hierarchy: dùng chung cho toàn bộ TextBlock trong tab lịch sử -->
+            <Style x:Key="HistoryTextBaseStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+            </Style>
+
+            <Style x:Key="HistoryPageTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="18.5"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="LineHeight" Value="23"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="HistoryPageSubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="12.3"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Foreground" Value="#64748B"/>
-                <Setter Property="Margin" Value="2,0,0,5"/>
+                <Setter Property="Margin" Value="0,3,0,0"/>
+                <Setter Property="LineHeight" Value="18"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="HistorySectionTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="13.2"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="FilterLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#475569"/>
+                <Setter Property="Margin" Value="3,0,0,6"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryHintTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="10.8"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Foreground" Value="#1D4ED8"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryButtonTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="12.3"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryCountBadgeTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="11.3"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#334155"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryStatusTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Foreground" Value="#334155"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="HistoryStatusPillTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="10.8"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#475569"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="HistoryEmptyTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="13.5"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#334155"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,10,0,0"/>
+            </Style>
+
+            <Style x:Key="HistoryEmptySubtitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="11.5"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#94A3B8"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,4,0,0"/>
+            </Style>
+
+            <Style x:Key="HistoryResultBadgeTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
+                <Setter Property="FontSize" Value="10.8"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#475569"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
 
             <Style x:Key="HistoryTextBoxStyle" TargetType="TextBox">
@@ -98,20 +193,21 @@
             </Style>
 
             <Style x:Key="HistoryColumnHeaderStyle" TargetType="DataGridColumnHeader">
-                <Setter Property="Height" Value="42"/>
-                <Setter Property="Background" Value="#F1F5F9"/>
-                <Setter Property="Foreground" Value="#334155"/>
-                <Setter Property="FontSize" Value="10.5"/>
-                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Height" Value="44"/>
+                <Setter Property="Background" Value="#EEF4FF"/>
+                <Setter Property="Foreground" Value="#1E3A8A"/>
+                <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="FontWeight" Value="Black"/>
                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="Padding" Value="8,0"/>
-                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                <Setter Property="Padding" Value="9,0"/>
+                <Setter Property="BorderBrush" Value="#DCE7F5"/>
                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
             </Style>
 
             <Style x:Key="HistoryCellStyle" TargetType="DataGridCell">
-                <Setter Property="Padding" Value="9,0"/>
+                <Setter Property="Padding" Value="10,0"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="BorderBrush" Value="#F1F5F9"/>
                 <Setter Property="BorderThickness" Value="0,0,1,1"/>
@@ -124,18 +220,27 @@
                 </Style.Triggers>
             </Style>
 
-            <Style x:Key="CenterHistoryTextStyle" TargetType="TextBlock">
+            <Style x:Key="CenterHistoryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
                 <Setter Property="HorizontalAlignment" Value="Center"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="TextAlignment" Value="Center"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="FontSize" Value="12.2"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#1E293B"/>
+                <Setter Property="LineHeight" Value="18"/>
             </Style>
 
-            <Style x:Key="LeftHistoryTextStyle" TargetType="TextBlock">
+            <Style x:Key="LeftHistoryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource HistoryTextBaseStyle}">
                 <Setter Property="HorizontalAlignment" Value="Stretch"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="TextAlignment" Value="Left"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="FontSize" Value="12.2"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#1E293B"/>
+                <Setter Property="LineHeight" Value="18"/>
+                <Setter Property="Margin" Value="2,0,0,0"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -166,15 +271,15 @@
                 </Border>
 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock Text="LỊCH SỬ SCAN &amp; XUẤT EXCEL" FontSize="17" FontWeight="Black" Foreground="#0F172A"/>
-                    <TextBlock Text="Tra cứu dữ liệu theo điều kiện và xuất báo cáo Excel khi cần đối soát." FontSize="11.5" Foreground="#64748B" Margin="0,2,0,0"/>
+                    <TextBlock Text="LỊCH SỬ SCAN &amp; XUẤT EXCEL" Style="{StaticResource HistoryPageTitleTextStyle}"/>
+                    <TextBlock Text="Tra cứu dữ liệu theo điều kiện và xuất báo cáo Excel khi cần đối soát." Style="{StaticResource HistoryPageSubtitleTextStyle}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Command="{Binding QueryCMD}" Style="{StaticResource HistoryPrimaryButtonStyle}" Margin="0,0,8,0">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="Magnify" Width="17" Height="17" Margin="0,0,7,0"/>
-                            <TextBlock Text="TÌM KIẾM" VerticalAlignment="Center"/>
+                            <TextBlock Text="TÌM KIẾM" Style="{StaticResource HistoryButtonTextStyle}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding ExportHistoryCMD}"
@@ -184,7 +289,7 @@
                             BorderBrush="#15803D">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="MicrosoftExcel" Width="18" Height="18" Margin="0,0,7,0"/>
-                            <TextBlock Text="XUẤT EXCEL" VerticalAlignment="Center"/>
+                            <TextBlock Text="XUẤT EXCEL" Style="{StaticResource HistoryButtonTextStyle}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding OpenExportFolderCMD}"
@@ -220,12 +325,12 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="4" Height="18" CornerRadius="2" Background="#2563EB" Margin="0,0,8,0"/>
-                        <TextBlock Text="BỘ LỌC DỮ LIỆU" FontSize="12.5" FontWeight="Black" Foreground="#0F172A"/>
+                        <TextBlock Text="BỘ LỌC DỮ LIỆU" Style="{StaticResource HistorySectionTitleTextStyle}"/>
                     </StackPanel>
                     <Border Grid.Column="1" Padding="9,4" CornerRadius="9" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="6" Height="6" Fill="#3B82F6" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Tự động cập nhật khi đổi bộ lọc" FontSize="10.5" FontWeight="SemiBold" Foreground="#1D4ED8"/>
+                            <TextBlock Text="Tự động cập nhật khi đổi bộ lọc" Style="{StaticResource HistoryHintTextStyle}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -319,10 +424,10 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <materialDesign:PackIcon Kind="TableLarge" Width="18" Height="18" Foreground="#2563EB" Margin="0,0,8,0"/>
-                        <TextBlock Text="DỮ LIỆU LỊCH SỬ" FontSize="12.5" FontWeight="Black" Foreground="#0F172A"/>
+                        <TextBlock Text="DỮ LIỆU LỊCH SỬ" Style="{StaticResource HistorySectionTitleTextStyle}"/>
                     </StackPanel>
                     <Border Grid.Column="1" Padding="10,5" CornerRadius="10" Background="#F1F5F9" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding RowCounts, StringFormat={}{0:N0} dòng}" FontSize="11" FontWeight="Bold" Foreground="#475569"/>
+                        <TextBlock Text="{Binding RowCounts, StringFormat={}{0:N0} dòng}" Style="{StaticResource HistoryCountBadgeTextStyle}"/>
                     </Border>
                 </Grid>
 
@@ -331,8 +436,8 @@
                               AutoGenerateColumns="False"
                               LoadingRow="SQLiteTable_LoadingRow"
                               IsReadOnly="True"
-                              FontSize="12"
-                              RowHeight="36"
+                              FontSize="12.2"
+                              RowHeight="38"
                               HeadersVisibility="Column"
                               GridLinesVisibility="Horizontal"
                               CanUserAddRows="False"
@@ -367,8 +472,8 @@
                             <DataGridTemplateColumn Header="KẾT QUẢ" Width="82">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border x:Name="ResultBadge" Padding="8,3" CornerRadius="9" Background="#F1F5F9" HorizontalAlignment="Center">
-                                            <TextBlock x:Name="ResultLabel" Text="{Binding ResultText}" FontSize="10.5" FontWeight="Black" Foreground="#475569"/>
+                                        <Border x:Name="ResultBadge" Padding="10,4" CornerRadius="10" Background="#F1F5F9" HorizontalAlignment="Center">
+                                            <TextBlock x:Name="ResultLabel" Text="{Binding ResultText}" Style="{StaticResource HistoryResultBadgeTextStyle}"/>
                                         </Border>
                                         <DataTemplate.Triggers>
                                             <DataTrigger Binding="{Binding ResultText}" Value="PASS">
@@ -403,15 +508,15 @@
                         <Border Width="54" Height="54" CornerRadius="27" Background="#F1F5F9" HorizontalAlignment="Center">
                             <materialDesign:PackIcon Kind="DatabaseSearch" Width="26" Height="26" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Chưa có dữ liệu phù hợp" FontSize="13" FontWeight="Bold" Foreground="#475569" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                        <TextBlock Text="Hãy thay đổi bộ lọc hoặc chọn khoảng ngày khác." FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                        <TextBlock Text="Chưa có dữ liệu phù hợp" Style="{StaticResource HistoryEmptyTitleTextStyle}"/>
+                        <TextBlock Text="Hãy thay đổi bộ lọc hoặc chọn khoảng ngày khác." Style="{StaticResource HistoryEmptySubtitleTextStyle}"/>
                     </StackPanel>
                 </Grid>
             </Grid>
         </Border>
 
         <!-- Query status -->
-        <Border Grid.Row="6" CornerRadius="12" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" Padding="14,0">
+        <Border Grid.Row="6" CornerRadius="12" Background="#F8FAFC" BorderBrush="#DCE7F5" BorderThickness="1" Padding="14,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -422,12 +527,12 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Ellipse Width="7" Height="7" Fill="#3B82F6" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding QueryStatus}" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" Foreground="#475569" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="2" Text="{Binding QueryStatus}" Style="{StaticResource HistoryStatusTextStyle}"/>
                 <Border Grid.Column="3" Padding="9,4" CornerRadius="8" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding QueryTimes, StringFormat=Thời gian: {0} ms}" FontSize="10.5" FontWeight="Bold" Foreground="#475569"/>
+                    <TextBlock Text="{Binding QueryTimes, StringFormat=Thời gian: {0} ms}" Style="{StaticResource HistoryStatusPillTextStyle}"/>
                 </Border>
                 <Border Grid.Column="5" Padding="9,4" CornerRadius="8" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding RowCounts, StringFormat=Số dòng: {0:N0}}" FontSize="10.5" FontWeight="Bold" Foreground="#475569"/>
+                    <TextBlock Text="{Binding RowCounts, StringFormat=Số dòng: {0:N0}}" Style="{StaticResource HistoryStatusPillTextStyle}"/>
                 </Border>
             </Grid>
         </Border>

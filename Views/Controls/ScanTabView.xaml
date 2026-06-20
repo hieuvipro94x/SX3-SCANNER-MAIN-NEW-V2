@@ -5,117 +5,288 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:SX3_SCANER.Views.Controls"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Base text styles -->
+            <Style x:Key="ScanTextBaseStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="StartupTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanTextBaseStyle}">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#92400E"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            </Style>
+
+            <Style x:Key="StartupMessageTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanTextBaseStyle}">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#78350F"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="LineHeight" Value="19"/>
+                <Setter Property="Margin" Value="0,2,0,0"/>
+            </Style>
+
+            <Style x:Key="DashboardLabelTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanTextBaseStyle}">
+                <Setter Property="FontSize" Value="10.5"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#64748B"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                <Setter Property="LineHeight" Value="15"/>
+            </Style>
+
+            <Style x:Key="DashboardValueTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanTextBaseStyle}">
+                <Setter Property="FontSize" Value="26"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Margin" Value="0,1,0,0"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="LineStackingStrategy" Value="BlockLineHeight"/>
+                <Setter Property="LineHeight" Value="30"/>
+            </Style>
+
+            <Style x:Key="DashboardSubTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ScanTextBaseStyle}">
+                <Setter Property="FontSize" Value="10"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#94A3B8"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="Margin" Value="0,1,0,0"/>
+            </Style>
+
+            <!-- Surface styles -->
+            <Style x:Key="StartupCheckBannerStyle" TargetType="Border">
+                <Setter Property="Margin" Value="0,0,0,10"/>
+                <Setter Property="Background" Value="#FFFBEB"/>
+                <Setter Property="BorderBrush" Value="#FBBF24"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="14"/>
+                <Setter Property="Padding" Value="14,11"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="14"
+                                          ShadowDepth="0"
+                                          Opacity="0.08"
+                                          Color="#92400E"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="DashboardCardStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="16"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="14,10"/>
+                <Setter Property="MinHeight" Value="68"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="16"
+                                          ShadowDepth="0"
+                                          Opacity="0.09"
+                                          Color="#334155"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="DashboardIconCircleStyle" TargetType="Border">
+                <Setter Property="Width" Value="40"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="CornerRadius" Value="20"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="DashboardIconStyle" TargetType="materialDesign:PackIcon">
+                <Setter Property="Width" Value="22"/>
+                <Setter Property="Height" Value="22"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Margin="12">
+    <Grid Margin="12" Background="{StaticResource AppBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="10" />
+            <RowDefinition Height="12" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- Startup database check banner -->
         <Border Grid.Row="0"
-                Margin="0,0,0,8"
-                Background="#FFFBEB"
-                BorderBrush="#F59E0B"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="12,9"
+                Style="{StaticResource StartupCheckBannerStyle}"
                 Visibility="{Binding IsStartupCheckVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="28" Height="28" CornerRadius="14" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1">
-                    <TextBlock Text="DB" FontSize="11" FontWeight="Black" Foreground="#92400E" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                <Border Width="36"
+                        Height="36"
+                        CornerRadius="18"
+                        Background="#FEF3C7"
+                        BorderBrush="#F59E0B"
+                        BorderThickness="1">
+                    <materialDesign:PackIcon Kind="Database"
+                                             Width="19"
+                                             Height="19"
+                                             Foreground="#B45309"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center"/>
                 </Border>
+
                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock Text="KIỂM TRA DATABASE" FontSize="12" FontWeight="Black" Foreground="#92400E"/>
-                    <TextBlock Text="{Binding StartupDatabaseStatusText}" FontSize="13" FontWeight="SemiBold" Foreground="#78350F" TextWrapping="Wrap"/>
+                    <TextBlock Text="KIỂM TRA DATABASE"
+                               Style="{StaticResource StartupTitleTextStyle}"/>
+                    <TextBlock Text="{Binding StartupDatabaseStatusText}"
+                               Style="{StaticResource StartupMessageTextStyle}"/>
                 </StackPanel>
             </Grid>
         </Border>
 
+        <!-- Daily dashboard -->
         <UniformGrid Grid.Row="1" Columns="4">
-            <Border CornerRadius="12" Background="#ECFDF5" BorderBrush="#BBF7D0" BorderThickness="1" Padding="12,8" Margin="0,0,5,0">
+            <!-- PASS -->
+            <Border Style="{StaticResource DashboardCardStyle}"
+                    Background="#F0FDF4"
+                    BorderBrush="#BBF7D0"
+                    Margin="0,0,6,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="12"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Width="34" Height="34" CornerRadius="17" Background="#DCFCE7" BorderBrush="#22C55E" BorderThickness="1">
-                        <TextBlock Text="OK" FontSize="11" FontWeight="Black" Foreground="#15803D" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Border Style="{StaticResource DashboardIconCircleStyle}"
+                            Background="#DCFCE7"
+                            BorderBrush="#86EFAC">
+                        <materialDesign:PackIcon Kind="CheckCircle"
+                                                 Style="{StaticResource DashboardIconStyle}"
+                                                 Foreground="#16A34A"/>
                     </Border>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="TỔNG PASS" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource OkBrush}"/>
-                        <TextBlock Text="{Binding TodayPassCount}" FontSize="24" FontWeight="Black" Foreground="#15803D"/>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="TỔNG PASS"
+                                   Style="{StaticResource DashboardLabelTextStyle}"
+                                   Foreground="#15803D"/>
+                        <TextBlock Text="{Binding TodayPassCount, TargetNullValue=0}"
+                                   Style="{StaticResource DashboardValueTextStyle}"
+                                   Foreground="#15803D"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Border CornerRadius="12" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Padding="12,8" Margin="5,0">
+            <!-- NG -->
+            <Border Style="{StaticResource DashboardCardStyle}"
+                    Background="#FEF2F2"
+                    BorderBrush="#FECACA"
+                    Margin="6,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="12"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Width="34" Height="34" CornerRadius="17" Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1">
-                        <TextBlock Text="NG" FontSize="11" FontWeight="Black" Foreground="#B91C1C" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Border Style="{StaticResource DashboardIconCircleStyle}"
+                            Background="#FEE2E2"
+                            BorderBrush="#FCA5A5">
+                        <materialDesign:PackIcon Kind="CloseCircle"
+                                                 Style="{StaticResource DashboardIconStyle}"
+                                                 Foreground="#DC2626"/>
                     </Border>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="TỔNG NG" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource NgBrush}"/>
-                        <TextBlock Text="{Binding TodayFailCount}" FontSize="24" FontWeight="Black" Foreground="#DC2626"/>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="TỔNG NG"
+                                   Style="{StaticResource DashboardLabelTextStyle}"
+                                   Foreground="#B91C1C"/>
+                        <TextBlock Text="{Binding TodayFailCount, TargetNullValue=0}"
+                                   Style="{StaticResource DashboardValueTextStyle}"
+                                   Foreground="#DC2626"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Border CornerRadius="12" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" Padding="12,8" Margin="5,0">
+            <!-- Full box -->
+            <Border Style="{StaticResource DashboardCardStyle}"
+                    Background="#EFF6FF"
+                    BorderBrush="#BFDBFE"
+                    Margin="6,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="12"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Width="34" Height="34" CornerRadius="17" Background="#DBEAFE" BorderBrush="#3B82F6" BorderThickness="1">
-                        <TextBlock Text="Đ" FontSize="14" FontWeight="Black" Foreground="#1D4ED8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Border Style="{StaticResource DashboardIconCircleStyle}"
+                            Background="#DBEAFE"
+                            BorderBrush="#93C5FD">
+                        <materialDesign:PackIcon Kind="PackageVariantClosed"
+                                                 Style="{StaticResource DashboardIconStyle}"
+                                                 Foreground="#2563EB"/>
                     </Border>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="THÙNG ĐỦ" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource PrimaryBrush}"/>
-                        <TextBlock Text="{Binding TodayFullBoxCount}" FontSize="24" FontWeight="Black" Foreground="#1D4ED8"/>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="THÙNG ĐỦ"
+                                   Style="{StaticResource DashboardLabelTextStyle}"
+                                   Foreground="#1D4ED8"/>
+                        <TextBlock Text="{Binding TodayFullBoxCount, TargetNullValue=0}"
+                                   Style="{StaticResource DashboardValueTextStyle}"
+                                   Foreground="#1D4ED8"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Border CornerRadius="12" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" Padding="12,8" Margin="5,0,0,0">
+            <!-- Partial box -->
+            <Border Style="{StaticResource DashboardCardStyle}"
+                    Background="#FFF7ED"
+                    BorderBrush="#FED7AA"
+                    Margin="6,0,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="12"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Width="34" Height="34" CornerRadius="17" Background="#FFEDD5" BorderBrush="#FB923C" BorderThickness="1">
-                        <TextBlock Text="L" FontSize="14" FontWeight="Black" Foreground="#C2410C" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                    <Border Style="{StaticResource DashboardIconCircleStyle}"
+                            Background="#FFEDD5"
+                            BorderBrush="#FDBA74">
+                        <materialDesign:PackIcon Kind="PackageVariant"
+                                                 Style="{StaticResource DashboardIconStyle}"
+                                                 Foreground="#EA580C"/>
                     </Border>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="THÙNG LẺ" Style="{StaticResource FieldLabelStyle}" Foreground="#C2410C"/>
-                        <TextBlock Text="{Binding TodayPartialBoxCount}" FontSize="24" FontWeight="Black" Foreground="#EA580C"/>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="THÙNG LẺ"
+                                   Style="{StaticResource DashboardLabelTextStyle}"
+                                   Foreground="#C2410C"/>
+                        <TextBlock Text="{Binding TodayPartialBoxCount, TargetNullValue=0}"
+                                   Style="{StaticResource DashboardValueTextStyle}"
+                                   Foreground="#EA580C"/>
                     </StackPanel>
                 </Grid>
             </Border>
         </UniformGrid>
 
+        <!-- Main scan workspace -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" MinWidth="280" MaxWidth="330" />
@@ -123,8 +294,8 @@
                 <ColumnDefinition Width="370" MinWidth="350" MaxWidth="410" />
             </Grid.ColumnDefinitions>
 
-            <controls:ScanLeftPanel Grid.Column="0" />
-            <controls:ScanInputHistoryPanel Grid.Column="1" />
+            <controls:ScanLeftPanel Grid.Column="0" Margin="0,0,8,0" />
+            <controls:ScanInputHistoryPanel Grid.Column="1" Margin="0,0,8,0" />
             <controls:ScanRightPanel Grid.Column="2" />
         </Grid>
     </Grid>

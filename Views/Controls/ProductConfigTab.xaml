@@ -5,7 +5,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:SX3_SCANER"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-mc:Ignorable="d">
+             mc:Ignorable="d"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
 
     <UserControl.Resources>
         <ResourceDictionary>
@@ -13,102 +15,182 @@ mc:Ignorable="d">
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ===================== LOCAL PROFESSIONAL STYLES ===================== -->
-            <SolidColorBrush x:Key="ConfigPageBackground" Color="#F3F6FA" />
+            <!-- ===================== PRODUCT CONFIG PROFESSIONAL THEME ===================== -->
+            <SolidColorBrush x:Key="ConfigPageBackground" Color="#F4F7FB" />
             <SolidColorBrush x:Key="ConfigCardBackground" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="ConfigSoftCardBackground" Color="#F8FAFC" />
             <SolidColorBrush x:Key="ConfigBorderBrush" Color="#E2E8F0" />
-            <SolidColorBrush x:Key="ConfigMutedTextBrush" Color="#64748B" />
-            <SolidColorBrush x:Key="ConfigTitleBrush" Color="#0F172A" />
+            <SolidColorBrush x:Key="ConfigMutedBorderBrush" Color="#CBD5E1" />
+            <SolidColorBrush x:Key="ConfigTextMainBrush" Color="#0F172A" />
+            <SolidColorBrush x:Key="ConfigTextMutedBrush" Color="#64748B" />
             <SolidColorBrush x:Key="ConfigPrimaryBrush" Color="#2563EB" />
-            <SolidColorBrush x:Key="ConfigPrimaryHoverBrush" Color="#1D4ED8" />
+            <SolidColorBrush x:Key="ConfigPrimaryDarkBrush" Color="#1D4ED8" />
+            <SolidColorBrush x:Key="ConfigPrimarySoftBrush" Color="#EFF6FF" />
             <SolidColorBrush x:Key="ConfigDangerBrush" Color="#DC2626" />
-            <SolidColorBrush x:Key="ConfigDangerHoverBrush" Color="#B91C1C" />
+            <SolidColorBrush x:Key="ConfigDangerDarkBrush" Color="#B91C1C" />
+            <SolidColorBrush x:Key="ConfigDangerSoftBrush" Color="#FEF2F2" />
             <SolidColorBrush x:Key="ConfigSuccessBrush" Color="#16A34A" />
-            <SolidColorBrush x:Key="ConfigSuccessHoverBrush" Color="#15803D" />
+            <SolidColorBrush x:Key="ConfigSuccessDarkBrush" Color="#15803D" />
+            <SolidColorBrush x:Key="ConfigSuccessSoftBrush" Color="#F0FDF4" />
             <SolidColorBrush x:Key="ConfigWarningBrush" Color="#F59E0B" />
-            <SolidColorBrush x:Key="ConfigWarningHoverBrush" Color="#D97706" />
-            <SolidColorBrush x:Key="ConfigReadonlyBrush" Color="#F8FAFC" />
-            <SolidColorBrush x:Key="ConfigInputFocusBrush" Color="#93C5FD" />
+            <SolidColorBrush x:Key="ConfigWarningDarkBrush" Color="#D97706" />
+            <SolidColorBrush x:Key="ConfigWarningSoftBrush" Color="#FFFBEB" />
+            <SolidColorBrush x:Key="ConfigInputFocusBrush" Color="#60A5FA" />
+            <SolidColorBrush x:Key="ConfigReadOnlyBrush" Color="#F1F5F9" />
 
             <Style x:Key="ConfigCardStyle" TargetType="Border">
                 <Setter Property="Background" Value="{StaticResource ConfigCardBackground}" />
                 <Setter Property="BorderBrush" Value="{StaticResource ConfigBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="14" />
-                <Setter Property="Padding" Value="14" />
+                <Setter Property="CornerRadius" Value="18" />
+                <Setter Property="Padding" Value="16" />
                 <Setter Property="SnapsToDevicePixels" Value="True" />
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="24"
+                                          ShadowDepth="0"
+                                          Opacity="0.10"
+                                          Color="#334155" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ConfigMiniIconBoxStyle" TargetType="Border">
+                <Setter Property="Width" Value="44" />
+                <Setter Property="Height" Value="44" />
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="Background" Value="{StaticResource ConfigPrimarySoftBrush}" />
+                <Setter Property="BorderBrush" Value="#BFDBFE" />
+                <Setter Property="BorderThickness" Value="1" />
+            </Style>
+
+            <Style x:Key="ConfigPageTitleStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMainBrush}" />
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontWeight" Value="Black" />
+                <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+                <Setter Property="LineHeight" Value="24" />
             </Style>
 
             <Style x:Key="ConfigSectionTitleStyle" TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{StaticResource ConfigTitleBrush}" />
-                <Setter Property="FontSize" Value="18" />
-                <Setter Property="FontWeight" Value="ExtraBold" />
-                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMainBrush}" />
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="FontWeight" Value="Black" />
+                <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+                <Setter Property="LineHeight" Value="20" />
             </Style>
 
-            <Style x:Key="ConfigSectionSubTitleStyle" TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{StaticResource ConfigMutedTextBrush}" />
+            <Style x:Key="ConfigSubTitleStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMutedBrush}" />
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="LineHeight" Value="17" />
             </Style>
 
             <Style x:Key="ConfigFieldLabelStyle" TargetType="TextBlock">
                 <Setter Property="Foreground" Value="#334155" />
-                <Setter Property="FontSize" Value="12" />
-                <Setter Property="FontWeight" Value="ExtraBold" />
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="FontWeight" Value="Black" />
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                 <Setter Property="Margin" Value="0,0,10,0" />
             </Style>
 
-            <Style x:Key="ConfigTextBoxStyle" TargetType="TextBox">
-                <Setter Property="Height" Value="38" />
-                <Setter Property="MinHeight" Value="38" />
-                <Setter Property="FontSize" Value="14" />
+            <Style x:Key="ConfigHintTextStyle" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMutedBrush}" />
+                <Setter Property="FontSize" Value="10.5" />
                 <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="#0F172A" />
-                <Setter Property="Background" Value="White" />
-                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <Style x:Key="ConfigTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Height" Value="40" />
+                <Setter Property="MinHeight" Value="40" />
+                <Setter Property="FontSize" Value="13.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMainBrush}" />
+                <Setter Property="Background" Value="#F8FAFC" />
+                <Setter Property="BorderBrush" Value="{StaticResource ConfigMutedBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Padding" Value="10,0" />
+                <Setter Property="Padding" Value="12,0" />
                 <Setter Property="VerticalContentAlignment" Value="Center" />
                 <Setter Property="HorizontalContentAlignment" Value="Left" />
                 <Setter Property="TextAlignment" Value="Left" />
                 <Setter Property="Margin" Value="0,4" />
                 <Setter Property="SnapsToDevicePixels" Value="True" />
-                <Style.Triggers>
-                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                        <Setter Property="BorderBrush" Value="{StaticResource ConfigInputFocusBrush}" />
-                        <Setter Property="BorderThickness" Value="2" />
-                    </Trigger>
-                    <Trigger Property="IsReadOnly" Value="True">
-                        <Setter Property="Background" Value="{StaticResource ConfigReadonlyBrush}" />
-                        <Setter Property="Foreground" Value="#64748B" />
-                    </Trigger>
-                    <Trigger Property="IsEnabled" Value="False">
-                        <Setter Property="Opacity" Value="0.7" />
-                    </Trigger>
-                </Style.Triggers>
+                <Setter Property="CaretBrush" Value="{StaticResource ConfigPrimaryBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="InputBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="11"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              HorizontalAlignment="Stretch" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                    <Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource ConfigInputFocusBrush}" />
+                                    <Setter TargetName="InputBorder" Property="BorderThickness" Value="2" />
+                                    <Setter TargetName="InputBorder" Property="Background" Value="White" />
+                                </Trigger>
+                                <Trigger Property="IsReadOnly" Value="True">
+                                    <Setter TargetName="InputBorder" Property="Background" Value="{StaticResource ConfigReadOnlyBrush}" />
+                                    <Setter Property="Foreground" Value="{StaticResource ConfigTextMutedBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="InputBorder" Property="Opacity" Value="0.55" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ConfigSearchTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource ConfigTextBoxStyle}">
+                <Setter Property="Height" Value="42" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0,0,12,0" />
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center" />
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style x:Key="ConfigButtonStyle" TargetType="Button">
                 <Setter Property="Height" Value="42" />
-                <Setter Property="MinWidth" Value="96" />
+                <Setter Property="MinWidth" Value="98" />
                 <Setter Property="Padding" Value="14,0" />
                 <Setter Property="Foreground" Value="White" />
                 <Setter Property="Background" Value="{StaticResource ConfigPrimaryBrush}" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="FontSize" Value="13" />
-                <Setter Property="FontWeight" Value="ExtraBold" />
+                <Setter Property="BorderBrush" Value="{StaticResource ConfigPrimaryDarkBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="FontWeight" Value="Black" />
                 <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                 <Setter Property="SnapsToDevicePixels" Value="True" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="ButtonBorder"
                                     Background="{TemplateBinding Background}"
-                                    CornerRadius="10"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="12"
                                     Padding="{TemplateBinding Padding}"
                                     SnapsToDevicePixels="True">
                                 <ContentPresenter HorizontalAlignment="Center"
@@ -120,7 +202,7 @@ mc:Ignorable="d">
                                     <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92" />
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.82" />
+                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.78" />
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45" />
@@ -131,21 +213,86 @@ mc:Ignorable="d">
                 </Setter>
             </Style>
 
+            <Style x:Key="ConfigGhostButtonStyle" TargetType="Button" BasedOn="{StaticResource ConfigButtonStyle}">
+                <Setter Property="Foreground" Value="{StaticResource ConfigPrimaryBrush}" />
+                <Setter Property="Background" Value="{StaticResource ConfigPrimarySoftBrush}" />
+                <Setter Property="BorderBrush" Value="#BFDBFE" />
+            </Style>
+
             <Style x:Key="ConfigDataGridTextStyle" TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextAlignment" Value="Center" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                 <Setter Property="Padding" Value="8,0" />
+                <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+            </Style>
+
+            <Style x:Key="ConfigDataGridLeftTextStyle" TargetType="TextBlock" BasedOn="{StaticResource ConfigDataGridTextStyle}">
+                <Setter Property="TextAlignment" Value="Left" />
+            </Style>
+
+            <Style x:Key="ConfigColumnHeaderStyle" TargetType="DataGridColumnHeader">
+                <Setter Property="Height" Value="42" />
+                <Setter Property="Background" Value="#F1F5F9" />
+                <Setter Property="Foreground" Value="#334155" />
+                <Setter Property="FontSize" Value="11" />
+                <Setter Property="FontWeight" Value="Black" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Padding" Value="8,0" />
+                <Setter Property="BorderBrush" Value="#E2E8F0" />
+                <Setter Property="BorderThickness" Value="0,0,1,1" />
+            </Style>
+
+            <Style x:Key="ConfigCellStyle" TargetType="DataGridCell">
+                <Setter Property="Padding" Value="6,0" />
+                <Setter Property="BorderBrush" Value="#F1F5F9" />
+                <Setter Property="BorderThickness" Value="0,0,1,1" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMainBrush}" />
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#DBEAFE" />
+                        <Setter Property="Foreground" Value="#1E3A8A" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="ConfigRowStyle" TargetType="DataGridRow">
+                <Setter Property="Background" Value="White" />
+                <Setter Property="Foreground" Value="{StaticResource ConfigTextMainBrush}" />
+                <Setter Property="FontSize" Value="12.5" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="SnapsToDevicePixels" Value="True" />
+                <Style.Triggers>
+                    <Trigger Property="AlternationIndex" Value="1">
+                        <Setter Property="Background" Value="#F8FAFC" />
+                    </Trigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsMouseOver" Value="True" />
+                            <Condition Property="IsSelected" Value="False" />
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Background" Value="#EFF6FF" />
+                    </MultiTrigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#DBEAFE" />
+                        <Setter Property="Foreground" Value="#1E3A8A" />
+                    </Trigger>
+                </Style.Triggers>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid Background="{StaticResource ConfigPageBackground}" Margin="10">
+    <Grid Background="{StaticResource ConfigPageBackground}" Margin="12">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="430" MinWidth="390" />
-            <ColumnDefinition Width="14" />
-            <ColumnDefinition Width="*" MinWidth="620" />
+            <ColumnDefinition Width="450" MinWidth="410" MaxWidth="490" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" MinWidth="650" />
         </Grid.ColumnDefinitions>
 
         <!-- ===================== LEFT: PRODUCT FORM ===================== -->
@@ -153,8 +300,11 @@ mc:Ignorable="d">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="14" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="12" />
                     <RowDefinition Height="*" />
+                    <RowDefinition Height="14" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
@@ -162,44 +312,56 @@ mc:Ignorable="d">
                 <Grid Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="12" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Width="42"
-                            Height="42"
-                            CornerRadius="12"
-                            Background="#DBEAFE"
-                            VerticalAlignment="Top">
-                        <TextBlock Text="CFG"
-                                   Foreground="{StaticResource ConfigPrimaryBrush}"
-                                   FontSize="13"
-                                   FontWeight="ExtraBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
+                    <Border Style="{StaticResource ConfigMiniIconBoxStyle}">
+                        <materialDesign:PackIcon Kind="Tune"
+                                                 Width="23"
+                                                 Height="23"
+                                                 Foreground="{StaticResource ConfigPrimaryBrush}"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center" />
                     </Border>
 
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock Text="THÔNG TIN MÃ HÀNG"
-                                   Style="{StaticResource ConfigSectionTitleStyle}" />
-                        <TextBlock Text="Thêm, sửa hoặc kiểm tra định dạng QR theo từng mã sản phẩm."
-                                   Style="{StaticResource ConfigSectionSubTitleStyle}"
+                                   Style="{StaticResource ConfigPageTitleStyle}" />
+                        <TextBlock Text="Cấu hình định dạng mã QR, độ dài và số lượng đóng thùng."
+                                   Style="{StaticResource ConfigSubTitleStyle}"
                                    Margin="0,3,0,0" />
                     </StackPanel>
                 </Grid>
 
-                <Border Grid.Row="1"
-                        Height="1"
-                        Background="#E2E8F0"
-                        Margin="0,14,0,10" />
+                <Border Grid.Row="2"
+                        CornerRadius="12"
+                        Background="#F8FAFC"
+                        BorderBrush="#E2E8F0"
+                        BorderThickness="1"
+                        Padding="12,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource ConfigPrimaryBrush}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2"
+                                   Text="Chọn một dòng trong bảng bên phải để sửa nhanh thông tin cấu hình."
+                                   Style="{StaticResource ConfigHintTextStyle}"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
 
                 <!-- Form content -->
-                <ScrollViewer Grid.Row="2"
+                <ScrollViewer Grid.Row="4"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
                               CanContentScroll="False">
                     <Grid Margin="0,0,4,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="92" />
+                            <ColumnDefinition Width="104" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -251,17 +413,22 @@ mc:Ignorable="d">
                                  Style="{StaticResource ConfigTextBoxStyle}"
                                  d:Text="XYZ" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="SAMPLE" Style="{StaticResource ConfigFieldLabelStyle}" VerticalAlignment="Top" Margin="0,12,10,0" />
+                        <TextBlock Grid.Row="6"
+                                   Grid.Column="0"
+                                   Text="SAMPLE"
+                                   Style="{StaticResource ConfigFieldLabelStyle}"
+                                   VerticalAlignment="Top"
+                                   Margin="0,14,10,0" />
                         <TextBox Grid.Row="6" Grid.Column="1"
                                  Text="{Binding CURR_SAMPLE}"
                                  Style="{StaticResource ConfigTextBoxStyle}"
-                                 Height="76"
-                                 MinHeight="76"
+                                 Height="84"
+                                 MinHeight="84"
                                  TextWrapping="Wrap"
                                  AcceptsReturn="True"
                                  VerticalScrollBarVisibility="Auto"
                                  VerticalContentAlignment="Top"
-                                 Padding="10,8"
+                                 Padding="12,10"
                                  d:Text="THISISATEXTBOXTHISISATEXTBOXTHISISATEXTBOX" />
 
                         <TextBlock Grid.Row="7" Grid.Column="0" Text="LENGTH" Style="{StaticResource ConfigFieldLabelStyle}" />
@@ -279,20 +446,26 @@ mc:Ignorable="d">
                 </ScrollViewer>
 
                 <!-- Actions -->
-                <Grid Grid.Row="3" Margin="0,14,0,0">
+                <Grid Grid.Row="6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="9" />
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="9" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0"
                             Style="{StaticResource ConfigButtonStyle}"
                             Background="{StaticResource ConfigDangerBrush}"
+                            BorderBrush="{StaticResource ConfigDangerDarkBrush}"
                             Command="{Binding DELETECMD}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Delete"
+                                                     Width="18"
+                                                     Height="18"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,6,0" />
                             <TextBlock Text="XÓA" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -300,8 +473,14 @@ mc:Ignorable="d">
                     <Button Grid.Column="2"
                             Style="{StaticResource ConfigButtonStyle}"
                             Background="{StaticResource ConfigSuccessBrush}"
+                            BorderBrush="{StaticResource ConfigSuccessDarkBrush}"
                             Command="{Binding ADDCMD}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Plus"
+                                                     Width="18"
+                                                     Height="18"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,6,0" />
                             <TextBlock Text="THÊM" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -309,8 +488,14 @@ mc:Ignorable="d">
                     <Button Grid.Column="4"
                             Style="{StaticResource ConfigButtonStyle}"
                             Background="{StaticResource ConfigWarningBrush}"
+                            BorderBrush="{StaticResource ConfigWarningDarkBrush}"
                             Command="{Binding MODIFYCMD}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Pencil"
+                                                     Width="18"
+                                                     Height="18"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,6,0" />
                             <TextBlock Text="SỬA" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -322,77 +507,69 @@ mc:Ignorable="d">
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="12" />
+                <RowDefinition Height="14" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
             <!-- Search card -->
-            <Border Grid.Row="0" Style="{StaticResource ConfigCardStyle}" Padding="14">
+            <Border Grid.Row="0" Style="{StaticResource ConfigCardStyle}" Padding="16,14">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="430" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Width="42"
-                            Height="42"
-                            CornerRadius="12"
+                    <Border Style="{StaticResource ConfigMiniIconBoxStyle}"
                             Background="#EEF2FF"
-                            VerticalAlignment="Center">
-                        <TextBlock Text="LIST"
-                                   Foreground="{StaticResource ConfigPrimaryBrush}"
-                                   FontSize="12"
-                                   FontWeight="ExtraBold"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
+                            BorderBrush="#C7D2FE">
+                        <materialDesign:PackIcon Kind="FormatListBulleted"
+                                                 Width="23"
+                                                 Height="23"
+                                                 Foreground="{StaticResource ConfigPrimaryBrush}"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center" />
                     </Border>
 
-                    <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock Text="DANH SÁCH CẤU HÌNH"
-                                   Style="{StaticResource ConfigSectionTitleStyle}"
-                                   FontSize="17" />
-                        <TextBlock Text="Tìm theo Part Name và chọn dòng để đưa dữ liệu sang form bên trái."
-                                   Style="{StaticResource ConfigSectionSubTitleStyle}"
+                                   Style="{StaticResource ConfigSectionTitleStyle}" />
+                        <TextBlock Text="Tìm theo Car, Part Number, Part Name, Prefix hoặc Suffix rồi chọn dòng để sửa."
+                                   Style="{StaticResource ConfigSubTitleStyle}"
                                    Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <Grid Grid.Column="3" Width="420" VerticalAlignment="Center">
+                    <Grid Grid.Column="4" VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="104" />
+                            <ColumnDefinition Width="106" />
                         </Grid.ColumnDefinitions>
 
                         <Border Grid.Column="0"
                                 Background="#F8FAFC"
                                 BorderBrush="#CBD5E1"
                                 BorderThickness="1"
-                                CornerRadius="10">
+                                CornerRadius="12"
+                                Height="42">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="38" />
+                                    <ColumnDefinition Width="42" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <materialDesign:PackIcon Grid.Column="0"
                                                          Kind="Magnify"
-                                                         Width="20"
-                                                         Height="20"
+                                                         Width="19"
+                                                         Height="19"
                                                          Foreground="#64748B"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center" />
                                 <TextBox Grid.Column="1"
-                                         Height="40"
                                          Text="{Binding InputProductNameSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Delay=220}"
-                                         FontSize="14"
-                                         FontWeight="SemiBold"
-                                         VerticalContentAlignment="Center"
-                                         BorderThickness="0"
-                                         Background="Transparent"
-                                         Padding="0,0,10,0"
+                                         Style="{StaticResource ConfigSearchTextBoxStyle}"
                                          ToolTip="Tìm theo Car / Part Number / Part Name / Prefix / Suffix"
-                                         Foreground="#0F172A"
                                          d:Text="Nhập PartName cần tìm" />
                             </Grid>
                         </Border>
@@ -400,12 +577,17 @@ mc:Ignorable="d">
                         <Button Grid.Column="2"
                                 Style="{StaticResource ConfigButtonStyle}"
                                 Height="42"
-                                MinWidth="104"
+                                MinWidth="106"
                                 Background="{StaticResource ConfigPrimaryBrush}"
+                                BorderBrush="{StaticResource ConfigPrimaryDarkBrush}"
                                 Command="{Binding SeachProductInfoCMD}">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <materialDesign:PackIcon Kind="Search" Width="19" Height="19" VerticalAlignment="Center" />
-                                <TextBlock Text="TÌM" Margin="7,0,0,0" VerticalAlignment="Center" />
+                                <materialDesign:PackIcon Kind="Search"
+                                                         Width="18"
+                                                         Height="18"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,7,0" />
+                                <TextBlock Text="TÌM" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -414,159 +596,166 @@ mc:Ignorable="d">
 
             <!-- Table card -->
             <Border Grid.Row="2" Style="{StaticResource ConfigCardStyle}" Padding="0" ClipToBounds="True">
-                <DataGrid ItemsSource="{Binding LabelProductInfoView}"
-                          SelectedItem="{Binding SelectedProductInfoToModify, Mode=OneWayToSource}"
-                          AutoGenerateColumns="False"
-                          IsReadOnly="True"
-                          FontSize="13"
-                          RowHeight="34"
-                          ColumnHeaderHeight="38"
-                          GridLinesVisibility="Horizontal"
-                          HeadersVisibility="Column"
-                          CanUserAddRows="False"
-                          CanUserDeleteRows="False"
-                          CanUserReorderColumns="False"
-                          CanUserResizeRows="False"
-                          CanUserResizeColumns="False"
-                          CanUserSortColumns="False"
-                          SelectionMode="Single"
-                          SelectionUnit="FullRow"
-                          BorderThickness="0"
-                          Background="White"
-                          AlternatingRowBackground="#F8FAFC"
-                          HorizontalGridLinesBrush="#E2E8F0"
-                          VerticalGridLinesBrush="Transparent"
-                          EnableRowVirtualization="True"
-                          EnableColumnVirtualization="True"
-                          VirtualizingPanel.IsVirtualizing="True"
-                          VirtualizingPanel.VirtualizationMode="Recycling"
-                          ScrollViewer.CanContentScroll="True"
-                          ScrollViewer.VerticalScrollBarVisibility="Auto"
-                          ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="54" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <DataGrid.Resources>
-                        <Style TargetType="ScrollBar">
-                            <Setter Property="MinWidth" Value="10" />
-                            <Setter Property="MinHeight" Value="10" />
-                        </Style>
-                    </DataGrid.Resources>
+                    <Grid Margin="16,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="ID"
-                                            Binding="{Binding ID}"
-                                            Width="64"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="4" Height="20" CornerRadius="2" Background="{StaticResource ConfigPrimaryBrush}" Margin="0,0,9,0" />
+                            <TextBlock Text="BẢNG DỮ LIỆU MÃ HÀNG"
+                                       Style="{StaticResource ConfigSectionTitleStyle}"
+                                       FontSize="13.5"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
 
-                        <DataGridTextColumn Header="CAR"
-                                            Binding="{Binding Car}"
-                                            Width="90"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                        <Border Grid.Column="1"
+                                Padding="10,5"
+                                CornerRadius="10"
+                                Background="#F1F5F9"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding LabelProductInfoView.Count, StringFormat={}{0:N0} dòng}"
+                                       FontSize="11"
+                                       FontWeight="Black"
+                                       Foreground="#475569" />
+                        </Border>
+                    </Grid>
 
-                        <DataGridTextColumn Header="PART NUMBER"
-                                            Binding="{Binding PartNumber}"
-                                            Width="150"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                    <DataGrid Grid.Row="1"
+                              ItemsSource="{Binding LabelProductInfoView}"
+                              SelectedItem="{Binding SelectedProductInfoToModify, Mode=OneWayToSource}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              FontSize="12.5"
+                              RowHeight="38"
+                              ColumnHeaderHeight="42"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              CanUserReorderColumns="False"
+                              CanUserResizeRows="False"
+                              CanUserResizeColumns="False"
+                              CanUserSortColumns="False"
+                              SelectionMode="Single"
+                              SelectionUnit="FullRow"
+                              BorderThickness="1,1,0,0"
+                              BorderBrush="#E2E8F0"
+                              Background="White"
+                              RowBackground="White"
+                              AlternatingRowBackground="#F8FAFC"
+                              HorizontalGridLinesBrush="#E2E8F0"
+                              VerticalGridLinesBrush="#F1F5F9"
+                              AlternationCount="2"
+                              EnableRowVirtualization="True"
+                              EnableColumnVirtualization="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              ScrollViewer.CanContentScroll="True"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                              ColumnHeaderStyle="{StaticResource ConfigColumnHeaderStyle}"
+                              CellStyle="{StaticResource ConfigCellStyle}"
+                              RowStyle="{StaticResource ConfigRowStyle}">
 
-                        <DataGridTextColumn Header="PART NAME"
-                                            Binding="{Binding PartName}"
-                                            Width="180"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                        <DataGrid.Resources>
+                            <Style TargetType="ScrollBar">
+                                <Setter Property="MinWidth" Value="10" />
+                                <Setter Property="MinHeight" Value="10" />
+                            </Style>
+                        </DataGrid.Resources>
 
-                        <DataGridTextColumn Header="CODE FORMAT"
-                                            Binding="{Binding CodeStringForm}"
-                                            Width="260"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID"
+                                                Binding="{Binding ID}"
+                                                Width="64"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                        <DataGridTextColumn Header="PREFIX"
-                                            Binding="{Binding CodePrefix}"
-                                            Width="90"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                            <DataGridTextColumn Header="CAR"
+                                                Binding="{Binding Car}"
+                                                Width="90"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                        <DataGridTextColumn Header="SUFFIX"
-                                            Binding="{Binding CodeSuffix}"
-                                            Width="90"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                            <DataGridTextColumn Header="PART NUMBER"
+                                                Binding="{Binding PartNumber}"
+                                                Width="150"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                        <DataGridTextColumn Header="LENGTH"
-                                            Binding="{Binding CodeLength}"
-                                            Width="88"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                            <DataGridTextColumn Header="PART NAME"
+                                                Binding="{Binding PartName}"
+                                                Width="190"
+                                                ElementStyle="{StaticResource ConfigDataGridLeftTextStyle}" />
 
-                        <DataGridTextColumn Header="QTY"
-                                            Binding="{Binding BoxQuantity}"
-                                            Width="78"
-                                            ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+                            <DataGridTextColumn Header="CODE FORMAT"
+                                                Binding="{Binding CodeStringForm}"
+                                                Width="270"
+                                                ElementStyle="{StaticResource ConfigDataGridLeftTextStyle}" />
 
-                        <DataGridCheckBoxColumn Header="VALID"
-                                                Binding="{Binding IsValid, Mode=OneWay}"
-                                                Width="78" />
-                    </DataGrid.Columns>
+                            <DataGridTextColumn Header="PREFIX"
+                                                Binding="{Binding CodePrefix}"
+                                                Width="92"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                    <DataGrid.ColumnHeaderStyle>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="Background" Value="#1E40AF" />
-                            <Setter Property="Foreground" Value="White" />
-                            <Setter Property="FontWeight" Value="ExtraBold" />
-                            <Setter Property="FontSize" Value="12" />
-                            <Setter Property="Height" Value="38" />
-                            <Setter Property="HorizontalContentAlignment" Value="Center" />
-                            <Setter Property="VerticalContentAlignment" Value="Center" />
-                            <Setter Property="Padding" Value="10,0" />
-                            <Setter Property="BorderBrush" Value="#1D4ED8" />
-                            <Setter Property="BorderThickness" Value="0,0,1,0" />
-                        </Style>
-                    </DataGrid.ColumnHeaderStyle>
+                            <DataGridTextColumn Header="SUFFIX"
+                                                Binding="{Binding CodeSuffix}"
+                                                Width="92"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow">
-                            <Setter Property="Background" Value="White" />
-                            <Setter Property="Foreground" Value="#0F172A" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="SnapsToDevicePixels" Value="True" />
-                            <Style.Triggers>
-                                <Trigger Property="AlternationIndex" Value="1">
-                                    <Setter Property="Background" Value="#F8FAFC" />
-                                    <Setter Property="Foreground" Value="#0F172A" />
-                                </Trigger>
-                                <MultiTrigger>
-                                    <MultiTrigger.Conditions>
-                                        <Condition Property="IsMouseOver" Value="True" />
-                                        <Condition Property="IsSelected" Value="False" />
-                                    </MultiTrigger.Conditions>
-                                    <Setter Property="Background" Value="#EFF6FF" />
-                                    <Setter Property="Foreground" Value="#0F172A" />
-                                </MultiTrigger>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#2563EB" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </DataGrid.RowStyle>
+                            <DataGridTextColumn Header="LENGTH"
+                                                Binding="{Binding CodeLength}"
+                                                Width="88"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
 
-                    <DataGrid.CellStyle>
-                        <Style TargetType="DataGridCell">
-                            <Setter Property="Padding" Value="6,0" />
-                            <Setter Property="BorderThickness" Value="0" />
-                            <Setter Property="VerticalContentAlignment" Value="Center" />
-                            <Setter Property="HorizontalContentAlignment" Value="Center" />
-                            <Setter Property="TextBlock.TextAlignment" Value="Center" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="Foreground" Value="#0F172A" />
-                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-                            <Style.Triggers>
-                                <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#2563EB" />
-                                    <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderThickness" Value="0" />
-                                </Trigger>
-                                <Trigger Property="IsSelected" Value="False">
-                                    <Setter Property="Foreground" Value="#0F172A" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </DataGrid.CellStyle>
-                </DataGrid>
+                            <DataGridTextColumn Header="QTY"
+                                                Binding="{Binding BoxQuantity}"
+                                                Width="78"
+                                                ElementStyle="{StaticResource ConfigDataGridTextStyle}" />
+
+                            <DataGridTemplateColumn Header="VALID" Width="92">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="ValidBadge"
+                                                Padding="8,3"
+                                                CornerRadius="9"
+                                                Background="#F1F5F9"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                HorizontalAlignment="Center">
+                                            <TextBlock x:Name="ValidText"
+                                                       Text="N/A"
+                                                       FontSize="10.5"
+                                                       FontWeight="Black"
+                                                       Foreground="#64748B" />
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsValid}" Value="True">
+                                                <Setter TargetName="ValidBadge" Property="Background" Value="#DCFCE7" />
+                                                <Setter TargetName="ValidBadge" Property="BorderBrush" Value="#BBF7D0" />
+                                                <Setter TargetName="ValidText" Property="Text" Value="VALID" />
+                                                <Setter TargetName="ValidText" Property="Foreground" Value="#15803D" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                <Setter TargetName="ValidBadge" Property="Background" Value="#FEE2E2" />
+                                                <Setter TargetName="ValidBadge" Property="BorderBrush" Value="#FECACA" />
+                                                <Setter TargetName="ValidText" Property="Text" Value="INVALID" />
+                                                <Setter TargetName="ValidText" Property="Foreground" Value="#B91C1C" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
             </Border>
         </Grid>
     </Grid>
