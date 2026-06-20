@@ -156,7 +156,7 @@
                             <Binding Path="HasOpenScanSession" Converter="{StaticResource BooleanToVisibilityConverter}"/>
                         </Button.Visibility>
                     </Button>
-                    <Button Grid.Column="2" Height="38" Content="ĐỔI PHIÊN" FontSize="10" Style="{StaticResource SecondaryButton}" Command="{Binding OpenSessionSetupCMD}"/>
+                    <Button Grid.Column="2" Height="38" Content="ĐỔI MÃ HÀNG" FontSize="10" Style="{StaticResource SecondaryButton}" Command="{Binding OpenSessionSetupCMD}"/>
                     <Button Grid.Column="4" Height="38" Content="ĐÓNG LẺ" FontSize="10" Style="{StaticResource WarningButton}" Command="{Binding ClosePartialBoxCMD}"/>
                 </Grid>
             </Grid>

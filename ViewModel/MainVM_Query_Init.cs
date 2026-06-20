@@ -314,6 +314,9 @@ namespace SX3_SCANER.ViewModel
 
         private ICommand _queryCMD;
         private ICommand _exportHistoryCMD;
+        private string _lastExportFolder;
+
+        public ICommand OpenExportFolderCMD { get; private set; }
 
         public ICommand QueryCMD
         {
@@ -571,6 +574,9 @@ namespace SX3_SCANER.ViewModel
 
                 await Task.Run(() => XlsxExportService.ExportHistory(dialog.FileName, sorted));
 
+                _lastExportFolder = Path.GetDirectoryName(
+                    Path.GetFullPath(dialog.FileName));
+
                 stopwatch.Stop();
                 QueryTimes = stopwatch.Elapsed.TotalMilliseconds.ToString("0");
                 QueryStatus = "Đã xuất " + sorted.Count + " dòng ra Excel: " + Path.GetFileName(dialog.FileName);
@@ -594,6 +600,29 @@ namespace SX3_SCANER.ViewModel
             {
                 IsQuerying = false;
             }
+        }
+
+        private void OpenExportFolder()
+        {
+            string folder = _lastExportFolder;
+
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                folder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    "LỊCH SỬ SCAN");
+            }
+
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = folder,
+                UseShellExecute = true
+            });
         }
 
         private static void NormalizeDateRange(ref DateTime? fromDate, ref DateTime? toDate)

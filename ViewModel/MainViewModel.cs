@@ -25,7 +25,7 @@ namespace SX3_SCANER.ViewModel
         private bool _isApplicationReady;
         private bool _isApplicationInitializing;
         private bool _hasStartupError;
-        private string _startupDatabaseStatusText = "Đang chờ kiểm tra database...";
+        private string _startupDatabaseStatusText = "Đang kiểm tra dữ liệu";
 
         public bool AdminCRUD
         {
@@ -278,6 +278,9 @@ namespace SX3_SCANER.ViewModel
 
         public MainViewModel()
         {
+            OpenExportFolderCMD = new RelayCommand<object>(
+                null,
+                _ => OpenExportFolder());
             EnsureCreateAppConfig();
             InitializeScaningPropeties();
             InitializeOnlineAnnouncement();

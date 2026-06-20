@@ -187,6 +187,17 @@
                             <TextBlock Text="XUẤT EXCEL" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding OpenExportFolderCMD}"
+                            Style="{StaticResource HistoryPrimaryButtonStyle}"
+                            MinWidth="56"
+                            Margin="8,0,0,0"
+                            Background="#475569"
+                            BorderBrush="#334155"
+                            ToolTip="Mở thư mục chứa file Excel đã xuất">
+                        <materialDesign:PackIcon Kind="FolderOpen"
+                                                 Width="19"
+                                                 Height="19"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
