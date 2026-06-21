@@ -12,6 +12,7 @@
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
@@ -132,6 +133,7 @@
     <Compile Include="Helper\UpdateInfo.cs" />
     <Compile Include="Helper\UpdateService.cs" />
     <Compile Include="Helper\OnlineAnnouncementService.cs" />
+    <Compile Include="Helper\OnlineAnnouncementService.Parsing.cs" />
     <Compile Include="Helper\ProfessionalMessageBox.cs" />
     <Compile Include="Helper\ScanSoundService.cs" />
     <Compile Include="Helper\ScanValidationService.cs" />
@@ -148,6 +150,7 @@
     <Compile Include="Model\Respository\DatabaseRepository.cs" />
     <Compile Include="Model\Respository\LabelProductInfoRepository.cs" />
     <Compile Include="Model\Respository\ScanHistoryRepository.cs" />
+    <Compile Include="Model\Respository\ScanHistoryRepository.Search.cs" />
     <Compile Include="Model\Respository\ScanResultMapper.cs" />
     <Compile Include="Model\Respository\ScanSessionService.cs" />
     <Compile Include="Model\ScanHistory.cs" />
@@ -165,6 +168,8 @@
     <Compile Include="ViewModel\MainVM_DataMaintenance.cs" />
     <Compile Include="ViewModel\MainVM_Query_Init.cs" />
     <Compile Include="ViewModel\MainVM_SCANING.cs" />
+    <Compile Include="ViewModel\MainVM_ScanningValidation.cs" />
+    <Compile Include="ViewModel\MainVM_SessionPersistence.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_PASS.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_Init.cs" />
     <Compile Include="ViewModel\MainVM_OnlineAnnouncement.cs" />
@@ -235,6 +240,7 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="MainWindow.Update.cs" />
     <Compile Include="Views\Controls\ScanTabView.xaml.cs">
       <DependentUpon>ScanTabView.xaml</DependentUpon>
     </Compile>

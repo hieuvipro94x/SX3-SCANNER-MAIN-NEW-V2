@@ -324,7 +324,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_queryCMD == null)
                 {
-                    _queryCMD = new RelayCommand<object>(
+                    _queryCMD = new AsyncRelayCommand<object>(
                         parameter => !IsQuerying,
                         async parameter => await QueryDataAsync(CancellationToken.None));
                 }
@@ -339,7 +339,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_exportHistoryCMD == null)
                 {
-                    _exportHistoryCMD = new RelayCommand<object>(
+                    _exportHistoryCMD = new AsyncRelayCommand<object>(
                         parameter => !IsQuerying,
                         parameter => ExportHistoryToExcelAsync());
                 }
@@ -515,7 +515,7 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private async void ExportHistoryToExcelAsync()
+        private async Task ExportHistoryToExcelAsync()
         {
             SaveFileDialog dialog = new SaveFileDialog
             {

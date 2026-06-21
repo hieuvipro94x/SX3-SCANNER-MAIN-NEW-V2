@@ -137,7 +137,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_runBackupNowCMD == null)
                 {
-                    _runBackupNowCMD = new RelayCommand<object>(
+                    _runBackupNowCMD = new AsyncRelayCommand<object>(
                         parameter => !IsMaintenanceBusy,
                         parameter => RunBackupNowAsync());
                 }
@@ -152,7 +152,7 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_restoreBackupCMD == null)
                 {
-                    _restoreBackupCMD = new RelayCommand<object>(
+                    _restoreBackupCMD = new AsyncRelayCommand<object>(
                         parameter => !IsMaintenanceBusy && !InJob,
                         parameter => RestoreBackupAsync());
                 }
@@ -216,7 +216,7 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private async void RunBackupNowAsync()
+        private async Task RunBackupNowAsync()
         {
             IsMaintenanceBusy = true;
             MaintenanceStatus = "Đang backup dữ liệu...";
@@ -245,7 +245,7 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private async void RestoreBackupAsync()
+        private async Task RestoreBackupAsync()
         {
             if (InJob)
             {

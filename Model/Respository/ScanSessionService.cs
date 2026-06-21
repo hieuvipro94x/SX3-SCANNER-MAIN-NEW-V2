@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
@@ -68,8 +67,10 @@ namespace SX3_SCANER.Model.Respository
             state.SessionDate = state.SessionDate.Date;
             state.SessionKey = BuildSessionKey(state.ProductCode, state.SessionDate);
             state.LastUpdated = DateTime.Now;
-            string historyJson =
-                JsonConvert.SerializeObject(state.ScanHistoryItems ?? new List<ScanHistory>());
+            // Scan history is already persisted transactionally in ScanHistoryView.
+            // Keep the legacy column for backward compatibility without rewriting the
+            // complete box history on every scan.
+            const string historyJson = "[]";
 
             using (SQLiteCommand command = connection.CreateCommand())
             {
@@ -104,7 +105,6 @@ namespace SX3_SCANER.Model.Respository
                         return null;
                     }
 
-                    string historyJson = Convert.ToString(reader["ScanHistoryJson"]);
                     return new ScanSessionState
                     {
                         SessionKey = Convert.ToString(reader["SessionKey"]),
@@ -112,8 +112,7 @@ namespace SX3_SCANER.Model.Respository
                         BoxCode = Convert.ToString(reader["BoxCode"]),
                         ScannedCount = Convert.ToInt32(reader["ScannedCount"]),
                         TargetCount = Convert.ToInt32(reader["TargetCount"]),
-                        ScanHistoryItems = JsonConvert.DeserializeObject<List<ScanHistory>>(historyJson)
-                            ?? new List<ScanHistory>(),
+                        ScanHistoryItems = new List<ScanHistory>(),
                         IsInJob = Convert.ToInt32(reader["IsInJob"]) != 0,
                         Worker = Convert.ToString(reader["Worker"]),
                         SessionDate = DateTime.Parse(Convert.ToString(reader["SessionDate"])),
@@ -157,7 +156,6 @@ namespace SX3_SCANER.Model.Respository
                     if (!reader.Read())
                         return null;
 
-                    string historyJson = Convert.ToString(reader["ScanHistoryJson"]);
                     return new ScanSessionState
                     {
                         SessionKey = Convert.ToString(reader["SessionKey"]),
@@ -165,8 +163,7 @@ namespace SX3_SCANER.Model.Respository
                         BoxCode = Convert.ToString(reader["BoxCode"]),
                         ScannedCount = Convert.ToInt32(reader["ScannedCount"]),
                         TargetCount = Convert.ToInt32(reader["TargetCount"]),
-                        ScanHistoryItems = JsonConvert.DeserializeObject<List<ScanHistory>>(historyJson)
-                            ?? new List<ScanHistory>(),
+                        ScanHistoryItems = new List<ScanHistory>(),
                         IsInJob = Convert.ToInt32(reader["IsInJob"]) != 0,
                         Worker = Convert.ToString(reader["Worker"]),
                         SessionDate = DateTime.Parse(Convert.ToString(reader["SessionDate"])),

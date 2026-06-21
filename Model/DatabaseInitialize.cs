@@ -167,18 +167,11 @@ PRAGMA busy_timeout = 5000;";
 
         private static void CreateMainIndexes()
         {
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName ON ScanHistoryView(BoxName);");
+            DropRedundantMainIndexes();
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ScanTime ON ScanHistoryView(BoxName, ScanTime DESC);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ProductPartNumber ON ScanHistoryView(ProductPartNumber);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_SealNo ON ScanHistoryView(SealNo);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_LotNo ON ScanHistoryView(LotNo);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result ON ScanHistoryView(ScanResult);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime ON ScanHistoryView(ScanTime);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result_ID ON ScanHistoryView(ScanResult, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_Result ON ScanHistoryView(ScanTime, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxDate_Result ON ScanHistoryView(BoxDate, ScanResult);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ID_ScanTime ON ScanHistoryView(ID DESC, ScanTime DESC);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData ON ScanHistoryView(ScanData);");
-            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanData_Result ON ScanHistoryView(ScanData COLLATE NOCASE, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ProductPartNumber_ID ON ScanHistoryView(ProductPartNumber COLLATE NOCASE, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_SealNo_ID ON ScanHistoryView(SealNo COLLATE NOCASE, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_ID ON ScanHistoryView(ScanTime DESC, ID DESC);");
@@ -196,6 +189,27 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxDate_Type_Complete ON BoxProduct(BoxDate, BoxType, BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
+        }
+
+        private static void DropRedundantMainIndexes()
+        {
+            string[] redundantIndexes =
+            {
+                "idx_ScanHistoryView_BoxName",
+                "idx_ScanHistoryView_ProductPartNumber",
+                "idx_ScanHistoryView_SealNo",
+                "idx_ScanHistoryView_LotNo",
+                "idx_ScanHistoryView_Result",
+                "idx_ScanHistoryView_ScanTime",
+                "idx_ScanHistoryView_ID_ScanTime",
+                "idx_ScanHistoryView_ScanData",
+                "idx_ScanHistoryView_ScanData_Result"
+            };
+
+            foreach (string indexName in redundantIndexes)
+            {
+                TryExecute("DROP INDEX IF EXISTS " + indexName + ";");
+            }
         }
 
         private static void CreateDataIntegrityTriggers()

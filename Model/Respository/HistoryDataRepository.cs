@@ -159,19 +159,18 @@ namespace SX3_SCANER.Model.Respository
                     ScanHistorySource);
                 string sql = hasScanHistory
                     ? @"SELECT bp.*,
-                               (
-                                   SELECT MAX(sh.ScanTime)
-                                   FROM [ScanHistoryView] sh
-                                   WHERE sh.BoxName = bp.BoxName
-                                      OR (sh.BoxName IS NULL AND bp.BoxName IS NULL)
-                               ) AS RelatedScanTime,
-                               (
-                                   SELECT MAX(sh.ID)
-                                   FROM [ScanHistoryView] sh
-                                   WHERE sh.BoxName = bp.BoxName
-                                      OR (sh.BoxName IS NULL AND bp.BoxName IS NULL)
-                               ) AS RelatedLastHistoryID
+                               latest.RelatedScanTime,
+                               latest.RelatedLastHistoryID
                         FROM [BoxProduct] bp
+                        LEFT JOIN (
+                            SELECT BoxName,
+                                   MAX(ScanTime) AS RelatedScanTime,
+                                   MAX(ID) AS RelatedLastHistoryID
+                            FROM [ScanHistoryView]
+                            GROUP BY BoxName
+                        ) latest
+                          ON latest.BoxName = bp.BoxName
+                          OR (latest.BoxName IS NULL AND bp.BoxName IS NULL)
                         WHERE 1=1"
                     : "SELECT bp.* FROM [BoxProduct] bp WHERE 1=1";
                 if (hasScanHistory)
@@ -250,14 +249,16 @@ namespace SX3_SCANER.Model.Respository
                     "Time");
                 if (fromDate.HasValue && dateColumn != null)
                 {
-                    sql += " AND date(bp.[" + dateColumn + "]) >= date(@FromDate)";
+                    sql += " AND bp.[" + dateColumn + "] >= @FromDate";
                     parameters.Add(new SQLiteParameter("@FromDate", fromDate.Value.Date));
                 }
 
                 if (toDate.HasValue && dateColumn != null)
                 {
-                    sql += " AND date(bp.[" + dateColumn + "]) <= date(@ToDate)";
-                    parameters.Add(new SQLiteParameter("@ToDate", toDate.Value.Date));
+                    sql += " AND bp.[" + dateColumn + "] < @ToDateExclusive";
+                    parameters.Add(new SQLiteParameter(
+                        "@ToDateExclusive",
+                        toDate.Value.Date.AddDays(1)));
                 }
 
                 if (hasScanHistory)

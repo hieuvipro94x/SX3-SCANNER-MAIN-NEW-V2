@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using System;
@@ -15,7 +15,7 @@ using System.Windows.Threading;
 
 namespace SX3_SCANER.Helper
 {
-    internal sealed class OnlineAnnouncementService : IDisposable
+    internal sealed partial class OnlineAnnouncementService : IDisposable
     {
         private enum AnnouncementSource
         {
@@ -42,8 +42,8 @@ namespace SX3_SCANER.Helper
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _connectionTimeout;
 
-        // Tự kết nối lại khi máy chủ WebSocket/HTTP bị mất kết nối.
-        // Có thể chỉnh trong App.config:
+        // Tá»± káº¿t ná»‘i láº¡i khi mĂ¡y chá»§ WebSocket/HTTP bá»‹ máº¥t káº¿t ná»‘i.
+        // CĂ³ thá»ƒ chá»‰nh trong App.config:
         // AnnouncementReconnectInitialSeconds=2
         // AnnouncementReconnectMaximumSeconds=30
         // AnnouncementRealtimeIdleSeconds=90
@@ -51,8 +51,8 @@ namespace SX3_SCANER.Helper
         private readonly TimeSpan _reconnectMaximumDelay;
         private readonly TimeSpan _realtimeIdleTimeout;
 
-        // Chống bắn thông báo quá dày làm UI nháy/giật.
-        // Có thể chỉnh trong App.config: AnnouncementMinimumApplyMilliseconds=180
+        // Chá»‘ng báº¯n thĂ´ng bĂ¡o quĂ¡ dĂ y lĂ m UI nhĂ¡y/giáº­t.
+        // CĂ³ thá»ƒ chá»‰nh trong App.config: AnnouncementMinimumApplyMilliseconds=180
         private readonly TimeSpan _minimumApplyInterval;
 
         private readonly object _syncRoot = new object();
@@ -113,8 +113,8 @@ namespace SX3_SCANER.Helper
 
         public event EventHandler<AnnouncementInfo> AnnouncementChanged;
 
-        // ViewModel/UI có thể bắt event này để đổi text/màu trạng thái ngay khi
-        // đang kết nối, đã kết nối hoặc mất kết nối máy chủ.
+        // ViewModel/UI cĂ³ thá»ƒ báº¯t event nĂ y Ä‘á»ƒ Ä‘á»•i text/mĂ u tráº¡ng thĂ¡i ngay khi
+        // Ä‘ang káº¿t ná»‘i, Ä‘Ă£ káº¿t ná»‘i hoáº·c máº¥t káº¿t ná»‘i mĂ¡y chá»§.
         public event EventHandler<AnnouncementServerStatusInfo> ConnectionStatusChanged;
 
         public AnnouncementServerStatusInfo CurrentConnectionStatus
@@ -187,8 +187,8 @@ namespace SX3_SCANER.Helper
                         StartupManager.Log(
                             "[Announcement] Using Tailscale server");
 
-                        // Lấy snapshot ban đầu nhưng không để HTTP ghi đè trạng thái
-                        // WebSocket đang Connected trên UI.
+                        // Láº¥y snapshot ban Ä‘áº§u nhÆ°ng khĂ´ng Ä‘á»ƒ HTTP ghi Ä‘Ă¨ tráº¡ng thĂ¡i
+                        // WebSocket Ä‘ang Connected trĂªn UI.
                         await LoadSnapshotAsync(
                             token,
                             updateStatus: false).ConfigureAwait(false);
@@ -202,7 +202,7 @@ namespace SX3_SCANER.Helper
                                 _realtimeIdleTimeout).ConfigureAwait(false);
                             if (json == null)
                                 throw new WebSocketException(
-                                    "Máy chủ đã đóng kết nối realtime.");
+                                    "MĂ¡y chá»§ Ä‘Ă£ Ä‘Ă³ng káº¿t ná»‘i realtime.");
 
                             StartupManager.Log(
                                 "[Announcement] Realtime payload received.");
@@ -225,7 +225,7 @@ namespace SX3_SCANER.Helper
                     ApplyServerStatus(
                         AnnouncementServerStatusInfo.Failed(
                             "Tailscale WebSocket",
-                            "Mất kết nối máy chủ. Đang tự kết nối lại... " +
+                            "Máº¥t káº¿t ná»‘i mĂ¡y chá»§. Äang tá»± káº¿t ná»‘i láº¡i... " +
                             ex.Message));
 
                     Debug.WriteLine(
@@ -236,8 +236,8 @@ namespace SX3_SCANER.Helper
                         ex.Message);
                 }
 
-                // Trong lúc chờ WebSocket kết nối lại, vẫn thử lấy dữ liệu bằng HTTP
-                // để UI không bị trống và trạng thái kết nối được cập nhật.
+                // Trong lĂºc chá» WebSocket káº¿t ná»‘i láº¡i, váº«n thá»­ láº¥y dá»¯ liá»‡u báº±ng HTTP
+                // Ä‘á»ƒ UI khĂ´ng bá»‹ trá»‘ng vĂ  tráº¡ng thĂ¡i káº¿t ná»‘i Ä‘Æ°á»£c cáº­p nháº­t.
                 try
                 {
                     await LoadSnapshotAsync(
@@ -258,9 +258,9 @@ namespace SX3_SCANER.Helper
                 TimeSpan delay = GetReconnectDelay(reconnectAttempt++);
                 ApplyServerStatus(
                     AnnouncementServerStatusInfo.Connecting(
-                        "Tự kết nối lại sau " +
+                        "Tá»± káº¿t ná»‘i láº¡i sau " +
                         Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) +
-                        " giây"));
+                        " giĂ¢y"));
 
                 try
                 {
@@ -340,7 +340,7 @@ namespace SX3_SCANER.Helper
                 ApplyServerStatus(
                     AnnouncementServerStatusInfo.Failed(
                         "Announcement Server",
-                        "Không kết nối được máy chủ announcement, đang dùng cache nếu có. Đang tự kết nối lại..."));
+                        "KhĂ´ng káº¿t ná»‘i Ä‘Æ°á»£c mĂ¡y chá»§ announcement, Ä‘ang dĂ¹ng cache náº¿u cĂ³. Äang tá»± káº¿t ná»‘i láº¡i..."));
             }
 
             StartupManager.Log(
@@ -398,7 +398,7 @@ namespace SX3_SCANER.Helper
                         return false;
                     }
 
-                    // Không parse JSON lần 2 nữa. Giảm tải khi polling/realtime dày.
+                    // KhĂ´ng parse JSON láº§n 2 ná»¯a. Giáº£m táº£i khi polling/realtime dĂ y.
                     return await ProcessAnnouncementAsync(
                         parsed,
                         json,
@@ -470,8 +470,8 @@ namespace SX3_SCANER.Helper
         {
             string displayFingerprint = BuildDisplayFingerprint(announcement);
 
-            // So sánh theo nội dung hiển thị, không phụ thuộc UpdatedAt/Version.
-            // Tránh tình trạng server đổi timestamp nhưng message không đổi làm UI chạy lại animation.
+            // So sĂ¡nh theo ná»™i dung hiá»ƒn thá»‹, khĂ´ng phá»¥ thuá»™c UpdatedAt/Version.
+            // TrĂ¡nh tĂ¬nh tráº¡ng server Ä‘á»•i timestamp nhÆ°ng message khĂ´ng Ä‘á»•i lĂ m UI cháº¡y láº¡i animation.
             if (!HasAnnouncementChanged(announcement, displayFingerprint))
             {
                 return false;
@@ -479,7 +479,7 @@ namespace SX3_SCANER.Helper
 
             await WaitForSmoothApplyWindowAsync(token).ConfigureAwait(false);
 
-            // Sau khi debounce, kiểm tra lại để tránh payload trùng vừa được apply.
+            // Sau khi debounce, kiá»ƒm tra láº¡i Ä‘á»ƒ trĂ¡nh payload trĂ¹ng vá»«a Ä‘Æ°á»£c apply.
             if (!HasAnnouncementChanged(announcement, displayFingerprint))
             {
                 return false;
@@ -645,381 +645,5 @@ namespace SX3_SCANER.Helper
             builder.Append('|');
         }
 
-        private static AnnouncementInfo ParseAnnouncement(string json)
-        {
-            if (string.IsNullOrWhiteSpace(json))
-                throw new JsonException("Announcement JSON is empty.");
-
-            string trimmed = json.TrimStart();
-            if (trimmed.StartsWith("<") || trimmed.StartsWith("```"))
-                throw new JsonException("Announcement response is not JSON.");
-
-            AnnouncementInfo announcement =
-                JsonConvert.DeserializeObject<AnnouncementInfo>(json);
-            if (announcement == null)
-                throw new JsonException("Announcement JSON is empty.");
-
-            NormalizeAnnouncement(announcement);
-            return announcement;
-        }
-
-        private static async Task<string> ReceiveTextAsync(
-            ClientWebSocket socket,
-            CancellationToken token,
-            TimeSpan idleTimeout)
-        {
-            var buffer = new byte[8192];
-            using (var stream = new MemoryStream())
-            {
-                while (true)
-                {
-                    using (var receiveCts =
-                        CancellationTokenSource.CreateLinkedTokenSource(token))
-                    {
-                        receiveCts.CancelAfter(idleTimeout);
-
-                        WebSocketReceiveResult result;
-                        try
-                        {
-                            result = await socket.ReceiveAsync(
-                                new ArraySegment<byte>(buffer),
-                                receiveCts.Token).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException)
-                            when (!token.IsCancellationRequested)
-                        {
-                            throw new TimeoutException(
-                                "Không nhận được phản hồi realtime từ máy chủ trong " +
-                                Math.Max(1, (int)idleTimeout.TotalSeconds) +
-                                " giây.");
-                        }
-
-                        if (result.MessageType == WebSocketMessageType.Close)
-                            return null;
-                        if (result.MessageType != WebSocketMessageType.Text)
-                            continue;
-
-                        stream.Write(buffer, 0, result.Count);
-                        if (result.EndOfMessage)
-                            return Encoding.UTF8.GetString(stream.ToArray());
-                    }
-                }
-            }
-        }
-
-        private TimeSpan GetReconnectDelay(int attempt)
-        {
-            if (attempt < 0)
-                attempt = 0;
-
-            double multiplier = Math.Pow(2, Math.Min(attempt, 6));
-            double seconds = _reconnectInitialDelay.TotalSeconds * multiplier;
-            seconds = Math.Min(seconds, _reconnectMaximumDelay.TotalSeconds);
-
-            return TimeSpan.FromSeconds(Math.Max(1, seconds));
-        }
-
-        private void ApplyServerStatus(AnnouncementServerStatusInfo status)
-        {
-            if (_isDisposed)
-                return;
-
-            if (_dispatcher.CheckAccess())
-            {
-                ApplyServerStatusOnUiThread(status);
-                return;
-            }
-
-            _dispatcher.BeginInvoke(
-                new Action(() => ApplyServerStatusOnUiThread(status)),
-                DispatcherPriority.Background);
-        }
-
-        private void ApplyServerStatusOnUiThread(
-            AnnouncementServerStatusInfo status)
-        {
-            if (_isDisposed)
-                return;
-
-            _currentConnectionStatus = status;
-            StartupManager.SetAnnouncementServerStatus(status);
-            ConnectionStatusChanged?.Invoke(this, status);
-        }
-
-        private static void NormalizeAnnouncement(AnnouncementInfo announcement)
-        {
-            announcement.Level = NormalizeLevel(announcement.Level);
-            announcement.Mode = string.IsNullOrWhiteSpace(announcement.Mode)
-                ? "single"
-                : announcement.Mode.Trim().ToLowerInvariant();
-            announcement.Title = string.IsNullOrWhiteSpace(announcement.Title)
-                ? "THÔNG BÁO HỆ THỐNG"
-                : announcement.Title.Trim();
-            announcement.Message =
-                announcement.Message?.Trim() ?? string.Empty;
-            announcement.UpdatedAt =
-                announcement.UpdatedAt?.Trim() ?? string.Empty;
-            announcement.Version =
-                announcement.Version?.Trim() ?? string.Empty;
-            announcement.BackgroundColor =
-                announcement.BackgroundColor?.Trim() ?? string.Empty;
-            announcement.ForegroundColor =
-                announcement.ForegroundColor?.Trim() ?? string.Empty;
-            announcement.CreatedBy =
-                announcement.CreatedBy?.Trim() ?? string.Empty;
-            announcement.AutoHideSeconds =
-                Math.Max(0, announcement.AutoHideSeconds);
-            announcement.Priority = Math.Max(0, announcement.Priority);
-            announcement.RotateSeconds =
-                announcement.RotateSeconds < 3
-                    ? 10
-                    : announcement.RotateSeconds;
-            announcement.RepeatSeconds =
-                Math.Max(0, announcement.RepeatSeconds);
-            announcement.MarqueeDirection = string.Equals(
-                announcement.MarqueeDirection,
-                "leftToRight",
-                StringComparison.OrdinalIgnoreCase)
-                    ? "leftToRight"
-                    : "rightToLeft";
-            announcement.MarqueeSpeed =
-                announcement.MarqueeSpeed <= 0
-                    ? 80
-                    : announcement.MarqueeSpeed;
-            announcement.MarqueeDelaySeconds =
-                Math.Max(0, announcement.MarqueeDelaySeconds);
-            NormalizeMessages(announcement);
-        }
-
-        private static void NormalizeMessages(AnnouncementInfo announcement)
-        {
-            if (announcement.Messages == null)
-            {
-                announcement.Messages =
-                    new System.Collections.Generic.List<AnnouncementMessageInfo>();
-                return;
-            }
-
-            for (int index = announcement.Messages.Count - 1;
-                 index >= 0;
-                 index--)
-            {
-                AnnouncementMessageInfo message =
-                    announcement.Messages[index];
-                if (message == null ||
-                    string.IsNullOrWhiteSpace(message.Message))
-                {
-                    announcement.Messages.RemoveAt(index);
-                    continue;
-                }
-
-                message.Level = NormalizeLevel(message.Level);
-                message.Title = string.IsNullOrWhiteSpace(message.Title)
-                    ? "THÔNG BÁO HỆ THỐNG"
-                    : message.Title.Trim();
-                message.Message = message.Message.Trim();
-                message.BackgroundColor =
-                    message.BackgroundColor?.Trim() ?? string.Empty;
-                message.ForegroundColor =
-                    message.ForegroundColor?.Trim() ?? string.Empty;
-                if (message.AutoHideSeconds.HasValue)
-                {
-                    message.AutoHideSeconds = Math.Max(
-                        0,
-                        message.AutoHideSeconds.Value);
-                }
-            }
-        }
-
-        private static string NormalizeLevel(string level)
-        {
-            string normalized =
-                (level ?? string.Empty).Trim().ToLowerInvariant();
-            switch (normalized)
-            {
-                case "warning":
-                case "error":
-                case "success":
-                    return normalized;
-                default:
-                    return "info";
-            }
-        }
-
-        private static bool ContainsInvalidEncoding(
-            AnnouncementInfo announcement)
-        {
-            if (announcement == null)
-                return true;
-
-            if (ContainsInvalidEncoding(announcement.Title) ||
-                ContainsInvalidEncoding(announcement.Message))
-            {
-                return true;
-            }
-
-            if (announcement.Messages == null)
-                return false;
-
-            foreach (AnnouncementMessageInfo message in announcement.Messages)
-            {
-                if (message != null &&
-                    (ContainsInvalidEncoding(message.Title) ||
-                     ContainsInvalidEncoding(message.Message)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ContainsInvalidEncoding(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-                return false;
-
-            string[] markers =
-            {
-                "\uFFFD",
-                "THÃ",
-                "Sáº",
-                "áº",
-                "á»",
-                "Ä‘",
-                "Ä\u0090",
-                "Æ°",
-                "Æ¡",
-                "Ã´",
-                "Ã¡",
-                "Ã¢",
-                "Ãª",
-                "Ã©",
-                "Ã¨",
-                "ðŸ"
-            };
-
-            foreach (char character in value)
-            {
-                if (character >= '\u0080' && character <= '\u009F')
-                    return true;
-            }
-
-            foreach (string marker in markers)
-            {
-                if (value.IndexOf(marker, StringComparison.Ordinal) >= 0)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private void LogInvalidPayload(
-            AnnouncementSource source,
-            string detail)
-        {
-            if (source == AnnouncementSource.Cache)
-            {
-                StartupManager.Log(
-                    "[Announcement] Invalid cached encoding, cache ignored." +
-                    (string.IsNullOrWhiteSpace(detail)
-                        ? string.Empty
-                        : " " + detail));
-                TryDeleteCache();
-                return;
-            }
-
-            StartupManager.Log(
-                "[Announcement] Invalid " +
-                source.ToString().ToLowerInvariant() +
-                " encoding, payload ignored." +
-                (string.IsNullOrWhiteSpace(detail)
-                    ? string.Empty
-                    : " " + detail));
-        }
-
-        private void TryDeleteCache()
-        {
-            try
-            {
-                if (File.Exists(_cachePath))
-                    File.Delete(_cachePath);
-            }
-            catch (Exception ex)
-            {
-                StartupManager.Log(
-                    "[Announcement] Could not delete invalid cache. " +
-                    ex.Message);
-            }
-        }
-
-        private static string BuildFingerprint(string value)
-        {
-            using (SHA256 sha256 = SHA256.Create())
-            {
-                byte[] hash = sha256.ComputeHash(
-                    Encoding.UTF8.GetBytes(value ?? string.Empty));
-                return BitConverter.ToString(hash).Replace("-", string.Empty);
-            }
-        }
-
-        private static string ReadAnnouncementUrlSetting(
-            string key,
-            string defaultValue)
-        {
-            string value = ReadSetting(key, defaultValue);
-            if (string.IsNullOrWhiteSpace(value))
-                return defaultValue;
-
-            Uri uri;
-            if (!Uri.TryCreate(value, UriKind.Absolute, out uri))
-                return defaultValue;
-
-            // App.config cũ có thể vẫn trỏ tới sx3-announcement.
-            // Ép về IP máy chủ đang dùng để tránh lệch địa chỉ.
-            if (string.Equals(
-                    uri.Host,
-                    LegacyAnnouncementHost,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri)
-                {
-                    Host = AnnouncementServerHost
-                };
-                return builder.Uri.ToString();
-            }
-
-            return value.Trim();
-        }
-
-        private static string ReadSetting(string key, string defaultValue)
-        {
-            string value = ConfigurationManager.AppSettings[key];
-            return string.IsNullOrWhiteSpace(value)
-                ? defaultValue
-                : value.Trim();
-        }
-
-        private static int ReadPositiveIntSetting(string key, int defaultValue)
-        {
-            int value;
-            return int.TryParse(
-                       ConfigurationManager.AppSettings[key],
-                       out value) &&
-                   value > 0
-                ? value
-                : defaultValue;
-        }
-
-        public void Dispose()
-        {
-            if (_isDisposed)
-                return;
-
-            _isDisposed = true;
-            _lifetimeCts.Cancel();
-            _lifetimeCts.Dispose();
-            _httpClient.Dispose();
-        }
     }
 }

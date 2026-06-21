@@ -151,7 +151,7 @@
                         <ColumnDefinition Width="6"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Height="38" Content="HỦY THÙNG" FontSize="10" Style="{StaticResource DangerButton}" Command="{Binding CancelBoxCMD}">
+                    <Button Grid.Column="0" Height="40" Content="HỦY" FontSize="10" Style="{StaticResource DangerButton}" Command="{Binding CancelBoxCMD}">
                         <Button.Visibility>
                             <Binding Path="HasOpenScanSession" Converter="{StaticResource BooleanToVisibilityConverter}"/>
                         </Button.Visibility>

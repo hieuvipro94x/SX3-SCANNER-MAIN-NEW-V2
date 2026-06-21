@@ -12,10 +12,14 @@
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Animated rounded progress bar: clean track, gradient fill, moving shine -->
+            <!--
+                Modern animated progress bar for current box.
+                Giữ nguyên cơ chế ProgressBar chuẩn của WPF bằng PART_Track/PART_Indicator
+                để Value/Maximum binding vẫn hoạt động ổn định.
+            -->
             <Style x:Key="AnimatedBoxProgressBarStyle" TargetType="{x:Type ProgressBar}">
-                <Setter Property="Height" Value="22"/>
-                <Setter Property="MinHeight" Value="22"/>
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="MinHeight" Value="30"/>
                 <Setter Property="Background" Value="#E2E8F0"/>
                 <Setter Property="Foreground" Value="{StaticResource OkBrush}"/>
                 <Setter Property="BorderThickness" Value="0"/>
@@ -27,66 +31,70 @@
                                   Height="{TemplateBinding Height}"
                                   MinHeight="{TemplateBinding MinHeight}"
                                   ClipToBounds="False">
-                                <Border x:Name="ProgressShadow"
-                                        CornerRadius="12"
-                                        Background="Transparent">
+
+                                <!-- Outer glow: tạo cảm giác thanh tiến độ nổi lên khỏi card -->
+                                <Border x:Name="ProgressGlow"
+                                        CornerRadius="15"
+                                        Background="Transparent"
+                                        Opacity="0.8">
                                     <Border.Effect>
-                                        <DropShadowEffect BlurRadius="12"
+                                        <DropShadowEffect BlurRadius="16"
                                                           ShadowDepth="0"
-                                                          Opacity="0.14"
+                                                          Opacity="0.16"
                                                           Color="#16A34A"/>
                                     </Border.Effect>
                                 </Border>
 
+                                <!-- Track nền -->
                                 <Border x:Name="ProgressTrack"
-                                        CornerRadius="12"
+                                        CornerRadius="15"
                                         Background="{TemplateBinding Background}"
                                         BorderBrush="#CBD5E1"
-                                        BorderThickness="1"/>
+                                        BorderThickness="1">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="8"
+                                                          ShadowDepth="0"
+                                                          Opacity="0.08"
+                                                          Color="#0F172A"/>
+                                    </Border.Effect>
+                                </Border>
 
+                                <!-- Track nội bộ. WPF sẽ tự scale PART_Indicator theo Value/Maximum -->
                                 <Grid x:Name="PART_Track"
                                       Margin="2"
                                       ClipToBounds="True">
                                     <Grid x:Name="PART_Indicator"
                                           HorizontalAlignment="Left"
                                           ClipToBounds="True">
+
+                                        <!-- Fill gradient chính -->
                                         <Border x:Name="ProgressFill"
-                                                CornerRadius="10">
-                                            <Border.Triggers>
-                                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                                    <BeginStoryboard>
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                             From="0.9"
-                                                                             To="1"
-                                                                             Duration="0:0:0.85"
-                                                                             AutoReverse="True"
-                                                                             RepeatBehavior="Forever"/>
-                                                        </Storyboard>
-                                                    </BeginStoryboard>
-                                                </EventTrigger>
-                                            </Border.Triggers>
+                                                CornerRadius="13">
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                                    <GradientStop Color="#16A34A" Offset="0"/>
+                                                    <GradientStop Color="#0EA5E9" Offset="0"/>
                                                     <GradientStop Color="#22C55E" Offset="0.55"/>
                                                     <GradientStop Color="#86EFAC" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Border.Background>
                                         </Border>
 
-                                        <!-- Soft diagonal stripes -->
-                                        <Rectangle Opacity="0.18"
+                                        <!-- Vân sọc nhẹ, giúp thanh có cảm giác đang chạy -->
+                                        <Rectangle x:Name="ProgressStripes"
+                                                   Opacity="0.16"
                                                    IsHitTestVisible="False">
                                             <Rectangle.Fill>
                                                 <DrawingBrush TileMode="Tile"
-                                                              Viewport="0,0,24,24"
+                                                              Viewport="0,0,26,26"
                                                               ViewportUnits="Absolute">
+                                                    <DrawingBrush.Transform>
+                                                        <TranslateTransform x:Name="StripeTransform" X="0"/>
+                                                    </DrawingBrush.Transform>
                                                     <DrawingBrush.Drawing>
                                                         <GeometryDrawing Brush="#FFFFFF">
                                                             <GeometryDrawing.Geometry>
                                                                 <GeometryGroup>
-                                                                    <RectangleGeometry Rect="0,0,7,24">
+                                                                    <RectangleGeometry Rect="0,0,8,26">
                                                                         <RectangleGeometry.Transform>
                                                                             <SkewTransform AngleX="-28"/>
                                                                         </RectangleGeometry.Transform>
@@ -99,43 +107,121 @@
                                             </Rectangle.Fill>
                                         </Rectangle>
 
-                                        <!-- Moving shine effect -->
+                                        <!-- Shine chạy ngang -->
                                         <Rectangle x:Name="ProgressShine"
-                                                   Width="80"
+                                                   Width="92"
                                                    HorizontalAlignment="Left"
-                                                   Opacity="0.44"
+                                                   Opacity="0.45"
                                                    IsHitTestVisible="False">
-                                            <Rectangle.Triggers>
-                                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                                    <BeginStoryboard>
-                                                        <Storyboard>
-                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
-                                                                             From="-120"
-                                                                             To="520"
-                                                                             Duration="0:0:1.65"
-                                                                             RepeatBehavior="Forever"/>
-                                                        </Storyboard>
-                                                    </BeginStoryboard>
-                                                </EventTrigger>
-                                            </Rectangle.Triggers>
                                             <Rectangle.Fill>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                                     <GradientStop Color="#00FFFFFF" Offset="0"/>
-                                                    <GradientStop Color="#AAFFFFFF" Offset="0.5"/>
+                                                    <GradientStop Color="#D9FFFFFF" Offset="0.5"/>
                                                     <GradientStop Color="#00FFFFFF" Offset="1"/>
                                                 </LinearGradientBrush>
                                             </Rectangle.Fill>
                                             <Rectangle.RenderTransform>
-                                                <TranslateTransform x:Name="ProgressShineTransform" X="-120"/>
+                                                <TranslateTransform x:Name="ProgressShineTransform" X="-130"/>
                                             </Rectangle.RenderTransform>
                                         </Rectangle>
+
+                                        <!-- Đốm sáng ở đầu thanh tiến độ -->
+                                        <Ellipse x:Name="ProgressTip"
+                                                 Width="16"
+                                                 Height="16"
+                                                 HorizontalAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 Margin="0,0,5,0"
+                                                 Opacity="0.7"
+                                                 IsHitTestVisible="False"
+                                                 RenderTransformOrigin="0.5,0.5">
+                                            <Ellipse.Fill>
+                                                <RadialGradientBrush>
+                                                    <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                                    <GradientStop Color="#66FFFFFF" Offset="0.48"/>
+                                                    <GradientStop Color="#00FFFFFF" Offset="1"/>
+                                                </RadialGradientBrush>
+                                            </Ellipse.Fill>
+                                            <Ellipse.RenderTransform>
+                                                <ScaleTransform x:Name="ProgressTipScale" ScaleX="1" ScaleY="1"/>
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
                                     </Grid>
                                 </Grid>
+
+                                <!-- Highlight viền trên cho cảm giác kính -->
+                                <Border CornerRadius="15"
+                                        BorderThickness="1"
+                                        Opacity="0.35"
+                                        IsHitTestVisible="False">
+                                    <Border.BorderBrush>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#FFFFFFFF" Offset="0"/>
+                                            <GradientStop Color="#00FFFFFF" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.BorderBrush>
+                                </Border>
                             </Grid>
 
                             <ControlTemplate.Triggers>
+                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <!-- Shine chậm, mượt, không gây rối mắt -->
+                                            <DoubleAnimation Storyboard.TargetName="ProgressShineTransform"
+                                                             Storyboard.TargetProperty="X"
+                                                             From="-130"
+                                                             To="620"
+                                                             Duration="0:0:2.25"
+                                                             RepeatBehavior="Forever"/>
+
+                                            <!-- Vân sọc trượt nhẹ -->
+                                            <DoubleAnimation Storyboard.TargetName="StripeTransform"
+                                                             Storyboard.TargetProperty="X"
+                                                             From="0"
+                                                             To="26"
+                                                             Duration="0:0:1.2"
+                                                             RepeatBehavior="Forever"/>
+
+                                            <!-- Tip pulse -->
+                                            <DoubleAnimation Storyboard.TargetName="ProgressTipScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             From="0.85"
+                                                             To="1.25"
+                                                             Duration="0:0:0.85"
+                                                             AutoReverse="True"
+                                                             RepeatBehavior="Forever"/>
+                                            <DoubleAnimation Storyboard.TargetName="ProgressTipScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             From="0.85"
+                                                             To="1.25"
+                                                             Duration="0:0:0.85"
+                                                             AutoReverse="True"
+                                                             RepeatBehavior="Forever"/>
+                                            <DoubleAnimation Storyboard.TargetName="ProgressTip"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             From="0.45"
+                                                             To="0.9"
+                                                             Duration="0:0:0.85"
+                                                             AutoReverse="True"
+                                                             RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+
+                                <!-- Chưa có tem nào: ẩn glow/shine/tip để giao diện sạch hơn -->
                                 <Trigger Property="Value" Value="0">
-                                    <Setter TargetName="ProgressShadow" Property="Opacity" Value="0"/>
+                                    <Setter TargetName="ProgressGlow" Property="Opacity" Value="0"/>
+                                    <Setter TargetName="ProgressShine" Property="Opacity" Value="0"/>
+                                    <Setter TargetName="ProgressTip" Property="Opacity" Value="0"/>
+                                    <Setter TargetName="ProgressStripes" Property="Opacity" Value="0.08"/>
+                                </Trigger>
+
+                                <!-- Disable: chuyển về xám -->
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ProgressFill" Property="Opacity" Value="0.45"/>
+                                    <Setter TargetName="ProgressShine" Property="Opacity" Value="0"/>
+                                    <Setter TargetName="ProgressTip" Property="Opacity" Value="0"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -188,27 +274,29 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="TIẾN ĐỘ" Style="{StaticResource FieldLabelStyle}" Foreground="{StaticResource OkBrush}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ScanQuantityText}" FontSize="17" FontWeight="Black" Foreground="{StaticResource TextMainBrush}"/>
                     </Grid>
-                    <Grid Grid.Row="2" Height="22">
+                    <Grid Grid.Row="2" Height="34">
                         <ProgressBar Minimum="0"
                                      Maximum="{Binding SelectedQuantity}"
                                      Value="{Binding CurrentScanProgress}"
                                      Style="{StaticResource AnimatedBoxProgressBarStyle}"
                                      Foreground="{StaticResource OkBrush}"
-                                     Background="#E2E8F0"/>
+                                     Background="#E2E8F0"
+                                     Height="30"
+                                     VerticalAlignment="Center"/>
 
+                        <!-- Chỉ hiển thị phần trăm, không hiển thị số lượng dạng 0/10 -->
                         <TextBlock Text="{Binding CurrentProgressPercentText}"
-                                   FontSize="11"
+                                   FontSize="13"
                                    FontWeight="Black"
                                    Foreground="#0F172A"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False">
                             <TextBlock.Effect>
-                                <DropShadowEffect BlurRadius="4"
+                                <DropShadowEffect BlurRadius="5"
                                                   ShadowDepth="0"
-                                                  Opacity="0.35"
+                                                  Opacity="0.75"
                                                   Color="#FFFFFF"/>
                             </TextBlock.Effect>
                         </TextBlock>

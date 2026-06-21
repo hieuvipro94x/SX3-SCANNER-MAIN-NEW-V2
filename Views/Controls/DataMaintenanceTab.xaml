@@ -3,187 +3,665 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              mc:Ignorable="d"
              d:DesignHeight="650"
              d:DesignWidth="1180"
-             Background="#F8FAFC">
+             Background="#F8FAFC"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
+
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../../Resources/MainWindowResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Common card -->
+            <Style x:Key="MaintenanceCardStyle" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="16"/>
+                <Setter Property="Padding" Value="18"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="18"
+                                          ShadowDepth="0"
+                                          Opacity="0.08"
+                                          Color="#334155"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="SectionTitleStyleLocal" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="17"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <Style x:Key="SectionHintStyleLocal" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#64748B"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="LineHeight" Value="20"/>
+            </Style>
+
+            <Style x:Key="FieldLabelStyleLocal" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="#475569"/>
+                <Setter Property="Margin" Value="0,0,0,6"/>
+            </Style>
+
+            <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
+                <Setter Property="Height" Value="42"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+                <Setter Property="Background" Value="#FFFFFF"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="TextBoxBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="10">
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="#2563EB"/>
+                                    <Setter TargetName="TextBoxBorder" Property="Background" Value="#F8FAFC"/>
+                                </Trigger>
+                                <Trigger Property="IsReadOnly" Value="True">
+                                    <Setter TargetName="TextBoxBorder" Property="Background" Value="#F8FAFC"/>
+                                    <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="#E2E8F0"/>
+                                    <Setter Property="Foreground" Value="#475569"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="TextBoxBorder" Property="Opacity" Value="0.65"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ReadOnlyPathTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource ModernTextBoxStyle}">
+                <Setter Property="IsReadOnly" Value="True"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+            </Style>
+
+            <!-- Buttons: pure WPF, no MaterialDesign dependency -->
+            <Style x:Key="BaseMaintenanceButtonStyle" TargetType="Button">
+                <Setter Property="Height" Value="42"/>
+                <Setter Property="MinWidth" Value="118"/>
+                <Setter Property="Padding" Value="16,0"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="Black"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Background" Value="#2563EB"/>
+                <Setter Property="BorderBrush" Value="#1D4ED8"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="ButtonBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="11"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                        <Setter.Value>
+                                            <TranslateTransform Y="1"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.5"/>
+                                    <Setter Property="Cursor" Value="Arrow"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="PrimaryMaintenanceButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseMaintenanceButtonStyle}">
+                <Setter Property="Background" Value="#2563EB"/>
+                <Setter Property="BorderBrush" Value="#1D4ED8"/>
+                <Setter Property="Foreground" Value="White"/>
+            </Style>
+
+            <Style x:Key="SuccessMaintenanceButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseMaintenanceButtonStyle}">
+                <Setter Property="Background" Value="#16A34A"/>
+                <Setter Property="BorderBrush" Value="#15803D"/>
+                <Setter Property="Foreground" Value="White"/>
+            </Style>
+
+            <Style x:Key="DangerMaintenanceButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseMaintenanceButtonStyle}">
+                <Setter Property="Background" Value="#DC2626"/>
+                <Setter Property="BorderBrush" Value="#B91C1C"/>
+                <Setter Property="Foreground" Value="White"/>
+            </Style>
+
+            <Style x:Key="GhostMaintenanceButtonStyle" TargetType="Button" BasedOn="{StaticResource BaseMaintenanceButtonStyle}">
+                <Setter Property="Background" Value="#F8FAFC"/>
+                <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                <Setter Property="Foreground" Value="#0F172A"/>
+            </Style>
+
+            <Style x:Key="StepBadgeStyle" TargetType="Border">
+                <Setter Property="Width" Value="30"/>
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="CornerRadius" Value="15"/>
+                <Setter Property="Background" Value="#EFF6FF"/>
+                <Setter Property="BorderBrush" Value="#BFDBFE"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Margin" Value="0,0,10,0"/>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  CanContentScroll="False">
         <Grid Margin="18">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="16"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="16"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <materialDesign:Card Padding="18" UniformCornerRadius="12" Background="White">
+            <!-- Header -->
+            <Border Grid.Row="0"
+                    Style="{StaticResource MaintenanceCardStyle}"
+                    Padding="20">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+
                     <StackPanel>
-                        <TextBlock Text="BẢO TRÌ DỮ LIỆU / BACKUP / RESTORE"
-                                   FontSize="22"
+                        <Border CornerRadius="12"
+                                Background="#EFF6FF"
+                                BorderBrush="#BFDBFE"
+                                BorderThickness="1"
+                                Padding="10,5"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,10">
+                            <TextBlock Text="AN TOÀN DỮ LIỆU"
+                                       FontSize="11"
+                                       FontWeight="Black"
+                                       Foreground="#1D4ED8"/>
+                        </Border>
+
+                        <TextBlock Text="Bảo trì dữ liệu / Backup / Restore"
+                                   FontSize="25"
                                    FontWeight="Black"
                                    Foreground="#0F172A"/>
-                        <TextBlock Margin="0,6,0,0"
-                                   Text="Tối ưu để dữ liệu lớn vẫn chạy nhanh, tự backup mỗi ngày và tránh mất dữ liệu khi máy lỗi ổ cứng."
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   Foreground="#475569"/>
+                        <TextBlock Margin="0,7,0,0"
+                                   Text="Quản lý dung lượng database, cấu hình backup tự động và khôi phục dữ liệu khi cần. Các thao tác quan trọng đã được tách riêng để người vận hành dễ hiểu, dễ bấm và hạn chế nhầm lẫn."
+                                   Style="{StaticResource SectionHintStyleLocal}"/>
                     </StackPanel>
-                    <Button Grid.Column="1"
-                            Height="40"
-                            MinWidth="130"
+
+                    <Button Grid.Column="2"
+                            Height="44"
+                            MinWidth="138"
                             Command="{Binding RefreshMaintenanceInfoCMD}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"
-                            ToolTip="Cập nhật lại dung lượng và trạng thái backup">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18" Margin="0,0,6,0"/>
-                            <TextBlock Text="LÀM MỚI" FontWeight="Bold"/>
+                            Style="{StaticResource GhostMaintenanceButtonStyle}"
+                            ToolTip="Cập nhật lại dung lượng database và trạng thái backup">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="↻"
+                                       FontSize="18"
+                                       FontWeight="Black"
+                                       Margin="0,0,8,0"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="LÀM MỚI" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
                 </Grid>
-            </materialDesign:Card>
+            </Border>
 
-            <Grid Grid.Row="1" Margin="0,16,0,0">
+            <!-- Main content -->
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.05*"/>
                     <ColumnDefinition Width="16"/>
                     <ColumnDefinition Width="1*"/>
                 </Grid.ColumnDefinitions>
 
-                <materialDesign:Card Grid.Column="0" Padding="18" UniformCornerRadius="12" Background="White">
+                <!-- Database info -->
+                <Border Grid.Column="0"
+                        Style="{StaticResource MaintenanceCardStyle}">
                     <StackPanel>
-                        <TextBlock Text="THÔNG TIN DATABASE"
-                                   FontSize="17"
-                                   FontWeight="Black"
-                                   Foreground="#0F172A"/>
-
-                        <Grid Margin="0,14,0,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Text="database.db" FontWeight="Bold" Foreground="#475569"/>
-                            <TextBlock Grid.Column="1" Text="{Binding DatabaseSizeText}" FontWeight="Black" Foreground="#2563EB"/>
-
-                            <TextBlock Grid.Row="1" Margin="0,10,0,0" Text="product.db" FontWeight="Bold" Foreground="#475569"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" Text="{Binding ProductDatabaseSizeText}" FontWeight="Black" Foreground="#2563EB"/>
-
-                            <TextBlock Grid.Row="2" Margin="0,10,0,0" Text="Đường dẫn DB" FontWeight="Bold" Foreground="#475569"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding DatabasePathText}" IsReadOnly="True" FontSize="12"/>
-
-                            <TextBlock Grid.Row="3" Margin="0,10,0,0" Text="Backup local" FontWeight="Bold" Foreground="#475569"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding BackupLocalDirectoryText}" IsReadOnly="True" FontSize="12"/>
+                            <Border Style="{StaticResource StepBadgeStyle}">
+                                <TextBlock Text="1"
+                                           FontWeight="Black"
+                                           Foreground="#2563EB"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Thông tin database"
+                                           Style="{StaticResource SectionTitleStyleLocal}"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           Text="Theo dõi dung lượng và vị trí lưu dữ liệu hiện tại."
+                                           Style="{StaticResource SectionHintStyleLocal}"/>
+                            </StackPanel>
                         </Grid>
 
-                        <Border Margin="0,16,0,0" Padding="12" CornerRadius="10" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
-                            <TextBlock Text="Gợi ý: backup local giúp khôi phục nhanh, nhưng vẫn nên nhập thêm thư mục mạng/NAS/server để phòng máy scan hỏng ổ cứng."
-                                       TextWrapping="Wrap"
-                                       FontWeight="SemiBold"
-                                       Foreground="#1E3A8A"/>
+                        <Grid Margin="0,18,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    CornerRadius="14"
+                                    Background="#EFF6FF"
+                                    BorderBrush="#BFDBFE"
+                                    BorderThickness="1"
+                                    Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="DATABASE.DB"
+                                               FontSize="11"
+                                               FontWeight="Black"
+                                               Foreground="#1D4ED8"/>
+                                    <TextBlock Text="{Binding DatabaseSizeText}"
+                                               Margin="0,6,0,0"
+                                               FontSize="26"
+                                               FontWeight="Black"
+                                               Foreground="#0F172A"/>
+                                    <TextBlock Text="Dữ liệu scan chính"
+                                               Margin="0,2,0,0"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2"
+                                    CornerRadius="14"
+                                    Background="#F0FDF4"
+                                    BorderBrush="#BBF7D0"
+                                    BorderThickness="1"
+                                    Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="PRODUCT.DB"
+                                               FontSize="11"
+                                               FontWeight="Black"
+                                               Foreground="#15803D"/>
+                                    <TextBlock Text="{Binding ProductDatabaseSizeText}"
+                                               Margin="0,6,0,0"
+                                               FontSize="26"
+                                               FontWeight="Black"
+                                               Foreground="#0F172A"/>
+                                    <TextBlock Text="Dữ liệu sản phẩm"
+                                               Margin="0,2,0,0"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Margin="0,18,0,0"
+                                   Text="Đường dẫn database"
+                                   Style="{StaticResource FieldLabelStyleLocal}"/>
+                        <TextBox Text="{Binding DatabasePathText}"
+                                 Style="{StaticResource ReadOnlyPathTextBoxStyle}"/>
+
+                        <TextBlock Margin="0,14,0,0"
+                                   Text="Thư mục backup local"
+                                   Style="{StaticResource FieldLabelStyleLocal}"/>
+                        <TextBox Text="{Binding BackupLocalDirectoryText}"
+                                 Style="{StaticResource ReadOnlyPathTextBoxStyle}"/>
+
+                        <Border Margin="0,16,0,0"
+                                Padding="13"
+                                CornerRadius="12"
+                                Background="#FFF7ED"
+                                BorderBrush="#FED7AA"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="!"
+                                           FontSize="18"
+                                           FontWeight="Black"
+                                           Foreground="#EA580C"
+                                           VerticalAlignment="Top"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="Nên cấu hình thêm thư mục mạng/NAS/server để vẫn còn bản backup khi máy scan hỏng ổ cứng."
+                                           TextWrapping="Wrap"
+                                           LineHeight="20"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           Foreground="#9A3412"/>
+                            </Grid>
                         </Border>
                     </StackPanel>
-                </materialDesign:Card>
+                </Border>
 
-                <materialDesign:Card Grid.Column="2" Padding="18" UniformCornerRadius="12" Background="White">
+                <!-- Backup settings -->
+                <Border Grid.Column="2"
+                        Style="{StaticResource MaintenanceCardStyle}">
                     <StackPanel>
-                        <TextBlock Text="CẤU HÌNH BACKUP TỰ ĐỘNG"
-                                   FontSize="17"
-                                   FontWeight="Black"
-                                   Foreground="#0F172A"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource StepBadgeStyle}"
+                                    Background="#ECFDF5"
+                                    BorderBrush="#BBF7D0">
+                                <TextBlock Text="2"
+                                           FontWeight="Black"
+                                           Foreground="#16A34A"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Cấu hình backup tự động"
+                                           Style="{StaticResource SectionTitleStyleLocal}"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           Text="Bật backup hằng ngày và nhập nơi lưu bản sao an toàn."
+                                           Style="{StaticResource SectionHintStyleLocal}"/>
+                            </StackPanel>
+                        </Grid>
 
-                        <CheckBox Margin="0,14,0,0"
-                                  Content="Bật backup tự động mỗi ngày"
-                                  IsChecked="{Binding BackupEnabled}"
-                                  FontSize="14"
-                                  FontWeight="Bold"/>
-
-                        <TextBlock Margin="0,14,0,4" Text="Thư mục mạng / server / NAS" FontWeight="Bold" Foreground="#475569"/>
-                        <TextBox Height="38"
-                                 Text="{Binding BackupNetworkDirectoryText, UpdateSourceTrigger=PropertyChanged}"
-                                 materialDesign:HintAssist.Hint="Ví dụ: \\192.168.1.100\SX3Backup"/>
-
-                        <TextBlock Margin="0,14,0,4" Text="Số ngày giữ backup" FontWeight="Bold" Foreground="#475569"/>
-                        <TextBox Width="120"
-                                 HorizontalAlignment="Left"
-                                 Height="38"
-                                 Text="{Binding BackupRetentionDaysText, UpdateSourceTrigger=PropertyChanged}"
-                                 materialDesign:HintAssist.Hint="30"/>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                            <Button Height="40" MinWidth="120" Margin="0,0,10,0"
-                                    Command="{Binding SaveBackupSettingsCMD}"
-                                    Style="{StaticResource MaterialDesignRaisedButton}">
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="ContentSave" Width="18" Height="18" Margin="0,0,6,0"/>
-                                    <TextBlock Text="LƯU" FontWeight="Bold"/>
+                        <Border Margin="0,18,0,0"
+                                Padding="14"
+                                CornerRadius="14"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Backup tự động mỗi ngày"
+                                               FontSize="14"
+                                               FontWeight="Black"
+                                               Foreground="#0F172A"/>
+                                    <TextBlock Margin="0,3,0,0"
+                                               Text="Khuyến nghị luôn bật để tránh mất dữ liệu."
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B"/>
                                 </StackPanel>
-                            </Button>
+                                <CheckBox Grid.Column="1"
+                                          IsChecked="{Binding BackupEnabled}"
+                                          Content="BẬT"
+                                          FontSize="13"
+                                          FontWeight="Black"
+                                          Foreground="#16A34A"
+                                          VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
 
-                            <Button Height="40" MinWidth="150" Margin="0,0,10,0"
-                                    Command="{Binding RunBackupNowCMD}"
-                                    Style="{StaticResource MaterialDesignRaisedButton}">
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="Database" Width="18" Height="18" Margin="0,0,6,0"/>
-                                    <TextBlock Text="BACKUP NGAY" FontWeight="Bold"/>
-                                </StackPanel>
-                            </Button>
+                        <TextBlock Margin="0,18,0,0"
+                                   Text="Thư mục mạng / server / NAS"
+                                   Style="{StaticResource FieldLabelStyleLocal}"/>
+                        <TextBox Text="{Binding BackupNetworkDirectoryText, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 ToolTip="Ví dụ: \\192.168.1.100\SX3Backup"/>
+                        <TextBlock Margin="2,6,0,0"
+                                   Text="Ví dụ: \\192.168.1.100\SX3Backup"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="#64748B"/>
 
-                            <Button Height="40" MinWidth="145"
-                                    Command="{Binding RestoreBackupCMD}"
-                                    Background="#DC2626"
-                                    Foreground="White"
-                                    BorderBrush="#B91C1C"
-                                    Style="{StaticResource MaterialDesignRaisedButton}">
-                                <StackPanel Orientation="Horizontal">
-                                    <materialDesign:PackIcon Kind="BackupRestore" Width="18" Height="18" Margin="0,0,6,0"/>
-                                    <TextBlock Text="RESTORE" FontWeight="Bold"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="155"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Số ngày giữ backup"
+                                           Style="{StaticResource FieldLabelStyleLocal}"/>
+                                <TextBox Text="{Binding BackupRetentionDaysText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource ModernTextBoxStyle}"
+                                         ToolTip="Ví dụ: 30"/>
+                            </StackPanel>
+                            <Border Grid.Column="2"
+                                    CornerRadius="12"
+                                    Background="#F8FAFC"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1"
+                                    Padding="12"
+                                    VerticalAlignment="Bottom">
+                                <TextBlock Text="Sau số ngày này, các bản backup cũ có thể được dọn để tránh đầy ổ."
+                                           TextWrapping="Wrap"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="#64748B"/>
+                            </Border>
+                        </Grid>
+
+                        <Button Margin="0,20,0,0"
+                                Height="46"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding SaveBackupSettingsCMD}"
+                                Style="{StaticResource PrimaryMaintenanceButtonStyle}">
+                            <TextBlock Text="LƯU CẤU HÌNH BACKUP"/>
+                        </Button>
                     </StackPanel>
-                </materialDesign:Card>
+                </Border>
             </Grid>
 
-            <materialDesign:Card Grid.Row="2" Margin="0,16,0,0" Padding="18" UniformCornerRadius="12" Background="White">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="220"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+            <!-- Actions and status -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.05*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="1*"/>
+                </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Lần backup cuối" FontWeight="Black" Foreground="#475569"/>
-                    <TextBlock Grid.Column="1" Text="{Binding LastBackupText}" FontWeight="Black" Foreground="#0F172A"/>
+                <!-- Quick actions -->
+                <Border Grid.Column="0"
+                        Style="{StaticResource MaintenanceCardStyle}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource StepBadgeStyle}"
+                                    Background="#F8FAFC"
+                                    BorderBrush="#CBD5E1">
+                                <TextBlock Text="3"
+                                           FontWeight="Black"
+                                           Foreground="#334155"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Thao tác nhanh"
+                                           Style="{StaticResource SectionTitleStyleLocal}"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           Text="Backup và Restore được tách riêng để thao tác rõ ràng hơn."
+                                           Style="{StaticResource SectionHintStyleLocal}"/>
+                            </StackPanel>
+                        </Grid>
 
-                    <TextBlock Grid.Row="1" Margin="0,12,0,0" Text="Trạng thái backup" FontWeight="Black" Foreground="#475569"/>
-                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" Text="{Binding BackupStatusText}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#334155"/>
+                        <Grid Margin="0,18,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="2" Margin="0,12,0,0" Text="Trạng thái màn hình" FontWeight="Black" Foreground="#475569"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="#2563EB"/>
-                </Grid>
-            </materialDesign:Card>
+                            <Border Grid.Column="0"
+                                    CornerRadius="14"
+                                    Background="#F0FDF4"
+                                    BorderBrush="#BBF7D0"
+                                    BorderThickness="1"
+                                    Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="BACKUP NGAY"
+                                               FontSize="15"
+                                               FontWeight="Black"
+                                               Foreground="#166534"/>
+                                    <TextBlock Margin="0,5,0,14"
+                                               Text="Tạo bản sao dữ liệu ngay lập tức trước khi sửa máy, cập nhật phần mềm hoặc thao tác quan trọng."
+                                               Style="{StaticResource SectionHintStyleLocal}"/>
+                                    <Button Height="46"
+                                            HorizontalAlignment="Stretch"
+                                            Command="{Binding RunBackupNowCMD}"
+                                            Style="{StaticResource SuccessMaintenanceButtonStyle}">
+                                        <TextBlock Text="CHẠY BACKUP NGAY"/>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2"
+                                    CornerRadius="14"
+                                    Background="#FEF2F2"
+                                    BorderBrush="#FECACA"
+                                    BorderThickness="1"
+                                    Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="RESTORE DỮ LIỆU"
+                                               FontSize="15"
+                                               FontWeight="Black"
+                                               Foreground="#991B1B"/>
+                                    <TextBlock Margin="0,5,0,14"
+                                               Text="Chỉ dùng khi cần khôi phục dữ liệu từ file backup. Hãy backup hiện tại trước khi restore."
+                                               TextWrapping="Wrap"
+                                               LineHeight="20"
+                                               FontSize="13"
+                                               FontWeight="SemiBold"
+                                               Foreground="#991B1B"/>
+                                    <Button Height="46"
+                                            HorizontalAlignment="Stretch"
+                                            Command="{Binding RestoreBackupCMD}"
+                                            Style="{StaticResource DangerMaintenanceButtonStyle}"
+                                            ToolTip="Khôi phục dữ liệu từ bản backup">
+                                        <TextBlock Text="MỞ RESTORE"/>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status -->
+                <Border Grid.Column="2"
+                        Style="{StaticResource MaintenanceCardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Trạng thái hệ thống"
+                                   Style="{StaticResource SectionTitleStyleLocal}"/>
+                        <TextBlock Margin="0,4,0,0"
+                                   Text="Theo dõi lần backup cuối và thông báo vận hành hiện tại."
+                                   Style="{StaticResource SectionHintStyleLocal}"/>
+
+                        <Border Margin="0,16,0,0"
+                                Padding="14"
+                                CornerRadius="14"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="145"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Lần backup cuối"
+                                               FontWeight="Black"
+                                               Foreground="#475569"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding LastBackupText}"
+                                               TextWrapping="Wrap"
+                                               FontWeight="Black"
+                                               Foreground="#0F172A"/>
+                                </Grid>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="145"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Trạng thái backup"
+                                               FontWeight="Black"
+                                               Foreground="#475569"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding BackupStatusText}"
+                                               TextWrapping="Wrap"
+                                               FontWeight="SemiBold"
+                                               Foreground="#334155"/>
+                                </Grid>
+
+                                <Grid Grid.Row="4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="145"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Thông báo"
+                                               FontWeight="Black"
+                                               Foreground="#475569"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding MaintenanceStatus}"
+                                               TextWrapping="Wrap"
+                                               FontWeight="Black"
+                                               Foreground="#2563EB"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </ScrollViewer>
 </UserControl>
