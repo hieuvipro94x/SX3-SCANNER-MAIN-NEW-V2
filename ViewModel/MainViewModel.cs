@@ -220,8 +220,8 @@ namespace SX3_SCANER.ViewModel
 
             IsApplicationInitializing = true;
             HasStartupError = false;
-            StartupDatabaseStatusText = "Đang kiểm tra database...";
-            StartupManager.SetStatus("Đang kiểm tra database...");
+            StartupDatabaseStatusText = "Đang kiểm tra dữ liệu...";
+            StartupManager.SetStatus("Đang kiểm tra dữ liệu...");
 
             try
             {

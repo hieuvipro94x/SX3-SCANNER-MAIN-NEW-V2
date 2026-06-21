@@ -379,14 +379,9 @@ if (-not (Test-Path -LiteralPath $Exe)) {
     Fail "Khong tim thay file EXE x64: $Exe."
 }
 
-$OkSound = Join-Path $BinRelease "Sounds\OK.wav"
-$NgSound = Join-Path $BinRelease "Sounds\NG.wav"
-if (-not (Test-Path -LiteralPath $OkSound)) {
-    Fail "Build thieu am thanh scan OK: $OkSound"
-}
-if (-not (Test-Path -LiteralPath $NgSound)) {
-    Fail "Build thieu am thanh scan NG: $NgSound"
-}
+# Am thanh scan OK/NG da duoc nhung vao EXE/DLL bang Build Action = Resource.
+# Khong kiem tra file Sounds\*.wav roi trong bin Release nua, vi ban cai dat khong can cac file am thanh roi.
+Ok "Am thanh scan OK/NG dang dung dang nhung Resource trong EXE/DLL; bo qua kiem tra file Sounds roi."
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path $PackageDir | Out-Null
@@ -415,14 +410,8 @@ if ($UnexpectedReleaseFiles) {
     Fail "Package con file tam/log/backup: $($UnexpectedReleaseFiles.FullName -join ', ')"
 }
 
-$PackagedOkSound = Join-Path $PackageDir "Sounds\OK.wav"
-$PackagedNgSound = Join-Path $PackageDir "Sounds\NG.wav"
-if (-not (Test-Path -LiteralPath $PackagedOkSound)) {
-    Fail "Package thieu am thanh scan OK: $PackagedOkSound"
-}
-if (-not (Test-Path -LiteralPath $PackagedNgSound)) {
-    Fail "Package thieu am thanh scan NG: $PackagedNgSound"
-}
+# Am thanh da nhung trong EXE/DLL nen PackageFiles khong bat buoc co thu muc Sounds.
+Ok "Package dung am thanh nhung Resource; khong can Sounds\OK.wav / Sounds\NG.wav roi."
 
 Write-Step "[3/9] Copy release-note.txt..."
 Copy-Item -LiteralPath $ReleaseNote.Path -Destination (Join-Path $PackageDir "release-note.txt") -Force
@@ -498,7 +487,7 @@ Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
 [Files]
 Source: "$EscapedPackageDir\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "$EscapedPackageDir\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "$EscapedPackageDir\Sounds\*.wav"; DestDir: "{app}\Sounds"; Flags: ignoreversion
+; Am thanh OK/NG da nhung vao EXE/DLL, khong copy file Sounds\*.wav roi vao thu muc cai dat.
 
 [Icons]
 Name: "{group}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"

@@ -24,10 +24,13 @@ namespace SX3_SCANER.Helper
             Realtime
         }
 
+        private const string AnnouncementServerHost = "100.72.125.42";
+        private const string LegacyAnnouncementHost = "sx3-announcement";
+
         private const string DefaultRealtimeUrl =
-            "ws://sx3-announcement:5055/ws/announcements";
+            "ws://100.72.125.42:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
-            "http://sx3-announcement:5055/api/announcements/current";
+            "http://100.72.125.42:5055/api/announcements/current";
 
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
@@ -38,6 +41,15 @@ namespace SX3_SCANER.Helper
         private readonly string _cachePath;
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _connectionTimeout;
+
+        // Tự kết nối lại khi máy chủ WebSocket/HTTP bị mất kết nối.
+        // Có thể chỉnh trong App.config:
+        // AnnouncementReconnectInitialSeconds=2
+        // AnnouncementReconnectMaximumSeconds=30
+        // AnnouncementRealtimeIdleSeconds=90
+        private readonly TimeSpan _reconnectInitialDelay;
+        private readonly TimeSpan _reconnectMaximumDelay;
+        private readonly TimeSpan _realtimeIdleTimeout;
 
         // Chống bắn thông báo quá dày làm UI nháy/giật.
         // Có thể chỉnh trong App.config: AnnouncementMinimumApplyMilliseconds=180
@@ -53,15 +65,16 @@ namespace SX3_SCANER.Helper
         private string _lastAnnouncementUpdatedAt = string.Empty;
         private bool? _lastAnnouncementEnabled;
         private DateTime _lastAppliedUtc = DateTime.MinValue;
+        private AnnouncementServerStatusInfo _currentConnectionStatus;
 
         public OnlineAnnouncementService()
         {
             _dispatcher = System.Windows.Application.Current?.Dispatcher ??
                 Dispatcher.CurrentDispatcher;
-            _realtimeUrl = ReadSetting(
+            _realtimeUrl = ReadAnnouncementUrlSetting(
                 "AnnouncementPrimaryWebSocketUrl",
                 DefaultRealtimeUrl);
-            _snapshotUrl = ReadSetting(
+            _snapshotUrl = ReadAnnouncementUrlSetting(
                 "AnnouncementPrimaryHttpUrl",
                 DefaultSnapshotUrl);
             _pollInterval = TimeSpan.FromSeconds(
@@ -70,6 +83,18 @@ namespace SX3_SCANER.Helper
                 ReadPositiveIntSetting(
                     "AnnouncementHttpTimeoutSeconds",
                     3));
+            _reconnectInitialDelay = TimeSpan.FromSeconds(
+                ReadPositiveIntSetting(
+                    "AnnouncementReconnectInitialSeconds",
+                    2));
+            _reconnectMaximumDelay = TimeSpan.FromSeconds(
+                ReadPositiveIntSetting(
+                    "AnnouncementReconnectMaximumSeconds",
+                    30));
+            _realtimeIdleTimeout = TimeSpan.FromSeconds(
+                ReadPositiveIntSetting(
+                    "AnnouncementRealtimeIdleSeconds",
+                    90));
             _minimumApplyInterval = TimeSpan.FromMilliseconds(
                 ReadPositiveIntSetting(
                     "AnnouncementMinimumApplyMilliseconds",
@@ -87,6 +112,15 @@ namespace SX3_SCANER.Helper
         }
 
         public event EventHandler<AnnouncementInfo> AnnouncementChanged;
+
+        // ViewModel/UI có thể bắt event này để đổi text/màu trạng thái ngay khi
+        // đang kết nối, đã kết nối hoặc mất kết nối máy chủ.
+        public event EventHandler<AnnouncementServerStatusInfo> ConnectionStatusChanged;
+
+        public AnnouncementServerStatusInfo CurrentConnectionStatus
+        {
+            get { return _currentConnectionStatus; }
+        }
 
         public void Start()
         {
@@ -116,6 +150,8 @@ namespace SX3_SCANER.Helper
 
         private async Task RunRealtimeLoopAsync(CancellationToken token)
         {
+            int reconnectAttempt = 0;
+
             while (!token.IsCancellationRequested && !_isDisposed)
             {
                 try
@@ -126,11 +162,13 @@ namespace SX3_SCANER.Helper
 
                     using (var socket = new ClientWebSocket())
                     {
-                        StartupManager.SetAnnouncementServerStatus(
-                            AnnouncementServerStatusInfo.Connecting("Tailscale WebSocket"));
+                        ApplyServerStatus(
+                            AnnouncementServerStatusInfo.Connecting(
+                                "Tailscale WebSocket"));
 
                         socket.Options.KeepAliveInterval =
                             TimeSpan.FromSeconds(20);
+
                         using (var connectCts =
                             CancellationTokenSource.CreateLinkedTokenSource(
                                 token))
@@ -139,23 +177,32 @@ namespace SX3_SCANER.Helper
                             await socket.ConnectAsync(
                                 new Uri(_realtimeUrl),
                                 connectCts.Token).ConfigureAwait(false);
-                            StartupManager.SetAnnouncementServerStatus(
-                                AnnouncementServerStatusInfo.Connected("Tailscale WebSocket"));
                         }
+
+                        reconnectAttempt = 0;
+                        ApplyServerStatus(
+                            AnnouncementServerStatusInfo.Connected(
+                                "Tailscale WebSocket"));
 
                         StartupManager.Log(
                             "[Announcement] Using Tailscale server");
 
-                        await LoadSnapshotAsync(token).ConfigureAwait(false);
+                        // Lấy snapshot ban đầu nhưng không để HTTP ghi đè trạng thái
+                        // WebSocket đang Connected trên UI.
+                        await LoadSnapshotAsync(
+                            token,
+                            updateStatus: false).ConfigureAwait(false);
 
                         while (socket.State == WebSocketState.Open &&
                                !token.IsCancellationRequested)
                         {
                             string json = await ReceiveTextAsync(
                                 socket,
-                                token).ConfigureAwait(false);
+                                token,
+                                _realtimeIdleTimeout).ConfigureAwait(false);
                             if (json == null)
-                                break;
+                                throw new WebSocketException(
+                                    "Máy chủ đã đóng kết nối realtime.");
 
                             StartupManager.Log(
                                 "[Announcement] Realtime payload received.");
@@ -175,23 +222,49 @@ namespace SX3_SCANER.Helper
                 }
                 catch (Exception ex)
                 {
-                    StartupManager.SetAnnouncementServerStatus(
+                    ApplyServerStatus(
                         AnnouncementServerStatusInfo.Failed(
                             "Tailscale WebSocket",
+                            "Mất kết nối máy chủ. Đang tự kết nối lại... " +
                             ex.Message));
+
                     Debug.WriteLine(
-                        "[Announcement] WebSocket unavailable, fallback to HTTP polling");
+                        "[Announcement] WebSocket unavailable, reconnecting. " +
+                        ex.Message);
                     StartupManager.Log(
-                        "[Announcement] WebSocket unavailable, fallback to HTTP polling. " +
+                        "[Announcement] WebSocket unavailable, reconnecting. " +
                         ex.Message);
                 }
 
+                // Trong lúc chờ WebSocket kết nối lại, vẫn thử lấy dữ liệu bằng HTTP
+                // để UI không bị trống và trạng thái kết nối được cập nhật.
                 try
                 {
-                    await LoadSnapshotAsync(token).ConfigureAwait(false);
-                    await Task.Delay(
-                        _pollInterval,
-                        token).ConfigureAwait(false);
+                    await LoadSnapshotAsync(
+                        token,
+                        updateStatus: true).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    StartupManager.Log(
+                        "[Announcement] Snapshot fallback failed. " +
+                        ex.Message);
+                }
+
+                TimeSpan delay = GetReconnectDelay(reconnectAttempt++);
+                ApplyServerStatus(
+                    AnnouncementServerStatusInfo.Connecting(
+                        "Tự kết nối lại sau " +
+                        Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) +
+                        " giây"));
+
+                try
+                {
+                    await Task.Delay(delay, token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -226,10 +299,20 @@ namespace SX3_SCANER.Helper
 
         public Task LoadSnapshotAsync()
         {
-            return LoadSnapshotAsync(_lifetimeCts.Token);
+            return LoadSnapshotAsync(
+                _lifetimeCts.Token,
+                updateStatus: true);
         }
 
         private async Task LoadSnapshotAsync(CancellationToken token)
+        {
+            await LoadSnapshotAsync(token, updateStatus: true)
+                .ConfigureAwait(false);
+        }
+
+        private async Task LoadSnapshotAsync(
+            CancellationToken token,
+            bool updateStatus)
         {
             if (_isDisposed || string.IsNullOrWhiteSpace(_snapshotUrl))
                 return;
@@ -237,20 +320,28 @@ namespace SX3_SCANER.Helper
             if (await TryLoadHttpAsync(
                 _snapshotUrl,
                 AnnouncementSource.Tailscale,
-                token).ConfigureAwait(false))
+                token,
+                updateStatus).ConfigureAwait(false))
             {
-                StartupManager.SetAnnouncementServerStatus(
-                    AnnouncementServerStatusInfo.Connected("Tailscale HTTP"));
+                if (updateStatus)
+                {
+                    ApplyServerStatus(
+                        AnnouncementServerStatusInfo.Connected(
+                            "Tailscale HTTP"));
+                }
 
                 StartupManager.Log(
                     "[Announcement] Using Tailscale server");
                 return;
             }
 
-            StartupManager.SetAnnouncementServerStatus(
-                AnnouncementServerStatusInfo.Failed(
-                    "Announcement Server",
-                    "Không kết nối được máy chủ announcement, đang dùng cache nếu có."));
+            if (updateStatus)
+            {
+                ApplyServerStatus(
+                    AnnouncementServerStatusInfo.Failed(
+                        "Announcement Server",
+                        "Không kết nối được máy chủ announcement, đang dùng cache nếu có. Đang tự kết nối lại..."));
+            }
 
             StartupManager.Log(
                 "[Announcement] Server unavailable, using cached announcement");
@@ -260,7 +351,8 @@ namespace SX3_SCANER.Helper
         private async Task<bool> TryLoadHttpAsync(
             string url,
             AnnouncementSource source,
-            CancellationToken token)
+            CancellationToken token,
+            bool updateStatus)
         {
             try
             {
@@ -270,10 +362,13 @@ namespace SX3_SCANER.Helper
                 {
                     if (!response.IsSuccessStatusCode)
                     {
-                        StartupManager.SetAnnouncementServerStatus(
-                            AnnouncementServerStatusInfo.Failed(
-                                source.ToString(),
-                                "HTTP " + (int)response.StatusCode));
+                        if (updateStatus)
+                        {
+                            ApplyServerStatus(
+                                AnnouncementServerStatusInfo.Failed(
+                                    source.ToString(),
+                                    "HTTP " + (int)response.StatusCode));
+                        }
 
                         StartupManager.Log(
                             "[Announcement] HTTP " +
@@ -318,10 +413,13 @@ namespace SX3_SCANER.Helper
             }
             catch (Exception ex)
             {
-                StartupManager.SetAnnouncementServerStatus(
-                    AnnouncementServerStatusInfo.Failed(
-                        source.ToString(),
-                        ex.Message));
+                if (updateStatus)
+                {
+                    ApplyServerStatus(
+                        AnnouncementServerStatusInfo.Failed(
+                            source.ToString(),
+                            ex.Message));
+                }
                 Debug.WriteLine(
                     "[Announcement] HTTP unavailable: " + ex.Message);
                 StartupManager.Log(
@@ -567,27 +665,85 @@ namespace SX3_SCANER.Helper
 
         private static async Task<string> ReceiveTextAsync(
             ClientWebSocket socket,
-            CancellationToken token)
+            CancellationToken token,
+            TimeSpan idleTimeout)
         {
             var buffer = new byte[8192];
             using (var stream = new MemoryStream())
             {
                 while (true)
                 {
-                    WebSocketReceiveResult result = await socket.ReceiveAsync(
-                        new ArraySegment<byte>(buffer),
-                        token).ConfigureAwait(false);
+                    using (var receiveCts =
+                        CancellationTokenSource.CreateLinkedTokenSource(token))
+                    {
+                        receiveCts.CancelAfter(idleTimeout);
 
-                    if (result.MessageType == WebSocketMessageType.Close)
-                        return null;
-                    if (result.MessageType != WebSocketMessageType.Text)
-                        continue;
+                        WebSocketReceiveResult result;
+                        try
+                        {
+                            result = await socket.ReceiveAsync(
+                                new ArraySegment<byte>(buffer),
+                                receiveCts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                            when (!token.IsCancellationRequested)
+                        {
+                            throw new TimeoutException(
+                                "Không nhận được phản hồi realtime từ máy chủ trong " +
+                                Math.Max(1, (int)idleTimeout.TotalSeconds) +
+                                " giây.");
+                        }
 
-                    stream.Write(buffer, 0, result.Count);
-                    if (result.EndOfMessage)
-                        return Encoding.UTF8.GetString(stream.ToArray());
+                        if (result.MessageType == WebSocketMessageType.Close)
+                            return null;
+                        if (result.MessageType != WebSocketMessageType.Text)
+                            continue;
+
+                        stream.Write(buffer, 0, result.Count);
+                        if (result.EndOfMessage)
+                            return Encoding.UTF8.GetString(stream.ToArray());
+                    }
                 }
             }
+        }
+
+        private TimeSpan GetReconnectDelay(int attempt)
+        {
+            if (attempt < 0)
+                attempt = 0;
+
+            double multiplier = Math.Pow(2, Math.Min(attempt, 6));
+            double seconds = _reconnectInitialDelay.TotalSeconds * multiplier;
+            seconds = Math.Min(seconds, _reconnectMaximumDelay.TotalSeconds);
+
+            return TimeSpan.FromSeconds(Math.Max(1, seconds));
+        }
+
+        private void ApplyServerStatus(AnnouncementServerStatusInfo status)
+        {
+            if (_isDisposed)
+                return;
+
+            if (_dispatcher.CheckAccess())
+            {
+                ApplyServerStatusOnUiThread(status);
+                return;
+            }
+
+            _dispatcher.BeginInvoke(
+                new Action(() => ApplyServerStatusOnUiThread(status)),
+                DispatcherPriority.Background);
+        }
+
+        private void ApplyServerStatusOnUiThread(
+            AnnouncementServerStatusInfo status)
+        {
+            if (_isDisposed)
+                return;
+
+            _currentConnectionStatus = status;
+            StartupManager.SetAnnouncementServerStatus(status);
+            ConnectionStatusChanged?.Invoke(this, status);
         }
 
         private static void NormalizeAnnouncement(AnnouncementInfo announcement)
@@ -805,6 +961,35 @@ namespace SX3_SCANER.Helper
                     Encoding.UTF8.GetBytes(value ?? string.Empty));
                 return BitConverter.ToString(hash).Replace("-", string.Empty);
             }
+        }
+
+        private static string ReadAnnouncementUrlSetting(
+            string key,
+            string defaultValue)
+        {
+            string value = ReadSetting(key, defaultValue);
+            if (string.IsNullOrWhiteSpace(value))
+                return defaultValue;
+
+            Uri uri;
+            if (!Uri.TryCreate(value, UriKind.Absolute, out uri))
+                return defaultValue;
+
+            // App.config cũ có thể vẫn trỏ tới sx3-announcement.
+            // Ép về IP máy chủ đang dùng để tránh lệch địa chỉ.
+            if (string.Equals(
+                    uri.Host,
+                    LegacyAnnouncementHost,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var builder = new UriBuilder(uri)
+                {
+                    Host = AnnouncementServerHost
+                };
+                return builder.Uri.ToString();
+            }
+
+            return value.Trim();
         }
 
         private static string ReadSetting(string key, string defaultValue)

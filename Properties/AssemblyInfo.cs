@@ -12,7 +12,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("SX3 SCANER")]
-[assembly: AssemblyCopyright("Copyright Â© 2026 NAM")]
+[assembly: AssemblyCopyright("Copyright © 2026 NAM")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -48,9 +48,9 @@ using System.Windows;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("10.2.0.0")]
-[assembly: AssemblyFileVersion("10.2.0.0")]
-[assembly: AssemblyInformationalVersion("10.2.0")]
+[assembly: AssemblyVersion("10.5.0.0")]
+[assembly: AssemblyFileVersion("10.5.0.0")]
+[assembly: AssemblyInformationalVersion("10.5.0")]
 
 
 

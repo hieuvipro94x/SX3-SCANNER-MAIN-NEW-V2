@@ -52,6 +52,20 @@
                                           ClipToBounds="True">
                                         <Border x:Name="ProgressFill"
                                                 CornerRadius="10">
+                                            <Border.Triggers>
+                                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                             From="0.9"
+                                                                             To="1"
+                                                                             Duration="0:0:0.85"
+                                                                             AutoReverse="True"
+                                                                             RepeatBehavior="Forever"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </EventTrigger>
+                                            </Border.Triggers>
                                             <Border.Background>
                                                 <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
                                                     <GradientStop Color="#16A34A" Offset="0"/>
@@ -91,6 +105,19 @@
                                                    HorizontalAlignment="Left"
                                                    Opacity="0.44"
                                                    IsHitTestVisible="False">
+                                            <Rectangle.Triggers>
+                                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                             From="-120"
+                                                                             To="520"
+                                                                             Duration="0:0:1.65"
+                                                                             RepeatBehavior="Forever"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </EventTrigger>
+                                            </Rectangle.Triggers>
                                             <Rectangle.Fill>
                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                                                     <GradientStop Color="#00FFFFFF" Offset="0"/>
@@ -110,79 +137,12 @@
                                 <Trigger Property="Value" Value="0">
                                     <Setter TargetName="ProgressShadow" Property="Opacity" Value="0"/>
                                 </Trigger>
-
-                                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="ProgressShineTransform"
-                                                             Storyboard.TargetProperty="X"
-                                                             From="-120"
-                                                             To="520"
-                                                             Duration="0:0:1.65"
-                                                             RepeatBehavior="Forever"/>
-                                            <DoubleAnimation Storyboard.TargetName="ProgressFill"
-                                                             Storyboard.TargetProperty="Opacity"
-                                                             From="0.9"
-                                                             To="1"
-                                                             Duration="0:0:0.85"
-                                                             AutoReverse="True"
-                                                             RepeatBehavior="Forever"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
             </Style>
 
-            <Storyboard x:Key="ScanResultPulseStoryboard">
-                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
-                                 Storyboard.TargetProperty="ScaleX"
-                                 From="0.72"
-                                 To="1.55"
-                                 Duration="0:0:0.55"
-                                 AutoReverse="True"
-                                 RepeatBehavior="2x"/>
-                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
-                                 Storyboard.TargetProperty="ScaleY"
-                                 From="0.72"
-                                 To="1.55"
-                                 Duration="0:0:0.55"
-                                 AutoReverse="True"
-                                 RepeatBehavior="2x"/>
-                <DoubleAnimation Storyboard.TargetName="ResultHalo"
-                                 Storyboard.TargetProperty="Opacity"
-                                 From="0.58"
-                                 To="0"
-                                 Duration="0:0:0.55"
-                                 AutoReverse="True"
-                                 RepeatBehavior="2x"/>
-                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
-                                               Storyboard.TargetProperty="ScaleX">
-                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
-                </DoubleAnimationUsingKeyFrames>
-                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
-                                               Storyboard.TargetProperty="ScaleY">
-                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
-                </DoubleAnimationUsingKeyFrames>
-                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
-                                               Storyboard.TargetProperty="ScaleX">
-                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
-                </DoubleAnimationUsingKeyFrames>
-                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
-                                               Storyboard.TargetProperty="ScaleY">
-                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
-                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
-                </DoubleAnimationUsingKeyFrames>
-            </Storyboard>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -310,7 +270,46 @@
             <Grid>
                 <Grid.Triggers>
                     <EventTrigger RoutedEvent="Binding.TargetUpdated">
-                        <BeginStoryboard Storyboard="{StaticResource ScanResultPulseStoryboard}"/>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
+                                                 Storyboard.TargetProperty="ScaleX"
+                                                 From="0.72" To="1.55" Duration="0:0:0.55"
+                                                 AutoReverse="True" RepeatBehavior="2x"/>
+                                <DoubleAnimation Storyboard.TargetName="ResultHaloScale"
+                                                 Storyboard.TargetProperty="ScaleY"
+                                                 From="0.72" To="1.55" Duration="0:0:0.55"
+                                                 AutoReverse="True" RepeatBehavior="2x"/>
+                                <DoubleAnimation Storyboard.TargetName="ResultHalo"
+                                                 Storyboard.TargetProperty="Opacity"
+                                                 From="0.58" To="0" Duration="0:0:0.55"
+                                                 AutoReverse="True" RepeatBehavior="2x"/>
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
+                                                               Storyboard.TargetProperty="ScaleX">
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
+                                </DoubleAnimationUsingKeyFrames>
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultBadgeScale"
+                                                               Storyboard.TargetProperty="ScaleY">
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.78"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.16" Value="1.18"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.34" Value="1"/>
+                                </DoubleAnimationUsingKeyFrames>
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
+                                                               Storyboard.TargetProperty="ScaleX">
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
+                                </DoubleAnimationUsingKeyFrames>
+                                <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ResultTextScale"
+                                                               Storyboard.TargetProperty="ScaleY">
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0" Value="0.86"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.14" Value="1.13"/>
+                                    <SplineDoubleKeyFrame KeyTime="0:0:0.30" Value="1"/>
+                                </DoubleAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </BeginStoryboard>
                     </EventTrigger>
                 </Grid.Triggers>
                 <Grid.RowDefinitions>
