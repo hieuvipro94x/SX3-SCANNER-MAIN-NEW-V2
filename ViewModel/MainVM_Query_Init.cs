@@ -204,6 +204,34 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
+        private List<string> _scanViewDistinctBoxNameList =
+            new List<string> { "All" };
+
+        public List<string> ScanViewDistinctBoxNameList
+        {
+            get { return _scanViewDistinctBoxNameList; }
+            set { _scanViewDistinctBoxNameList = value; OnPropertyChanged(); }
+        }
+
+        private string _selectedDistinctBoxName = "All";
+
+        public string SelectedDistinctBoxName
+        {
+            get { return _selectedDistinctBoxName; }
+            set
+            {
+                string next = NormalizeFilter(value);
+                if (_selectedDistinctBoxName == next)
+                {
+                    return;
+                }
+
+                _selectedDistinctBoxName = next;
+                OnPropertyChanged();
+                DebounceHistorySearchAsync();
+            }
+        }
+
         private List<string> _scanViewDistinctSealNoList = new List<string> { "All" };
 
         public List<string> ScanViewDistinctSealNoList
@@ -364,6 +392,7 @@ namespace SX3_SCANER.ViewModel
                         Sources = dataRepository.GetAvailableSources(),
                         SealNos = repository.GetDistinctSealNos(),
                         ProductNumbers = repository.GetDistinctProductNumbers(),
+                        BoxNames = repository.GetDistinctBoxNames(),
                         Messages = repository.GetDistinctNGMessage()
                     };
                 });
@@ -379,6 +408,7 @@ namespace SX3_SCANER.ViewModel
                 OnPropertyChanged("SelectedSQLiteTable");
                 ScanViewDistinctSealNoList = lookups.SealNos;
                 ScanViewDistinctProductNumberList = lookups.ProductNumbers;
+                ScanViewDistinctBoxNameList = lookups.BoxNames;
                 ScanNGMessageList = lookups.Messages;
 
                 await QueryDataAsync(CancellationToken.None);
@@ -396,6 +426,7 @@ namespace SX3_SCANER.ViewModel
         {
             CancelPendingHistorySearch();
             _historySearchKeyword = string.Empty;
+            _selectedDistinctBoxName = "All";
             _selectedDistinctSealNo = "All";
             _selectedDistinctProductNumber = "All";
             _selectedScanNGMessage = "All";
@@ -405,6 +436,7 @@ namespace SX3_SCANER.ViewModel
             _selectedQueryLimit = DefaultQueryResultLimit;
 
             OnPropertyChanged("HistorySearchKeyword");
+            OnPropertyChanged("SelectedDistinctBoxName");
             OnPropertyChanged("SelectedDistinctSealNo");
             OnPropertyChanged("SelectedDistinctProductNumber");
             OnPropertyChanged("SelectedScanNGMessage");
@@ -458,6 +490,7 @@ namespace SX3_SCANER.ViewModel
 
                 bool? resultFilter = GetScanResultFilter();
                 string keyword = HistorySearchKeyword;
+                string boxName = SelectedDistinctBoxName;
                 string partNumber = SelectedDistinctProductNumber;
                 string sealNo = SelectedDistinctSealNo;
                 string message = SelectedScanNGMessage;
@@ -468,6 +501,7 @@ namespace SX3_SCANER.ViewModel
                     () => new HistoryDataRepository().Search(
                         source,
                         keyword,
+                        boxName,
                         partNumber,
                         sealNo,
                         message,
@@ -543,6 +577,7 @@ namespace SX3_SCANER.ViewModel
 
                 bool? resultFilter = GetScanResultFilter();
                 string keyword = HistorySearchKeyword;
+                string boxName = SelectedDistinctBoxName;
                 string partNumber = SelectedDistinctProductNumber;
                 string sealNo = SelectedDistinctSealNo;
                 string message = SelectedScanNGMessage;
@@ -552,6 +587,7 @@ namespace SX3_SCANER.ViewModel
                     new HistoryDataRepository().Search(
                         source,
                         keyword,
+                        boxName,
                         partNumber,
                         sealNo,
                         message,

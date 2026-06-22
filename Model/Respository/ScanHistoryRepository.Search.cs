@@ -12,6 +12,7 @@ namespace SX3_SCANER.Model
     {
         public ObservableCollection<ScanHistory> SearchHistory(
             string keyword,
+            string boxName,
             string partNumber,
             string sealNo,
             string scanMessage,
@@ -21,6 +22,7 @@ namespace SX3_SCANER.Model
             int limit = 500)
         {
             return GetScanned(
+                boxname: boxName,
                 partnumber: partNumber,
                 sealno: sealNo,
                 scandata: keyword,
@@ -40,7 +42,8 @@ namespace SX3_SCANER.Model
             string scanmessage = null,
             DateTime? fromDate = null,
             DateTime? toDate = null,
-            int limit = 500)
+            int limit = 500,
+            bool useBoxNameContains = false)
         {
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
 
@@ -105,7 +108,9 @@ namespace SX3_SCANER.Model
 
                 if (!string.IsNullOrWhiteSpace(normalizedBoxName))
                 {
-                    selectQuery += " AND COALESCE(BoxName, '') = @BoxName COLLATE NOCASE";
+                    selectQuery += useBoxNameContains
+                        ? " AND COALESCE(BoxName, '') COLLATE NOCASE LIKE @BoxName ESCAPE '\\'"
+                        : " AND COALESCE(BoxName, '') = @BoxName COLLATE NOCASE";
                 }
 
                 if (!string.IsNullOrWhiteSpace(normalizedPartNumber))
@@ -166,7 +171,12 @@ namespace SX3_SCANER.Model
                     command.Parameters.AddWithValue("@Limit", safeLimit);
 
                     if (!string.IsNullOrWhiteSpace(normalizedBoxName))
-                        command.Parameters.AddWithValue("@BoxName", normalizedBoxName);
+                    {
+                        string boxNameParameter = useBoxNameContains
+                            ? "%" + EscapeLikeValue(normalizedBoxName) + "%"
+                            : normalizedBoxName;
+                        command.Parameters.AddWithValue("@BoxName", boxNameParameter);
+                    }
                     if (!string.IsNullOrWhiteSpace(normalizedPartNumber))
                         command.Parameters.AddWithValue("@ProductPartNumber", normalizedPartNumber);
                     if (!string.IsNullOrWhiteSpace(normalizedSealNo))

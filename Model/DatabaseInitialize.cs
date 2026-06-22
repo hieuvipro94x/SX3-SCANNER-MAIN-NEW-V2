@@ -169,6 +169,7 @@ PRAGMA busy_timeout = 5000;";
         {
             DropRedundantMainIndexes();
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ScanTime ON ScanHistoryView(BoxName, ScanTime DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ID ON ScanHistoryView(BoxName COLLATE NOCASE, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result_ID ON ScanHistoryView(ScanResult, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_Result ON ScanHistoryView(ScanTime, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxDate_Result ON ScanHistoryView(BoxDate, ScanResult);");

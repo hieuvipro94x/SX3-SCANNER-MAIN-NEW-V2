@@ -431,6 +431,37 @@ namespace SX3_SCANER.Model
             }
         }
 
+        public List<string> GetDistinctBoxNames()
+        {
+            List<string> boxNames = new List<string>() { "All" };
+            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                string query = @"
+                    SELECT BoxName
+                    FROM ScanHistoryView
+                    WHERE BoxName IS NOT NULL
+                      AND TRIM(BoxName) <> ''
+                    GROUP BY BoxName COLLATE NOCASE
+                    ORDER BY MAX(ID) DESC, BoxName DESC";
+                using (SQLiteCommand command = new SQLiteCommand(query, connection))
+                {
+                    using (SQLiteDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string boxName = reader["BoxName"].ToString();
+                            if (!string.IsNullOrEmpty(boxName))
+                            {
+                                boxNames.Add(boxName);
+                            }
+                        }
+                    }
+                }
+            }
+            return boxNames;
+        }
+
         public List<string> GetDistinctSealNos()
         {
             List<string> sealNos = new List<string>() { "All" };

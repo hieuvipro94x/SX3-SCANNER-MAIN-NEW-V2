@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SQLite;
@@ -40,6 +40,7 @@ namespace SX3_SCANER.Model.Respository
         internal ObservableCollection<HistoryDataRow> Search(
             string source,
             string keyword,
+            string boxName,
             string partNumber,
             string sealNo,
             string scanMessage,
@@ -55,6 +56,7 @@ namespace SX3_SCANER.Model.Respository
                 validatedSource == ScanHistorySource
                     ? SearchScanHistory(
                         keyword,
+                        boxName,
                         partNumber,
                         sealNo,
                         scanMessage,
@@ -64,6 +66,7 @@ namespace SX3_SCANER.Model.Respository
                         safeLimit)
                     : SearchBoxProduct(
                         keyword,
+                        boxName,
                         partNumber,
                         sealNo,
                         result,
@@ -96,6 +99,7 @@ namespace SX3_SCANER.Model.Respository
 
         private static IEnumerable<HistoryDataRow> SearchScanHistory(
             string keyword,
+            string boxName,
             string partNumber,
             string sealNo,
             string scanMessage,
@@ -107,6 +111,7 @@ namespace SX3_SCANER.Model.Respository
             ObservableCollection<ScanHistory> histories =
                 new ScanHistoryRepository().SearchHistory(
                     keyword,
+                    boxName,
                     partNumber,
                     sealNo,
                     scanMessage,
@@ -139,6 +144,7 @@ namespace SX3_SCANER.Model.Respository
 
         private static IEnumerable<HistoryDataRow> SearchBoxProduct(
             string keyword,
+            string boxName,
             string partNumber,
             string sealNo,
             bool? result,
@@ -179,6 +185,14 @@ namespace SX3_SCANER.Model.Respository
                     columns.Add("RelatedLastHistoryID");
                 }
                 var parameters = new List<SQLiteParameter>();
+
+                AddExactTextFilter(
+                    ref sql,
+                    parameters,
+                    columns,
+                    NormalizeFilter(boxName),
+                    "@BoxName",
+                    "BoxName");
 
                 AddExactTextFilter(
                     ref sql,
@@ -396,6 +410,32 @@ namespace SX3_SCANER.Model.Respository
                 BoxTypeDB = boxType,
                 IsOddBox = isPartialBox
             };
+        }
+
+        private static void AddContainsTextFilter(
+            ref string sql,
+            List<SQLiteParameter> parameters,
+            HashSet<string> columns,
+            string value,
+            string parameterName,
+            params string[] candidates)
+        {
+            if (value == null)
+            {
+                return;
+            }
+
+            string column = FirstExisting(columns, candidates);
+            if (column == null)
+            {
+                return;
+            }
+
+            sql += " AND COALESCE(bp.[" + column + "], '') COLLATE NOCASE LIKE " +
+                parameterName + " ESCAPE '\\'";
+            parameters.Add(new SQLiteParameter(
+                parameterName,
+                "%" + EscapeLikeValue(value) + "%"));
         }
 
         private static void AddExactTextFilter(
