@@ -301,9 +301,19 @@ namespace SX3_SCANER.Model
                 return false;
 
             string details = exception.ToString();
-            return exception.ResultCode == SQLiteErrorCode.Constraint ||
+            return details.IndexOf("DUPLICATE_SCAN_DATA", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 details.IndexOf("UX_ScanHistoryView_PassScanData", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                details.IndexOf("UNIQUE constraint failed", StringComparison.OrdinalIgnoreCase) >= 0;
+                details.IndexOf(
+                    "UNIQUE constraint failed: ScanHistoryView.ScanData",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        internal static bool IsDuplicatePassLotViolation(SQLiteException exception)
+        {
+            return exception != null &&
+                exception.ToString().IndexOf(
+                    "DUPLICATE_PASS_LOT",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public void UpdateScanHistory(ScanHistory scanHistory)

@@ -59,6 +59,7 @@ namespace SX3_SCANER.ViewModel
         private readonly Predicate<T> _canExecute;
         private readonly Func<T, Task> _executeAsync;
         private bool _isExecuting;
+        private event EventHandler LocalCanExecuteChanged;
 
         public AsyncRelayCommand(Predicate<T> canExecute, Func<T, Task> executeAsync)
         {
@@ -84,7 +85,7 @@ namespace SX3_SCANER.ViewModel
                 : (T)parameter;
 
             _isExecuting = true;
-            CommandManager.InvalidateRequerySuggested();
+            LocalCanExecuteChanged?.Invoke(this, EventArgs.Empty);
             try
             {
                 await _executeAsync(value);
@@ -101,14 +102,22 @@ namespace SX3_SCANER.ViewModel
             finally
             {
                 _isExecuting = false;
-                CommandManager.InvalidateRequerySuggested();
+                LocalCanExecuteChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
         public event EventHandler CanExecuteChanged
         {
-            add { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
+            add
+            {
+                LocalCanExecuteChanged += value;
+                CommandManager.RequerySuggested += value;
+            }
+            remove
+            {
+                LocalCanExecuteChanged -= value;
+                CommandManager.RequerySuggested -= value;
+            }
         }
     }
 }

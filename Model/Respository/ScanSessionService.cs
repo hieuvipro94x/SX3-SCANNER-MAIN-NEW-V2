@@ -76,10 +76,22 @@ namespace SX3_SCANER.Model.Respository
             {
                 command.Transaction = transaction;
                 command.CommandText = @"
-                    INSERT OR REPLACE INTO ScanSessionDrafts
+                    INSERT INTO ScanSessionDrafts
                         (SessionKey, ProductCode, BoxCode, ScannedCount, TargetCount, ScanHistoryJson, IsInJob, Worker, SessionDate, BoxDate, ScanLabelDate, LastUpdated)
                     VALUES
-                        (@SessionKey, @ProductCode, @BoxCode, @ScannedCount, @TargetCount, @ScanHistoryJson, @IsInJob, @Worker, @SessionDate, @BoxDate, @ScanLabelDate, @LastUpdated);";
+                        (@SessionKey, @ProductCode, @BoxCode, @ScannedCount, @TargetCount, @ScanHistoryJson, @IsInJob, @Worker, @SessionDate, @BoxDate, @ScanLabelDate, @LastUpdated)
+                    ON CONFLICT(SessionKey) DO UPDATE SET
+                        ProductCode = excluded.ProductCode,
+                        BoxCode = excluded.BoxCode,
+                        ScannedCount = excluded.ScannedCount,
+                        TargetCount = excluded.TargetCount,
+                        ScanHistoryJson = excluded.ScanHistoryJson,
+                        IsInJob = excluded.IsInJob,
+                        Worker = excluded.Worker,
+                        SessionDate = excluded.SessionDate,
+                        BoxDate = excluded.BoxDate,
+                        ScanLabelDate = excluded.ScanLabelDate,
+                        LastUpdated = excluded.LastUpdated;";
                 AddStateParameters(command, state, historyJson);
                 command.ExecuteNonQuery();
             }

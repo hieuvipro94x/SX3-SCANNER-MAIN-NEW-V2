@@ -29,6 +29,9 @@ namespace SX3.Scanner.Tests
                 True(!UpdateService.IsNewerVersion(new Version(10, 5), new Version(10, 5)));
             });
             Run("Range query uses date index", AssertRangeQueryPlan);
+            Run("PASS ScanData unique index preserves behavior", AssertPassScanDataUniqueness);
+            Run("PASS Lot trigger preserves behavior", AssertPassLotUniqueness);
+            Run("Session UPSERT updates in place", AssertSessionUpsert);
 
             Console.WriteLine(_failures == 0 ? "All tests passed." : _failures + " test(s) failed.");
             return _failures == 0 ? 0 : 1;
@@ -59,6 +62,92 @@ namespace SX3.Scanner.Tests
                         }
                         True(usesIndex);
                     }
+                }
+            }
+        }
+
+        private static void AssertPassScanDataUniqueness()
+        {
+            using (var connection = new SQLiteConnection("Data Source=:memory:;Version=3;"))
+            {
+                connection.Open();
+                Execute(connection, "CREATE TABLE ScanHistoryView (ID INTEGER PRIMARY KEY, ScanData TEXT, ScanResult INTEGER NOT NULL);");
+                Execute(connection, "CREATE UNIQUE INDEX UX_Test_PassScanData ON ScanHistoryView(ScanData COLLATE NOCASE) WHERE ScanResult = 1 AND ScanData IS NOT NULL AND TRIM(ScanData) <> '';");
+                Execute(connection, "INSERT INTO ScanHistoryView(ScanData, ScanResult) VALUES('TEM-001', 1);");
+
+                bool duplicatePassBlocked = false;
+                try
+                {
+                    Execute(connection, "INSERT INTO ScanHistoryView(ScanData, ScanResult) VALUES('tem-001', 1);");
+                }
+                catch (SQLiteException ex)
+                {
+                    duplicatePassBlocked = ex.ResultCode == SQLiteErrorCode.Constraint;
+                }
+
+                True(duplicatePassBlocked);
+                Execute(connection, "INSERT INTO ScanHistoryView(ScanData, ScanResult) VALUES('TEM-001', 0);");
+                Execute(connection, "INSERT INTO ScanHistoryView(ScanData, ScanResult) VALUES('TEM-001', 0);");
+            }
+        }
+
+        private static void AssertPassLotUniqueness()
+        {
+            using (var connection = new SQLiteConnection("Data Source=:memory:;Version=3;"))
+            {
+                connection.Open();
+                Execute(connection, "CREATE TABLE ScanHistoryView (ID INTEGER PRIMARY KEY, ProductPartNumber TEXT, SealNo TEXT, LotNo TEXT, ScanResult INTEGER NOT NULL);");
+                Execute(connection, @"CREATE TRIGGER trg_Test_UniquePassLot BEFORE INSERT ON ScanHistoryView
+                    WHEN NEW.ScanResult = 1 AND EXISTS (
+                        SELECT 1 FROM ScanHistoryView
+                        WHERE ScanResult = 1
+                          AND ProductPartNumber = NEW.ProductPartNumber COLLATE NOCASE
+                          AND SealNo = NEW.SealNo COLLATE NOCASE
+                          AND LotNo = NEW.LotNo COLLATE NOCASE)
+                    BEGIN SELECT RAISE(ABORT, 'DUPLICATE_PASS_LOT'); END;");
+                Execute(connection, "INSERT INTO ScanHistoryView(ProductPartNumber,SealNo,LotNo,ScanResult) VALUES('PART-01','260622','LOT-01',1);");
+
+                bool duplicateLotBlocked = false;
+                try
+                {
+                    Execute(connection, "INSERT INTO ScanHistoryView(ProductPartNumber,SealNo,LotNo,ScanResult) VALUES('part-01','260622','lot-01',1);");
+                }
+                catch (SQLiteException ex)
+                {
+                    duplicateLotBlocked = ex.ToString().IndexOf(
+                        "DUPLICATE_PASS_LOT",
+                        StringComparison.OrdinalIgnoreCase) >= 0;
+                }
+
+                True(duplicateLotBlocked);
+                Execute(connection, "INSERT INTO ScanHistoryView(ProductPartNumber,SealNo,LotNo,ScanResult) VALUES('PART-01','260623','LOT-01',1);");
+                Execute(connection, "INSERT INTO ScanHistoryView(ProductPartNumber,SealNo,LotNo,ScanResult) VALUES('PART-01','260622','LOT-01',0);");
+            }
+        }
+
+        private static void AssertSessionUpsert()
+        {
+            using (var connection = new SQLiteConnection("Data Source=:memory:;Version=3;"))
+            {
+                connection.Open();
+                Execute(connection, "CREATE TABLE ScanSessionDrafts(SessionKey TEXT PRIMARY KEY, ScannedCount INTEGER NOT NULL, Worker TEXT NOT NULL);");
+                const string upsert = @"INSERT INTO ScanSessionDrafts(SessionKey,ScannedCount,Worker)
+                    VALUES('PART-01|20260622',1,'A')
+                    ON CONFLICT(SessionKey) DO UPDATE SET
+                        ScannedCount=excluded.ScannedCount,
+                        Worker=excluded.Worker;";
+                Execute(connection, upsert);
+                Execute(connection, upsert.Replace("1,'A'", "2,'B'"));
+
+                using (var command = new SQLiteCommand(
+                    "SELECT COUNT(1), MAX(ScannedCount), MAX(Worker) FROM ScanSessionDrafts",
+                    connection))
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    True(reader.Read());
+                    Equal(1, reader.GetInt32(0));
+                    Equal(2, reader.GetInt32(1));
+                    Equal("B", reader.GetString(2));
                 }
             }
         }

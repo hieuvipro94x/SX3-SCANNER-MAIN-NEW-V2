@@ -10,6 +10,8 @@ namespace SX3_SCANER.ViewModel
     {
         private const string OK = "OK";
         private const string NG = "NG";
+        private static readonly Brush OkResultBackgroundBrush = CreateFrozenBrush(0x16, 0xA3, 0x4A);
+        private static readonly Brush NgResultBackgroundBrush = CreateFrozenBrush(0xDC, 0x26, 0x26);
         private string _ScanTextResult;
 
         public string ScanTextResult
@@ -28,7 +30,12 @@ namespace SX3_SCANER.ViewModel
         public Brush ResultBackgroundBrush
         {
             get { return _ResultBackgroundBrush; }
-            set { _ResultBackgroundBrush = value; OnPropertyChanged(); }
+            set
+            {
+                if (object.ReferenceEquals(_ResultBackgroundBrush, value)) return;
+                _ResultBackgroundBrush = value;
+                OnPropertyChanged();
+            }
         }
 
         private Brush _ResultForegroundBrush = Brushes.Gray;
@@ -36,7 +43,12 @@ namespace SX3_SCANER.ViewModel
         public Brush ResultForegroundBrush
         {
             get { return _ResultForegroundBrush; }
-            set { _ResultForegroundBrush = value; OnPropertyChanged(); }
+            set
+            {
+                if (object.ReferenceEquals(_ResultForegroundBrush, value)) return;
+                _ResultForegroundBrush = value;
+                OnPropertyChanged();
+            }
         }
 
         private Color _ResultShadowColor = Colors.Transparent;
@@ -44,7 +56,12 @@ namespace SX3_SCANER.ViewModel
         public Color ResultShadowColor
         {
             get { return _ResultShadowColor; }
-            set { _ResultShadowColor = value; OnPropertyChanged(); }
+            set
+            {
+                if (_ResultShadowColor == value) return;
+                _ResultShadowColor = value;
+                OnPropertyChanged();
+            }
         }
 
         private string _ScanResultDetailText = string.Empty;
@@ -52,21 +69,26 @@ namespace SX3_SCANER.ViewModel
         public string ScanResultDetailText
         {
             get { return _ScanResultDetailText; }
-            set { _ScanResultDetailText = value; OnPropertyChanged(); }
+            set
+            {
+                if (string.Equals(_ScanResultDetailText, value, System.StringComparison.Ordinal)) return;
+                _ScanResultDetailText = value;
+                OnPropertyChanged();
+            }
         }
 
         private void UpdateResultVisualState(string result)
         {
             if (result == OK)
             {
-                ResultBackgroundBrush = new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)); // #16A34A
+                ResultBackgroundBrush = OkResultBackgroundBrush; // #16A34A
                 ResultForegroundBrush = Brushes.White;
                 ResultShadowColor = Color.FromRgb(0x05, 0x46, 0x20);
                 ScanResultDetailText = "Tem hợp lệ";
             }
             else if (result == NG)
             {
-                ResultBackgroundBrush = new SolidColorBrush(Color.FromRgb(0xDC, 0x26, 0x26)); // #DC2626
+                ResultBackgroundBrush = NgResultBackgroundBrush; // #DC2626
                 ResultForegroundBrush = Brushes.White;
                 ResultShadowColor = Color.FromRgb(0x7F, 0x1D, 0x1D);
                 ScanResultDetailText = ScanHistory.ToShortScanMessage(_ScanMess);
@@ -141,9 +163,20 @@ namespace SX3_SCANER.ViewModel
                 SelectedTodayBox = existing;
             }
 
-            ToDayBoxView?.Refresh();
-            RefreshDashboardStats();
-            CommandManager.InvalidateRequerySuggested();
+            // Add() tự cập nhật CollectionView và dashboard qua CollectionChanged.
+            // Chỉ refresh thủ công khi cập nhật object đã có trong collection.
+            if (existing != null)
+            {
+                ToDayBoxView?.Refresh();
+                RefreshDashboardStats();
+            }
+        }
+
+        private static Brush CreateFrozenBrush(byte red, byte green, byte blue)
+        {
+            var brush = new SolidColorBrush(Color.FromRgb(red, green, blue));
+            brush.Freeze();
+            return brush;
         }
     }
 }

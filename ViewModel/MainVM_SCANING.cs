@@ -22,7 +22,6 @@ namespace SX3_SCANER.ViewModel
         private readonly BoxProductRepository _boxProductRepository = new BoxProductRepository();
         private readonly ScanSessionService _scanSessionService = new ScanSessionService();
         private readonly SemaphoreSlim _scanWriteLock = new SemaphoreSlim(1, 1);
-        private bool _duplicateLotForCurrentScan;
         private bool _isScanBusy;
         private string _lastScannedCode = string.Empty;
         private DateTime _lastScannedAt = DateTime.MinValue;
@@ -85,17 +84,25 @@ namespace SX3_SCANER.ViewModel
             get { return _CurrentScanProgress; }
             set
             {
+                if (_CurrentScanProgress == value) return;
+
+                int previousValue = _CurrentScanProgress;
                 _CurrentScanProgress = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(HasOpenScanSession));
-                OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
-                OnPropertyChanged(nameof(CanModifySessionSelection));
                 OnPropertyChanged(nameof(ScanQuantityText));
-                OnPropertyChanged(nameof(CurrentPassCount));
-                OnPropertyChanged(nameof(CurrentNgCount));
                 OnPropertyChanged(nameof(CurrentProgressPercentText));
-                NotifyCurrentBoxStatusChanged();
-                CommandManager.InvalidateRequerySuggested();
+
+                bool fullStateChanged = SelectedQuantity > 0 &&
+                    (previousValue >= SelectedQuantity) != (value >= SelectedQuantity);
+                if (fullStateChanged)
+                {
+                    OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+                    if (!_isScanBusy)
+                    {
+                        NotifyCurrentBoxStatusChanged();
+                        CommandManager.InvalidateRequerySuggested();
+                    }
+                }
             }
         }
 
@@ -133,7 +140,12 @@ namespace SX3_SCANER.ViewModel
         public string Worker
         {
             get { return _Worker; }
-            set { _Worker = value; OnPropertyChanged(); }
+            set
+            {
+                if (_isScanBusy) return;
+                _Worker = value;
+                OnPropertyChanged();
+            }
         }
 
         private string _InputScanCode;
@@ -152,12 +164,12 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_InputScanCodeCMD == null)
                 {
-                    _InputScanCodeCMD = new AsyncRelayCommand<object>(
-                        o => IsApplicationReady &&
+                    _InputScanCodeCMD = new AsyncRelayCommand<string>(
+                        code => IsApplicationReady &&
                             InJob &&
-                            !string.IsNullOrWhiteSpace(InputScanCode) &&
+                            !string.IsNullOrWhiteSpace(code) &&
                             !IsFullBoxReadyToComplete,
-                        async o => await ScanDataAsync(InputScanCode));
+                        async code => await ScanDataAsync(code));
                 }
 
                 return _InputScanCodeCMD;
@@ -231,16 +243,17 @@ namespace SX3_SCANER.ViewModel
         {
             await _scanWriteLock.WaitAsync();
             _isScanBusy = true;
-            NotifyCurrentBoxStatusChanged();
-            OnPropertyChanged(nameof(CanSwitchProduct));
-            OnPropertyChanged(nameof(CanModifySessionSelection));
-            CommandManager.InvalidateRequerySuggested();
+            bool scanUiStateChanged = false;
             try
             {
                 inputScanCode = inputScanCode?.Trim() ?? string.Empty;
 
                 if (string.IsNullOrWhiteSpace(inputScanCode))
                     return;
+
+                // Giữ trạng thái nội bộ giống binding cũ nhưng không phát PropertyChanged
+                // theo từng ký tự scanner gửi vào TextBox.
+                _InputScanCode = inputScanCode;
 
                 DateTime scannedAt = DateTime.UtcNow;
                 if (string.Equals(
@@ -275,16 +288,6 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                if (await Task.Run(() => _scanHistoryRepository.ScanDataExists(inputScanCode)))
-                {
-                    await RecordRejectedScanAsync(
-                        inputScanCode,
-                        "NG - Trùng tem trong lịch sử PASS",
-                        "Tem này đã tồn tại trong lịch sử scan. Không được scan trùng.",
-                        "TRÙNG TEM");
-                    return;
-                }
-
                 if (SelectedQuantity > 0 && CurrentScanProgress >= SelectedQuantity)
                 {
                     await RecordRejectedScanAsync(
@@ -304,9 +307,7 @@ namespace SX3_SCANER.ViewModel
                     _currentBoxCreatedDate = BoxDate.Date;
                     _CurrentBoxName = await Task.Run(
                         () => _boxProductRepository.GetNextBoxName(BoxDate));
-                    OnPropertyChanged(nameof(BoxDate));
-                    OnPropertyChanged(nameof(BoxDateText));
-                    NotifyCurrentBoxStatusChanged();
+                    scanUiStateChanged = true;
                 }
 
                 ResetScanStatus();
@@ -326,7 +327,6 @@ namespace SX3_SCANER.ViewModel
                     TargetQty = SelectedQuantity
                 };
 
-                _duplicateLotForCurrentScan = await IsDuplicateLotAsync(inputScanCode);
                 bool isPass = Scan(inputScanCode);
 
                 if (!isPass)
@@ -415,6 +415,26 @@ namespace SX3_SCANER.ViewModel
                     });
                 }
                 catch (SQLiteException ex) when (
+                    ScanHistoryRepository.IsDuplicatePassLotViolation(ex))
+                {
+                    if (allocatedBoxName)
+                    {
+                        _CurrentBoxName = null;
+                        _currentBoxCreatedDate = null;
+                        OnPropertyChanged(nameof(BoxDate));
+                        OnPropertyChanged(nameof(BoxDateText));
+                        OnPropertyChanged(nameof(HasOpenScanSession));
+                    }
+                    _CurrentScanHistory = null;
+                    ResetScanStatus();
+                    await RecordRejectedScanAsync(
+                        inputScanCode,
+                        "NG - Trùng LotNo",
+                        "LotNo này đã tồn tại trong lịch sử PASS. Không được scan trùng.",
+                        "TRÙNG LOT");
+                    return;
+                }
+                catch (SQLiteException ex) when (
                     ScanHistoryRepository.IsUniqueScanDataViolation(ex))
                 {
                     if (allocatedBoxName)
@@ -426,7 +446,6 @@ namespace SX3_SCANER.ViewModel
                         OnPropertyChanged(nameof(HasOpenScanSession));
                     }
                     _CurrentScanHistory = null;
-                    _duplicateLotForCurrentScan = false;
                     ResetScanStatus();
                     await RecordRejectedScanAsync(
                         inputScanCode,
@@ -453,7 +472,6 @@ namespace SX3_SCANER.ViewModel
                         OnPropertyChanged(nameof(HasOpenScanSession));
                     }
                     _CurrentScanHistory = null;
-                    _duplicateLotForCurrentScan = false;
                     ScanTextResult = string.Empty;
                     ResetScanStatus();
                     return;
@@ -475,13 +493,18 @@ namespace SX3_SCANER.ViewModel
                 if (isPass)
                 {
                     CurrentScanProgress = persistedProgress;
+                    if (SelectedQuantity > 0 && persistedProgress >= SelectedQuantity)
+                        scanUiStateChanged = true;
                 }
 
                 ScanHistorySource.Insert(0, _CurrentScanHistory);
                 RefreshScanHistoryDisplayIndex();
-                OnPropertyChanged(nameof(HasOpenScanSession));
-                OnPropertyChanged(nameof(CanModifySessionSelection));
-                CommandManager.InvalidateRequerySuggested();
+                if (allocatedBoxName)
+                {
+                    OnPropertyChanged(nameof(HasOpenScanSession));
+                    OnPropertyChanged(nameof(CanModifySessionSelection));
+                    OnPropertyChanged(nameof(CurrentBoxNameText));
+                }
 
                 if (isPass)
                 {
@@ -496,10 +519,13 @@ namespace SX3_SCANER.ViewModel
             finally
             {
                 _isScanBusy = false;
-                NotifyCurrentBoxStatusChanged();
-                OnPropertyChanged(nameof(CanSwitchProduct));
-                OnPropertyChanged(nameof(CanModifySessionSelection));
-                CommandManager.InvalidateRequerySuggested();
+                if (scanUiStateChanged)
+                {
+                    NotifyCurrentBoxStatusChanged();
+                    OnPropertyChanged(nameof(CanSwitchProduct));
+                    OnPropertyChanged(nameof(CanModifySessionSelection));
+                    CommandManager.InvalidateRequerySuggested();
+                }
                 _scanWriteLock.Release();
             }
         }

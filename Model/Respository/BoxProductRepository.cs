@@ -401,18 +401,22 @@ namespace SX3_SCANER.Model
             {
                 connection.Open();
                 string query = @"
-                    SELECT BoxName
+                    SELECT MAX(BoxName)
                     FROM (
-                        SELECT BoxName FROM BoxProduct WHERE BoxSealNo = @Today
+                        SELECT MAX(BoxName) AS BoxName
+                        FROM BoxProduct
+                        WHERE BoxSealNo = @Today
                         UNION ALL
-                        SELECT BoxName FROM ScanHistoryView WHERE BoxName LIKE @TodayPrefix
-                    )
-                    ORDER BY BoxName DESC
-                    LIMIT 1";
+                        SELECT MAX(BoxName) AS BoxName
+                        FROM ScanHistoryView
+                        WHERE BoxName >= @TodayPrefix
+                          AND BoxName < @TodayPrefixUpper
+                    )";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@Today", today);
-                    command.Parameters.AddWithValue("@TodayPrefix", "P" + today + "%");
+                    command.Parameters.AddWithValue("@TodayPrefix", "P" + today);
+                    command.Parameters.AddWithValue("@TodayPrefixUpper", "P" + today + "\uffff");
                     object result = command.ExecuteScalar();
 
                     if (result != null && result != DBNull.Value)

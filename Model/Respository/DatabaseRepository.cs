@@ -63,7 +63,7 @@ namespace SX3_SCANER.Model.Respository
         {
             get
             {
-                return "Data Source=" + DatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;Default Timeout=5;";
+                return "Data Source=" + DatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;Synchronous=Normal;Pooling=True;Default Timeout=5;";
             }
         }
 
@@ -71,7 +71,7 @@ namespace SX3_SCANER.Model.Respository
         {
             get
             {
-                return "Data Source=" + ProductDatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;Default Timeout=5;";
+                return "Data Source=" + ProductDatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;Synchronous=Normal;Pooling=True;Default Timeout=5;";
             }
         }
 

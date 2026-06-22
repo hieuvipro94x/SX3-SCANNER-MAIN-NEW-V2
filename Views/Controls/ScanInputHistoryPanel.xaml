@@ -109,7 +109,7 @@
                              Height="72"
                              Style="{StaticResource ScanResultTextBoxStyle}"
                              IsEnabled="{Binding IsApplicationReady}"
-                             Text="{Binding InputScanCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{Binding InputScanCode, Mode=TwoWay, UpdateSourceTrigger=Explicit}"
                              ToolTip="Quét tem hoặc nhập mã rồi bấm Enter">
                         <TextBox.InputBindings>
                             <KeyBinding Gesture="Enter"

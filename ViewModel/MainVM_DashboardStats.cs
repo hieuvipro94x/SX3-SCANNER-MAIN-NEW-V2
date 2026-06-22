@@ -3,6 +3,7 @@ using SX3_SCANER.Model;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -19,6 +20,7 @@ namespace SX3_SCANER.ViewModel
         private ObservableCollection<BoxProduct> _dashboardTodayBoxSource;
         private static readonly TimeSpan DashboardRefreshDebounce = TimeSpan.FromMilliseconds(180);
         private int _dashboardRefreshRequestId;
+        private CancellationTokenSource _dashboardRefreshCancellation;
 
         private int _todayScanCount;
         private int _todayPassCount;
@@ -199,6 +201,9 @@ namespace SX3_SCANER.ViewModel
 
             _dashboardScanHistorySource = source;
 
+            _currentPassCount = source == null ? 0 : source.Count(x => x.ScanResult);
+            _currentNgCount = source == null ? 0 : source.Count - _currentPassCount;
+
             if (_dashboardScanHistorySource != null)
             {
                 _dashboardScanHistorySource.CollectionChanged += DashboardScanHistory_CollectionChanged;
@@ -226,10 +231,39 @@ namespace SX3_SCANER.ViewModel
 
         private void DashboardScanHistory_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                _currentPassCount = _dashboardScanHistorySource == null
+                    ? 0
+                    : _dashboardScanHistorySource.Count(x => x.ScanResult);
+                _currentNgCount = _dashboardScanHistorySource == null
+                    ? 0
+                    : _dashboardScanHistorySource.Count - _currentPassCount;
+            }
+            else
+            {
+                if (e.OldItems != null)
+                {
+                    foreach (ScanHistory item in e.OldItems)
+                    {
+                        if (item.ScanResult) _currentPassCount--;
+                        else _currentNgCount--;
+                    }
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (ScanHistory item in e.NewItems)
+                    {
+                        if (item.ScanResult) _currentPassCount++;
+                        else _currentNgCount++;
+                    }
+                }
+            }
+
             OnPropertyChanged(nameof(CurrentPassCount));
             OnPropertyChanged(nameof(CurrentNgCount));
             OnPropertyChanged(nameof(CurrentProgressPercentText));
-            ScanHistoryView?.Refresh();
             RefreshDashboardStats();
         }
 
@@ -243,61 +277,59 @@ namespace SX3_SCANER.ViewModel
         /// Không query trực tiếp trên UI thread để tránh đơ giao diện khi scan nhanh.
         /// Nhiều lần gọi liên tiếp sẽ được gom lại, chỉ lần mới nhất được áp dụng.
         /// </summary>
-        private void RefreshDashboardStats()
+        private async void RefreshDashboardStats()
         {
             DateTime businessDate = GetDashboardBusinessDate();
             DashboardDateText = businessDate.ToString("dd/MM/yyyy");
 
             int requestId = Interlocked.Increment(ref _dashboardRefreshRequestId);
+            var cancellation = new CancellationTokenSource();
+            CancellationTokenSource previous = Interlocked.Exchange(
+                ref _dashboardRefreshCancellation,
+                cancellation);
+            previous?.Cancel();
 
-            // Chạy nền có chủ ý: không await để UI không bị đứng khi scan liên tục.
-            // Toàn bộ exception bên trong đã được catch/log, nên không bị mất lỗi.
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await Task.Delay(DashboardRefreshDebounce).ConfigureAwait(false);
+                await Task.Delay(DashboardRefreshDebounce, cancellation.Token);
 
-                    if (requestId != _dashboardRefreshRequestId)
-                        return;
+                if (requestId != _dashboardRefreshRequestId)
+                    return;
 
-                    DashboardStatsSnapshot snapshot = new DashboardStatsSnapshot
+                DashboardStatsSnapshot snapshot = await Task.Run(() =>
+                    new DashboardStatsSnapshot
                     {
                         BusinessDate = businessDate,
                         ScanStats = _dashboardScanRepository.GetDashboardScanStats(businessDate),
                         BoxStats = _dashboardBoxRepository.GetDashboardBoxStats(businessDate)
-                    };
+                    }, cancellation.Token);
 
-                    Action applyAction = () =>
-                    {
-                        if (requestId != _dashboardRefreshRequestId)
-                            return;
+                if (requestId != _dashboardRefreshRequestId || cancellation.IsCancellationRequested)
+                    return;
 
-                        ApplyDashboardStats(snapshot);
-                    };
-
-                    var dispatcher = Application.Current == null
-                        ? null
-                        : Application.Current.Dispatcher;
-
-                    if (dispatcher != null && !dispatcher.CheckAccess())
-                    {
-                        // Dùng Invoke để exception trong ApplyDashboardStats được trả về catch bên ngoài.
-                        // Phần này chỉ set vài property nên rất nhẹ, không gây lag UI.
-                        dispatcher.Invoke(applyAction);
-                    }
-                    else
-                    {
-                        applyAction();
-                    }
-                }
-                catch (Exception ex)
+                ApplyDashboardStats(snapshot);
+            }
+            catch (OperationCanceledException)
+            {
+                // Yêu cầu mới hơn đã thay thế lần refresh này.
+            }
+            catch (Exception ex)
+            {
+                // Dashboard là phần hiển thị phụ, không được làm gián đoạn thao tác scan.
+                StartupManager.Log("Refresh dashboard failed: " + ex);
+            }
+            finally
+            {
+                if (ReferenceEquals(
+                    Interlocked.CompareExchange(
+                        ref _dashboardRefreshCancellation,
+                        null,
+                        cancellation),
+                    cancellation))
                 {
-                    // Dashboard là phần hiển thị phụ, không được làm gián đoạn thao tác scan.
-                    // Giữ giá trị hiện tại nếu database đang bận hoặc chưa khởi tạo xong.
-                    StartupManager.Log("Refresh dashboard failed: " + ex);
+                    cancellation.Dispose();
                 }
-            });
+            }
         }
 
         private void ApplyDashboardStats(DashboardStatsSnapshot snapshot)

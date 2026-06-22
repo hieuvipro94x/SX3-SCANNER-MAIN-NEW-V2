@@ -82,6 +82,7 @@ namespace SX3_SCANER.ViewModel
             get { return _SelectedPartNumber; }
             set
             {
+                if (_isScanBusy) return;
                 if (string.IsNullOrWhiteSpace(value) || value == _SelectedPartNumber) return;
 
                 string previousPartNumber = _SelectedPartNumber;
@@ -234,6 +235,7 @@ namespace SX3_SCANER.ViewModel
             }
             set
             {
+                if (_isScanBusy) return;
                 DateTime next = value.Date;
 
                 if (BoxDate.Date == next)
@@ -653,6 +655,7 @@ namespace SX3_SCANER.ViewModel
             get { return _SelectedDate; }
             set
             {
+                if (_isScanBusy) return;
                 if (_SelectedDate == value)
                 {
                     return;
@@ -762,6 +765,7 @@ namespace SX3_SCANER.ViewModel
             get { return _SelectedQuantity; }
             set
             {
+                if (_isScanBusy) return;
                 if (_SelectedQuantity == value) return;
 
                 _SelectedQuantity = value;

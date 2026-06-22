@@ -186,6 +186,7 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_PartNumber_Seal_Lot_Result ON ScanHistoryView(ProductPartNumber, SealNo, LotNo, ScanResult);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Pass_Product_Seal_Lot ON ScanHistoryView(ProductPartName, SealNo, LotNo) WHERE ScanResult = 1;");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxName ON BoxProduct(BoxName);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Seal_BoxName ON BoxProduct(BoxSealNo, BoxName DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxDate_Type_Complete ON BoxProduct(BoxDate, BoxType, BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
@@ -214,21 +215,10 @@ PRAGMA busy_timeout = 5000;";
 
         private static void CreateDataIntegrityTriggers()
         {
-            TryExecute(@"
-                CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassScanData_Insert
-                BEFORE INSERT ON ScanHistoryView
-                WHEN NEW.ScanResult = 1
-                  AND NEW.ScanData IS NOT NULL
-                  AND TRIM(NEW.ScanData) <> ''
-                  AND EXISTS (
-                      SELECT 1
-                      FROM ScanHistoryView
-                      WHERE ScanResult = 1
-                        AND ScanData = NEW.ScanData COLLATE NOCASE
-                  )
-                BEGIN
-                    SELECT RAISE(ABORT, 'DUPLICATE_SCAN_DATA');
-                END;");
+            // Unique partial index UX_ScanHistoryView_PassScanData đã bảo vệ cùng
+            // quy tắc ở mức transaction. Bỏ trigger EXISTS dư để mỗi PASS chỉ
+            // thực hiện một lần kiểm tra index.
+            TryExecute("DROP TRIGGER IF EXISTS trg_ScanHistory_UniquePassScanData_Insert;");
 
             TryExecute(@"
                 CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Insert

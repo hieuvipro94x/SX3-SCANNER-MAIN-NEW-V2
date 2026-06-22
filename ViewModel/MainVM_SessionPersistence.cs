@@ -29,7 +29,6 @@ namespace SX3_SCANER.ViewModel
             }
 
             ScanHistoryView?.Refresh();
-            RefreshDashboardStats();
         }
 
         private void SaveCurrentScanSession(bool isInJob)

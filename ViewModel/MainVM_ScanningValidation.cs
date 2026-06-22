@@ -198,35 +198,6 @@ namespace SX3_SCANER.ViewModel
             SX3_SCANER.Helper.ProfessionalMessageBox.Show(message, "TH\u00D4NG B\u00C1O", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private async Task<bool> IsDuplicateLotAsync(string input)
-        {
-            // Format mới: PARTNO,SERIAL (ví dụ K32000-22400,2606172001)
-            // không có SealNo/LotNo theo cấu trúc cũ nên không kiểm tra trùng LotNo.
-            // Trùng tem vẫn được chặn bằng ScanData gốc ở phía trên.
-            if (ScanValidationService.IsPartNoCommaSerialFormat(input))
-                return false;
-
-            if (string.IsNullOrWhiteSpace(input) || input.Length != CodeLengthExpected)
-                return false;
-
-            int lotStart = (PrefixExpected?.Length ?? 0) +
-                (PNameExpected?.Length ?? 0) +
-                (SealNoExpected?.Length ?? 0);
-
-            if (input.Length < lotStart + 4)
-                return false;
-
-            string lotNo = input.Substring(lotStart, 4);
-            if (!int.TryParse(lotNo, out int _))
-                return false;
-
-            return await Task.Run(
-                () => _scanHistoryRepository.CheckExist(
-                    SelectedPartNumber,
-                    SealNoExpected,
-                    lotNo));
-        }
-
         private void ResetScanStatus()
         {
             CodeLengthScanResult = 0;
@@ -523,15 +494,6 @@ namespace SX3_SCANER.ViewModel
                 LotNo_OK = 0;
 
                 _ScanMess = "NG - Sai LotNo";
-
-                return false;
-            }
-
-            if (_duplicateLotForCurrentScan)
-            {
-                LotNo_OK = 0;
-
-                _ScanMess = "NG - Trùng LotNo";
 
                 return false;
             }

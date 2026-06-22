@@ -12,6 +12,8 @@ namespace SX3_SCANER.ViewModel
     {
         private string _CurrentBoxHistoryFilter;
         private ICommand _OpenSessionSetupCMD;
+        private int _currentPassCount;
+        private int _currentNgCount;
 
         public ICommand OpenSessionSetupCMD
         {
@@ -21,7 +23,11 @@ namespace SX3_SCANER.ViewModel
                 {
                     _OpenSessionSetupCMD = new RelayCommand<object>(
                         o => IsApplicationReady && !_isScanBusy,
-                        o => OpenSessionSetupFromMainWindow());
+                        o =>
+                        {
+                            if (!_isScanBusy)
+                                OpenSessionSetupFromMainWindow();
+                        });
                 }
 
                 return _OpenSessionSetupCMD;
@@ -55,22 +61,12 @@ namespace SX3_SCANER.ViewModel
 
         public int CurrentPassCount
         {
-            get
-            {
-                return ScanHistorySource == null
-                    ? 0
-                    : ScanHistorySource.Count(x => x.ScanResult);
-            }
+            get { return _currentPassCount; }
         }
 
         public int CurrentNgCount
         {
-            get
-            {
-                return ScanHistorySource == null
-                    ? 0
-                    : ScanHistorySource.Count(x => !x.ScanResult);
-            }
+            get { return _currentNgCount; }
         }
 
         public string CurrentProgressPercentText
