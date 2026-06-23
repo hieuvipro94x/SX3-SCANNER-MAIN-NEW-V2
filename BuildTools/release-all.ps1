@@ -400,6 +400,27 @@ if (Test-Path -LiteralPath $PackageX86) {
     Remove-Item -LiteralPath $PackageX86 -Recurse -Force
 }
 
+# Am thanh OK/NG phai nam trong EXE/DLL dang Embedded Resource.
+# Neu project van copy Sounds\*.wav ra bin Release thi xoa khoi bo cai dat de nguoi dung khong thay/sua/xoa duoc.
+$PackageSoundsDir = Join-Path $PackageDir "Sounds"
+if (Test-Path -LiteralPath $PackageSoundsDir) {
+    Remove-Item -LiteralPath $PackageSoundsDir -Recurse -Force
+    Ok "Da xoa thu muc Sounds khoi package vi am thanh da nhung trong EXE/DLL."
+}
+
+$LooseSoundFiles = Get-ChildItem -LiteralPath $PackageDir -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -in @("OK.wav", "NG.wav") }
+if ($LooseSoundFiles) {
+    $LooseSoundFiles | Remove-Item -Force
+    Ok "Da xoa file OK.wav/NG.wav roi khoi package."
+}
+
+$LeakedSoundFiles = Get-ChildItem -LiteralPath $PackageDir -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -in @("OK.wav", "NG.wav") -or $_.FullName -match "\\Sounds\\" }
+if ($LeakedSoundFiles) {
+    Fail "Package van con file sound roi: $($LeakedSoundFiles.FullName -join ', ')"
+}
+
 $UnexpectedReleaseFiles = Get-ChildItem -LiteralPath $PackageDir -Recurse -File |
     Where-Object {
         $_.Name -like "FIX_*.ps1" -or
@@ -410,8 +431,7 @@ if ($UnexpectedReleaseFiles) {
     Fail "Package con file tam/log/backup: $($UnexpectedReleaseFiles.FullName -join ', ')"
 }
 
-# Am thanh da nhung trong EXE/DLL nen PackageFiles khong bat buoc co thu muc Sounds.
-Ok "Package dung am thanh nhung Resource; khong can Sounds\OK.wav / Sounds\NG.wav roi."
+Ok "Package dung am thanh nhung Embedded Resource; installer se khong cai Sounds\OK.wav / Sounds\NG.wav ra thu muc app."
 
 Write-Step "[3/9] Copy release-note.txt..."
 Copy-Item -LiteralPath $ReleaseNote.Path -Destination (Join-Path $PackageDir "release-note.txt") -Force

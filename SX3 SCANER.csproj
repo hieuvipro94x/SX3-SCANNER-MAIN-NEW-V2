@@ -342,4 +342,11 @@
   <Target Name="RemoveUnusedX86SQLiteInterop" AfterTargets="Build" Condition="'$(Platform)' == 'x64'">
     <RemoveDir Directories="$(TargetDir)x86" Condition="Exists('$(TargetDir)x86')" />
   </Target>
+  <Target Name="RemoveLooseScanSoundFiles" AfterTargets="Build">
+    <!-- Am thanh OK/NG da duoc nhung vao assembly bang EmbeddedResource.
+         Xoa file roi neu Visual Studio/MSBuild/extension nao do van copy ra bin. -->
+    <RemoveDir Directories="$(TargetDir)Sounds" Condition="Exists('$(TargetDir)Sounds')" />
+    <Delete Files="$(TargetDir)OK.wav" Condition="Exists('$(TargetDir)OK.wav')" />
+    <Delete Files="$(TargetDir)NG.wav" Condition="Exists('$(TargetDir)NG.wav')" />
+  </Target>
 </Project>
