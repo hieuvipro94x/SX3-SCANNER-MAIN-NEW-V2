@@ -132,6 +132,7 @@ namespace SX3_SCANER.Helper
                     return null;
                 }
 
+                update.IsMandatory = true;
                 LastStatusMessage = "Có bản cập nhật bắt buộc: V" + update.Version;
                 SaveStartupResult(false, update);
                 Log("Mandatory update available. Current=" + GetCurrentVersion() +

@@ -10,5 +10,6 @@ namespace SX3_SCANER.Helper
         public string DownloadUrl { get; set; }
         public string Sha256 { get; set; }
         public bool IsUpdateAvailable { get; set; }
+        public bool IsMandatory { get; set; }
     }
 }

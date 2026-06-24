@@ -852,97 +852,320 @@ namespace SX3_SCANER.ViewModel
         {
             bool isConfirmed = false;
 
+            Window owner = Application.Current?.MainWindow;
+
             Window wd = new Window
             {
-                Title = "XÁC NHẬN CÔNG NHÂN",
-                Width = 460,
+                Title = "Xác nhận hoàn thành thùng",
+                Width = 640,
                 SizeToContent = SizeToContent.Height,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                WindowStartupLocation = owner != null && owner.IsVisible
+                    ? WindowStartupLocation.CenterOwner
+                    : WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.NoResize,
-                Background = System.Windows.Media.Brushes.White
+                WindowStyle = WindowStyle.None,
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
+                ShowInTaskbar = false
             };
 
-            Grid grid = new Grid
+            if (owner != null && owner.IsVisible)
             {
-                Margin = new Thickness(20)
+                wd.Owner = owner;
+            }
+
+            System.Windows.Media.SolidColorBrush greenBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(22, 163, 74));
+
+            System.Windows.Media.SolidColorBrush darkTextBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(17, 24, 39));
+
+            System.Windows.Media.SolidColorBrush mutedTextBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(107, 114, 128));
+
+            System.Windows.Media.SolidColorBrush borderBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(229, 231, 235));
+
+            System.Windows.Media.SolidColorBrush softGreenBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(240, 253, 244));
+
+            System.Windows.Media.SolidColorBrush dangerBrush =
+                new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(220, 38, 38));
+
+            Border root = new Border
+            {
+                CornerRadius = new CornerRadius(18),
+                Background = System.Windows.Media.Brushes.White,
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(1),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 24,
+                    ShadowDepth = 4,
+                    Opacity = 0.22
+                }
             };
 
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(18) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            TextBlock title = new TextBlock
+            root.Child = mainGrid;
+
+            Border header = new Border
+            {
+                Background = greenBrush,
+                CornerRadius = new CornerRadius(18, 18, 0, 0),
+                Padding = new Thickness(28, 22, 28, 22)
+            };
+
+            header.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.ButtonState == MouseButtonState.Pressed)
+                {
+                    wd.DragMove();
+                }
+            };
+
+            Grid headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            Border iconCircle = new Border
+            {
+                Width = 54,
+                Height = 54,
+                CornerRadius = new CornerRadius(27),
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(45, 255, 255, 255)),
+                Child = new TextBlock
+                {
+                    Text = "✓",
+                    FontSize = 32,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+
+            Grid.SetColumn(iconCircle, 0);
+            headerGrid.Children.Add(iconCircle);
+
+            StackPanel headerTextPanel = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            headerTextPanel.Children.Add(new TextBlock
             {
                 Text = "HOÀN THÀNH THÙNG",
-                FontSize = 26,
+                FontSize = 25,
                 FontWeight = FontWeights.Bold,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Foreground = System.Windows.Media.Brushes.DarkGreen
+                Foreground = System.Windows.Media.Brushes.White
+            });
+
+            headerTextPanel.Children.Add(new TextBlock
+            {
+                Text = "Xác nhận công nhân trước khi đóng thùng",
+                FontSize = 14,
+                Margin = new Thickness(0, 4, 0, 0),
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromArgb(230, 255, 255, 255))
+            });
+
+            Grid.SetColumn(headerTextPanel, 2);
+            headerGrid.Children.Add(headerTextPanel);
+
+            header.Child = headerGrid;
+            Grid.SetRow(header, 0);
+            mainGrid.Children.Add(header);
+
+            StackPanel content = new StackPanel
+            {
+                Margin = new Thickness(28, 24, 28, 20)
             };
-            Grid.SetRow(title, 0);
-            grid.Children.Add(title);
+
+            Border summaryBox = new Border
+            {
+                Background = softGreenBrush,
+                BorderBrush = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(187, 247, 208)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(18)
+            };
+
+            Grid summaryGrid = new Grid();
+            summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            void AddInfoRow(string label, string value, int rowIndex)
+            {
+                summaryGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                TextBlock labelBlock = new TextBlock
+                {
+                    Text = label,
+                    FontSize = 14,
+                    Foreground = mutedTextBrush,
+                    Margin = new Thickness(0, rowIndex == 0 ? 0 : 8, 14, 0)
+                };
+
+                TextBlock valueBlock = new TextBlock
+                {
+                    Text = string.IsNullOrWhiteSpace(value) ? "—" : value,
+                    FontSize = 15,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = darkTextBrush,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, rowIndex == 0 ? 0 : 8, 0, 0)
+                };
+
+                Grid.SetRow(labelBlock, rowIndex);
+                Grid.SetColumn(labelBlock, 0);
+                summaryGrid.Children.Add(labelBlock);
+
+                Grid.SetRow(valueBlock, rowIndex);
+                Grid.SetColumn(valueBlock, 1);
+                summaryGrid.Children.Add(valueBlock);
+            }
+
+            AddInfoRow("Mã thùng", _CurrentBoxName, 0);
+            AddInfoRow("Mã hàng", SelectedPartNumber, 1);
+            AddInfoRow("Tên hàng", PNameExpected, 2);
+            AddInfoRow("Số lượng", CurrentScanProgress + " / " + SelectedQuantity, 3);
+            AddInfoRow("Ngày tem", ScanLabelDate.ToString("dd/MM/yyyy"), 4);
+
+            summaryBox.Child = summaryGrid;
+            content.Children.Add(summaryBox);
+
+            TextBlock workerLabel = new TextBlock
+            {
+                Text = "Công nhân thực hiện",
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = darkTextBrush,
+                Margin = new Thickness(0, 22, 0, 8)
+            };
+
+            content.Children.Add(workerLabel);
 
             TextBox txtWorker = new TextBox
             {
                 Text = Worker ?? string.Empty,
                 FontSize = 24,
-                Height = 52,
+                Height = 56,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(10, 0, 10, 0)
+                Padding = new Thickness(14, 0, 14, 0),
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(1),
+                Foreground = darkTextBrush
             };
-            Grid.SetRow(txtWorker, 2);
-            grid.Children.Add(txtWorker);
+
+            content.Children.Add(txtWorker);
+
+            TextBlock errorText = new TextBlock
+            {
+                Text = "Vui lòng nhập tên công nhân trước khi xác nhận.",
+                FontSize = 13,
+                Foreground = dangerBrush,
+                Margin = new Thickness(2, 8, 0, 0),
+                Visibility = Visibility.Collapsed
+            };
+
+            content.Children.Add(errorText);
+
+            TextBlock hintText = new TextBlock
+            {
+                Text = "Có thể quét mã nhân viên hoặc nhập tên công nhân, sau đó nhấn Enter để xác nhận.",
+                FontSize = 13,
+                Foreground = mutedTextBrush,
+                Margin = new Thickness(2, 8, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            content.Children.Add(hintText);
+
+            Grid.SetRow(content, 1);
+            mainGrid.Children.Add(content);
+
+            Border footer = new Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(249, 250, 251)),
+                CornerRadius = new CornerRadius(0, 0, 18, 18),
+                Padding = new Thickness(28, 18, 28, 22)
+            };
 
             Button btnOK = new Button
             {
-                Content = "XÁC NHẬN",
-                Height = 48,
+                Content = "XÁC NHẬN ĐÓNG THÙNG",
+                Height = 54,
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Background = System.Windows.Media.Brushes.SeaGreen,
-                Foreground = System.Windows.Media.Brushes.White
+                Background = greenBrush,
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = Cursors.Hand
             };
 
-            btnOK.Click += (s, e) =>
-            {
-                if (string.IsNullOrWhiteSpace(txtWorker.Text))
-                {
-                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
-                        "Vui lòng nhập tên công nhân",
-                        "THIẾU THÔNG TIN",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
+            footer.Child = btnOK;
+            Grid.SetRow(footer, 2);
+            mainGrid.Children.Add(footer);
 
+            void ConfirmWorker()
+            {
+                string workerName = txtWorker.Text == null
+                    ? string.Empty
+                    : txtWorker.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(workerName))
+                {
+                    errorText.Visibility = Visibility.Visible;
                     txtWorker.Focus();
+                    txtWorker.SelectAll();
                     return;
                 }
 
-                Worker = txtWorker.Text.Trim();
+                errorText.Visibility = Visibility.Collapsed;
+
+                Worker = workerName;
                 AppConfigHelper.Modify(AppConfigStringKey.LastWorker, Worker);
 
                 isConfirmed = true;
                 wd.DialogResult = true;
                 wd.Close();
+            }
+
+            btnOK.Click += (s, e) => ConfirmWorker();
+
+            txtWorker.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter)
+                {
+                    ConfirmWorker();
+                    e.Handled = true;
+                }
             };
-
-            Grid.SetRow(btnOK, 4);
-            grid.Children.Add(btnOK);
-
-            wd.Content = grid;
 
             wd.Closing += (s, e) =>
             {
                 if (!isConfirmed)
                 {
-                    SX3_SCANER.Helper.ProfessionalMessageBox.Show(
-                        "Bạn phải xác nhận tên công nhân mới được tiếp tục.",
-                        "BẮT BUỘC XÁC NHẬN",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-
                     e.Cancel = true;
+                    errorText.Text = "Bắt buộc xác nhận công nhân để hoàn thành thùng.";
+                    errorText.Visibility = Visibility.Visible;
+                    txtWorker.Focus();
+                    txtWorker.SelectAll();
                 }
             };
 
@@ -952,6 +1175,7 @@ namespace SX3_SCANER.ViewModel
                 txtWorker.SelectAll();
             };
 
+            wd.Content = root;
             wd.ShowDialog();
 
             return isConfirmed;

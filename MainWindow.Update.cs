@@ -97,6 +97,14 @@ namespace SX3_SCANER
                         return;
                     }
 
+                    bool acceptedReleaseNotes = ShowUpdateDetailDialog(update);
+                    if (!acceptedReleaseNotes)
+                    {
+                        lastError =
+                            "Bạn phải xác nhận nội dung cập nhật để tiếp tục.";
+                        continue;
+                    }
+
                     _isUpdateStatusBusy = true;
                     _showUpdateErrorStatus = false;
                     txtUpdateStatus.Text =

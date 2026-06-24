@@ -42,8 +42,8 @@ namespace SX3_SCANER.Helper
         private readonly TimeSpan _pollInterval;
         private readonly TimeSpan _connectionTimeout;
 
-        // Tá»± káº¿t ná»‘i láº¡i khi mĂ¡y chá»§ WebSocket/HTTP bá»‹ máº¥t káº¿t ná»‘i.
-        // CĂ³ thá»ƒ chá»‰nh trong App.config:
+        // Tự kết nối lại khi máy chủ WebSocket/HTTP bị mất kết nối.
+        // Có thể chỉnh trong App.config:
         // AnnouncementReconnectInitialSeconds=2
         // AnnouncementReconnectMaximumSeconds=30
         // AnnouncementRealtimeIdleSeconds=90
@@ -51,8 +51,8 @@ namespace SX3_SCANER.Helper
         private readonly TimeSpan _reconnectMaximumDelay;
         private readonly TimeSpan _realtimeIdleTimeout;
 
-        // Chá»‘ng báº¯n thĂ´ng bĂ¡o quĂ¡ dĂ y lĂ m UI nhĂ¡y/giáº­t.
-        // CĂ³ thá»ƒ chá»‰nh trong App.config: AnnouncementMinimumApplyMilliseconds=180
+        // Chống bắn thông báo quá dày làm UI nháy/giật.
+        // Có thể chỉnh trong App.config: AnnouncementMinimumApplyMilliseconds=180
         private readonly TimeSpan _minimumApplyInterval;
 
         private readonly object _syncRoot = new object();
@@ -113,8 +113,8 @@ namespace SX3_SCANER.Helper
 
         public event EventHandler<AnnouncementInfo> AnnouncementChanged;
 
-        // ViewModel/UI cĂ³ thá»ƒ báº¯t event nĂ y Ä‘á»ƒ Ä‘á»•i text/mĂ u tráº¡ng thĂ¡i ngay khi
-        // Ä‘ang káº¿t ná»‘i, Ä‘Ă£ káº¿t ná»‘i hoáº·c máº¥t káº¿t ná»‘i mĂ¡y chá»§.
+        // ViewModel/UI có thể bắt event này để đổi text/màu trạng thái ngay khi
+        // đang kết nối, đã kết nối hoặc mất kết nối máy chủ.
         public event EventHandler<AnnouncementServerStatusInfo> ConnectionStatusChanged;
 
         public AnnouncementServerStatusInfo CurrentConnectionStatus
@@ -187,8 +187,8 @@ namespace SX3_SCANER.Helper
                         StartupManager.Log(
                             "[Announcement] Using Tailscale server");
 
-                        // Láº¥y snapshot ban Ä‘áº§u nhÆ°ng khĂ´ng Ä‘á»ƒ HTTP ghi Ä‘Ă¨ tráº¡ng thĂ¡i
-                        // WebSocket Ä‘ang Connected trĂªn UI.
+                        // Lấy snapshot ban đầu nhưng không để HTTP ghi đè trạng thái
+                        // WebSocket đang Connected trên UI.
                         await LoadSnapshotAsync(
                             token,
                             updateStatus: false).ConfigureAwait(false);
@@ -202,7 +202,7 @@ namespace SX3_SCANER.Helper
                                 _realtimeIdleTimeout).ConfigureAwait(false);
                             if (json == null)
                                 throw new WebSocketException(
-                                    "MĂ¡y chá»§ Ä‘Ă£ Ä‘Ă³ng káº¿t ná»‘i realtime.");
+                                    "Máy chủ đã đóng kết nối realtime.");
 
                             StartupManager.Log(
                                 "[Announcement] Realtime payload received.");
@@ -225,7 +225,7 @@ namespace SX3_SCANER.Helper
                     ApplyServerStatus(
                         AnnouncementServerStatusInfo.Failed(
                             "Tailscale WebSocket",
-                            "Máº¥t káº¿t ná»‘i mĂ¡y chá»§. Äang tá»± káº¿t ná»‘i láº¡i... " +
+                            "Mất kết nối máy chủ. Đang tự kết nối lại... " +
                             ex.Message));
 
                     Debug.WriteLine(
@@ -236,8 +236,8 @@ namespace SX3_SCANER.Helper
                         ex.Message);
                 }
 
-                // Trong lĂºc chá» WebSocket káº¿t ná»‘i láº¡i, váº«n thá»­ láº¥y dá»¯ liá»‡u báº±ng HTTP
-                // Ä‘á»ƒ UI khĂ´ng bá»‹ trá»‘ng vĂ  tráº¡ng thĂ¡i káº¿t ná»‘i Ä‘Æ°á»£c cáº­p nháº­t.
+                // Trong lúc chờ WebSocket kết nối lại, vẫn thử lấy dữ liệu bằng HTTP
+                // để UI không bị trống và trạng thái kết nối được cập nhật.
                 try
                 {
                     await LoadSnapshotAsync(
@@ -258,9 +258,9 @@ namespace SX3_SCANER.Helper
                 TimeSpan delay = GetReconnectDelay(reconnectAttempt++);
                 ApplyServerStatus(
                     AnnouncementServerStatusInfo.Connecting(
-                        "Tá»± káº¿t ná»‘i láº¡i sau " +
+                        "Tự kết nối lại sau " +
                         Math.Max(1, (int)Math.Ceiling(delay.TotalSeconds)) +
-                        " giĂ¢y"));
+                        " giây"));
 
                 try
                 {
@@ -340,7 +340,7 @@ namespace SX3_SCANER.Helper
                 ApplyServerStatus(
                     AnnouncementServerStatusInfo.Failed(
                         "Announcement Server",
-                        "KhĂ´ng káº¿t ná»‘i Ä‘Æ°á»£c mĂ¡y chá»§ announcement, Ä‘ang dĂ¹ng cache náº¿u cĂ³. Äang tá»± káº¿t ná»‘i láº¡i..."));
+                        "Không kết nối được máy chủ announcement, đang dùng cache nếu có. Đang tự kết nối lại..."));
             }
 
             StartupManager.Log(
@@ -398,7 +398,7 @@ namespace SX3_SCANER.Helper
                         return false;
                     }
 
-                    // KhĂ´ng parse JSON láº§n 2 ná»¯a. Giáº£m táº£i khi polling/realtime dĂ y.
+                    // Không parse JSON lần 2 nữa. Giảm tải khi polling/realtime dày.
                     return await ProcessAnnouncementAsync(
                         parsed,
                         json,
@@ -470,8 +470,8 @@ namespace SX3_SCANER.Helper
         {
             string displayFingerprint = BuildDisplayFingerprint(announcement);
 
-            // So sĂ¡nh theo ná»™i dung hiá»ƒn thá»‹, khĂ´ng phá»¥ thuá»™c UpdatedAt/Version.
-            // TrĂ¡nh tĂ¬nh tráº¡ng server Ä‘á»•i timestamp nhÆ°ng message khĂ´ng Ä‘á»•i lĂ m UI cháº¡y láº¡i animation.
+            // So sánh theo nội dung hiển thị, không phụ thuộc UpdatedAt/Version.
+            // Tránh tình trạng server đổi timestamp nhưng message không đổi làm UI chạy lại animation.
             if (!HasAnnouncementChanged(announcement, displayFingerprint))
             {
                 return false;
@@ -479,7 +479,7 @@ namespace SX3_SCANER.Helper
 
             await WaitForSmoothApplyWindowAsync(token).ConfigureAwait(false);
 
-            // Sau khi debounce, kiá»ƒm tra láº¡i Ä‘á»ƒ trĂ¡nh payload trĂ¹ng vá»«a Ä‘Æ°á»£c apply.
+            // Sau khi debounce, kiểm tra lại để tránh payload trùng vừa được apply.
             if (!HasAnnouncementChanged(announcement, displayFingerprint))
             {
                 return false;

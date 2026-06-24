@@ -10,6 +10,8 @@ namespace SX3_SCANER.Model
 {
     internal partial class ScanHistoryRepository
     {
+        private static readonly bool EnableSqlDiagnostics = false;
+
         public ObservableCollection<ScanHistory> SearchHistory(
             string keyword,
             string boxName,
@@ -154,10 +156,18 @@ namespace SX3_SCANER.Model
                         }
 
                         string parameterName = "@Keyword" + i;
-                        // Ă” tĂ¬m nhanh lá»‹ch sá»­ chá»‰ lá»c theo ProductPartNumber.
-                        // VĂ­ dá»¥ nháº­p "028" sáº½ tráº£ vá» cĂ¡c mĂ£ nhÆ° "WH322028".
+                        string resultParameterName = "@KeywordResult" + i;
                         selectQuery += @"
-                            COALESCE(ProductPartNumber, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'";
+                            (
+                                COALESCE(ProductPartNumber, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(ScanData, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(LotNo, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(BoxName, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(ScanWorker, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(ScanMessage, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR COALESCE(BoxType, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
+                                OR (" + resultParameterName + @" IS NOT NULL AND ScanResult = " + resultParameterName + @")
+                            )";
                     }
                     selectQuery += ")";
                 }
@@ -201,15 +211,15 @@ namespace SX3_SCANER.Model
                         command.Parameters.AddWithValue(
                             "@Keyword" + i,
                             "%" + EscapeLikeValue(searchTerms[i]) + "%");
+                        bool? resultKeyword = TryParseScanResultKeyword(searchTerms[i]);
+                        command.Parameters.AddWithValue(
+                            "@KeywordResult" + i,
+                            resultKeyword.HasValue
+                                ? (object)(resultKeyword.Value ? 1 : 0)
+                                : DBNull.Value);
                     }
 
-                    Debug.WriteLine("Scan history SQL: " + selectQuery);
-                    foreach (SQLiteParameter parameter in command.Parameters)
-                    {
-                        Debug.WriteLine(
-                            "Scan history parameter " + parameter.ParameterName +
-                            "=" + Convert.ToString(parameter.Value));
-                    }
+                    WriteSqlDiagnostics(selectQuery, command.Parameters);
 
                     using (SQLiteDataReader reader = command.ExecuteReader())
                     {
@@ -353,6 +363,22 @@ namespace SX3_SCANER.Model
             return ScanHistory.RemoveVietnameseSigns(value ?? string.Empty).Trim().ToUpperInvariant();
         }
 
+        internal static bool? TryParseScanResultKeyword(string value)
+        {
+            string normalized = NormalizeSearchText(value);
+            if (normalized == "PASS" || normalized == "OK")
+            {
+                return true;
+            }
+
+            if (normalized == "NG")
+            {
+                return false;
+            }
+
+            return null;
+        }
+
         private static void AddUnique(List<string> terms, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return;
@@ -365,6 +391,24 @@ namespace SX3_SCANER.Model
             }
 
             terms.Add(trimmed);
+        }
+
+        private static void WriteSqlDiagnostics(
+            string sql,
+            SQLiteParameterCollection parameters)
+        {
+            if (!EnableSqlDiagnostics)
+            {
+                return;
+            }
+
+            Debug.WriteLine("Scan history SQL: " + sql);
+            foreach (SQLiteParameter parameter in parameters)
+            {
+                Debug.WriteLine(
+                    "Scan history parameter " + parameter.ParameterName +
+                    " type=" + parameter.DbType);
+            }
         }
 
         private static string EscapeLikeValue(string value)

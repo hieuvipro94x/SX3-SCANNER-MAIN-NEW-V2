@@ -28,6 +28,13 @@ namespace SX3.Scanner.Tests
                 True(UpdateService.IsNewerVersion(new Version(10, 6), new Version(10, 5)));
                 True(!UpdateService.IsNewerVersion(new Version(10, 5), new Version(10, 5)));
             });
+            Run("History result keyword parse", () =>
+            {
+                Equal((bool?)true, SX3_SCANER.Model.ScanHistoryRepository.TryParseScanResultKeyword("pass"));
+                Equal((bool?)true, SX3_SCANER.Model.ScanHistoryRepository.TryParseScanResultKeyword(" OK "));
+                Equal((bool?)false, SX3_SCANER.Model.ScanHistoryRepository.TryParseScanResultKeyword("ng"));
+                Equal((bool?)null, SX3_SCANER.Model.ScanHistoryRepository.TryParseScanResultKeyword("WH322028"));
+            });
             Run("Range query uses date index", AssertRangeQueryPlan);
             Run("PASS ScanData unique index preserves behavior", AssertPassScanDataUniqueness);
             Run("PASS Lot trigger preserves behavior", AssertPassLotUniqueness);

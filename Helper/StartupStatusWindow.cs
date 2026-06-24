@@ -302,7 +302,7 @@ namespace SX3_SCANER.Helper
 
             var percentText = new TextBlock
             {
-                Text = "PLEASE WAIT",
+                Text = "VUI LÒNG CHỜ...",
                 FontSize = 11,
                 FontWeight = FontWeights.Black,
                 Foreground = Brush(37, 99, 235),

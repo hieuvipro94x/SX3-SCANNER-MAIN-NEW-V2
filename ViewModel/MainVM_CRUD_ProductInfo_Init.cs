@@ -2,6 +2,7 @@
 using SX3_SCANER.Model;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Text;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -58,7 +59,12 @@ namespace SX3_SCANER.ViewModel
         public string CURR_SAMPLE
         {
             get { return _CURR_SAMPLE; }
-            set { _CURR_SAMPLE = value; CURR_LENGTH = CURR_SAMPLE.Length; OnPropertyChanged(); }
+            set
+            {
+                _CURR_SAMPLE = value ?? string.Empty;
+                CURR_LENGTH = _CURR_SAMPLE.Length;
+                OnPropertyChanged();
+            }
         }
 
         private void UpdateStringSample()
@@ -114,24 +120,23 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_ADDCMD == null)
                 {
-                    _ADDCMD = new RelayCommand<object>(o => CancelAddNew(), o =>
+                    _ADDCMD = new RelayCommand<object>(o => AdminCRUD, o =>
                     {
-                        LabelProductInfo labelProductInfo = new LabelProductInfo
+                        string validationError;
+                        LabelProductInfo labelProductInfo;
+                        if (!TryBuildProductInfoForSave(0, out labelProductInfo, out validationError))
                         {
-                            Car = CURR_CAR,
-                            PartNumber = CURR_PARTNUMBER,
-                            PartName = CURR_PARTNAME,
-                            CodeStringForm = CURR_SAMPLE,
-                            CodePrefix = CURR_PREFIX ?? string.Empty,
-                            CodeSuffix = CURR_SUFFIX ?? string.Empty,
-                            CodeLength = CURR_LENGTH,
-                            BoxQuantity = CURR_QTY
-
-                        };
+                            SX3_SCANER.Helper.ProfessionalMessageBox.Show(
+                                validationError,
+                                "Dữ liệu mã hàng chưa hợp lệ",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
 
                         var rep = new LabelProductInfoRepository();
 
-                        if (rep.CheckIfExist(CURR_PARTNAME, CURR_PARTNUMBER))
+                        if (rep.CheckIfExist(labelProductInfo.PartName, labelProductInfo.PartNumber))
                         {
                             SX3_SCANER.Helper.ProfessionalMessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
                             return;
@@ -168,21 +173,21 @@ namespace SX3_SCANER.ViewModel
             {
                 if (_MODIFYCMD == null)
                 {
-                    _MODIFYCMD = new RelayCommand<object>(o => CancelAddNew() && CURR_ID > 0, o =>
+                    _MODIFYCMD = new RelayCommand<object>(o => AdminCRUD && CURR_ID > 0, o =>
                     {
-                        LabelProductInfo labelProductInfo = new LabelProductInfo
+                        string validationError;
+                        LabelProductInfo labelProductInfo;
+                        if (!TryBuildProductInfoForSave(CURR_ID, out labelProductInfo, out validationError))
                         {
-                            ID = CURR_ID,
-                            Car = CURR_CAR,
-                            PartNumber = CURR_PARTNUMBER,
-                            PartName = CURR_PARTNAME,
-                            CodeStringForm = CURR_SAMPLE,
-                            CodePrefix = CURR_PREFIX ?? string.Empty,
-                            CodeSuffix = CURR_SUFFIX ?? string.Empty,
-                            CodeLength = CURR_LENGTH,
-                            BoxQuantity = CURR_QTY
-                        };
-                        if (new LabelProductInfoRepository().CheckIfExist(CURR_PARTNAME, CURR_PARTNUMBER, CURR_ID))
+                            SX3_SCANER.Helper.ProfessionalMessageBox.Show(
+                                validationError,
+                                "Dữ liệu mã hàng chưa hợp lệ",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        if (new LabelProductInfoRepository().CheckIfExist(labelProductInfo.PartName, labelProductInfo.PartNumber, CURR_ID))
                         {
                             SX3_SCANER.Helper.ProfessionalMessageBox.Show("PartName||PartNo đã tồn tại trong hệ thống");
                             return;
@@ -292,6 +297,113 @@ namespace SX3_SCANER.ViewModel
             if (string.IsNullOrWhiteSpace(source)) return false;
             if (string.IsNullOrWhiteSpace(keyword)) return true;
             return source.IndexOf(keyword, System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool TryBuildProductInfoForSave(
+            int id,
+            out LabelProductInfo labelProductInfo,
+            out string validationError)
+        {
+            string car = TrimField(CURR_CAR);
+            string partNumber = TrimField(CURR_PARTNUMBER);
+            string partName = TrimField(CURR_PARTNAME);
+            string prefix = TrimField(CURR_PREFIX);
+            string suffix = TrimField(CURR_SUFFIX);
+            string sample = TrimField(CURR_SAMPLE);
+
+            var errors = new StringBuilder();
+            AppendRequiredError(errors, car, "CAR");
+            AppendRequiredError(errors, partNumber, "PART NUMBER");
+            AppendRequiredError(errors, partName, "PART NAME");
+            AppendRequiredError(errors, sample, "CODE FORMAT");
+
+            if (CURR_LENGTH <= 0)
+            {
+                errors.AppendLine("- LENGTH phải lớn hơn 0.");
+            }
+
+            if (CURR_QTY <= 0)
+            {
+                errors.AppendLine("- BOX QTY phải lớn hơn 0.");
+            }
+
+            if (!IsCodeToken(partNumber))
+            {
+                errors.AppendLine("- PART NUMBER chỉ được chứa chữ, số và các ký tự - _ . / #.");
+            }
+
+            if (!string.IsNullOrEmpty(prefix) && !IsCodeToken(prefix))
+            {
+                errors.AppendLine("- PREFIX chỉ được chứa chữ, số và các ký tự - _ . / #.");
+            }
+
+            if (!string.IsNullOrEmpty(suffix) && !IsCodeToken(suffix))
+            {
+                errors.AppendLine("- SUFFIX chỉ được chứa chữ, số và các ký tự - _ . / #.");
+            }
+
+            validationError = errors.ToString().TrimEnd();
+            if (!string.IsNullOrEmpty(validationError))
+            {
+                labelProductInfo = null;
+                return false;
+            }
+
+            labelProductInfo = new LabelProductInfo
+            {
+                ID = id,
+                Car = car,
+                PartNumber = partNumber,
+                PartName = partName,
+                CodeStringForm = sample,
+                CodePrefix = prefix,
+                CodeSuffix = suffix,
+                CodeLength = CURR_LENGTH,
+                BoxQuantity = CURR_QTY
+            };
+
+            return true;
+        }
+
+        private static string TrimField(string value)
+        {
+            return value == null ? string.Empty : value.Trim();
+        }
+
+        private static void AppendRequiredError(
+            StringBuilder errors,
+            string value,
+            string label)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                errors.AppendLine("- " + label + " không được để trống.");
+            }
+        }
+
+        private static bool IsCodeToken(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            foreach (char c in value)
+            {
+                if (char.IsLetterOrDigit(c) ||
+                    c == '-' ||
+                    c == '_' ||
+                    c == '.' ||
+                    c == '/' ||
+                    c == '#')
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
         }
 
         private LabelProductInfo _SelectedProductInfoToModify;

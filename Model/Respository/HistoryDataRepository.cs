@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
+using SX3_SCANER.Model;
 
 namespace SX3_SCANER.Model.Respository
 {
@@ -227,28 +228,53 @@ namespace SX3_SCANER.Model.Respository
                 string normalizedKeyword = NormalizeFilter(keyword);
                 if (normalizedKeyword != null)
                 {
-                    // Ô tìm nhanh lịch sử chỉ lọc theo mã hàng/ProductPartNumber.
-                    // Hỗ trợ cả tên cột ProductPartNumber và PartNumber tùy bảng.
                     string[] candidates =
                     {
                         "ProductPartNumber",
-                        "PartNumber"
+                        "PartNumber",
+                        "ScanData",
+                        "ScannedQRCode",
+                        "QRData",
+                        "LotNo",
+                        "BoxName",
+                        "BoxWorker",
+                        "ScanWorker",
+                        "Worker",
+                        "BoxType"
                     };
                     List<string> searchable =
                         candidates.Where(columns.Contains).Distinct().ToList();
+                    bool? keywordResult =
+                        ScanHistoryRepository.TryParseScanResultKeyword(
+                            normalizedKeyword);
 
-                    if (searchable.Count > 0)
+                    if (searchable.Count > 0 || (keywordResult.HasValue && resultColumn != null))
                     {
-                        sql += " AND (" +
-                            string.Join(
-                                " OR ",
-                                searchable.Select(column =>
-                                    "COALESCE(bp.[" + column +
-                                    "], '') COLLATE NOCASE LIKE @Keyword ESCAPE '\\'")) +
-                            ")";
-                        parameters.Add(new SQLiteParameter(
-                            "@Keyword",
-                            "%" + EscapeLikeValue(normalizedKeyword) + "%"));
+                        var keywordClauses = new List<string>();
+                        keywordClauses.AddRange(searchable.Select(column =>
+                            "COALESCE(bp.[" + column +
+                            "], '') COLLATE NOCASE LIKE @Keyword ESCAPE '\\'"));
+
+                        if (keywordResult.HasValue && resultColumn != null)
+                        {
+                            keywordClauses.Add(
+                                "bp.[" + resultColumn + "] = @KeywordResult");
+                            parameters.Add(new SQLiteParameter(
+                                "@KeywordResult",
+                                keywordResult.Value ? 1 : 0));
+                        }
+
+                        sql += " AND (" + string.Join(" OR ", keywordClauses) + ")";
+                        if (searchable.Count > 0)
+                        {
+                            parameters.Add(new SQLiteParameter(
+                                "@Keyword",
+                                "%" + EscapeLikeValue(normalizedKeyword) + "%"));
+                        }
+                    }
+                    else
+                    {
+                        sql += " AND 1=0";
                     }
                 }
 
