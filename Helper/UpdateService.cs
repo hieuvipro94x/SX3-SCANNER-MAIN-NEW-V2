@@ -26,6 +26,10 @@ namespace SX3_SCANER.Helper
         private const string UserAgent = "SX3Scanner-Updater";
         private const string EnabledSetting = "UpdateCheckOnStartup";
         private const string ManifestUrlSetting = "UpdateManifestUrl";
+        private const string GitHubHost = "github.com";
+        private const string GitHubApiHost = "api.github.com";
+        private const string GitHubOwner = "hieuvipro94x";
+        private const string GitHubRepository = "SX3-SCANNER-MAIN-NEW-V2";
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
         private static readonly object StartupCheckLock = new object();
@@ -354,8 +358,123 @@ namespace SX3_SCANER.Helper
                 string json = await response.Content.ReadAsStringAsync();
                 OnlineUpdateManifest manifest =
                     JsonConvert.DeserializeObject<OnlineUpdateManifest>(json);
-                return BuildUpdateInfo(manifest);
+                UpdateInfo update = BuildUpdateInfo(manifest);
+                if (update.IsUpdateAvailable &&
+                    !await IsPublishedGitHubReleaseAssetAsync(update, client))
+                {
+                    Log("Update ignored because GitHub release is not published or asset is not public. Version=" +
+                        update.Version + ".");
+                    update.IsUpdateAvailable = false;
+                }
+
+                return update;
             }
+        }
+
+        private static async Task<bool> IsPublishedGitHubReleaseAssetAsync(
+            UpdateInfo update,
+            HttpClient client)
+        {
+            if (update == null)
+                return false;
+
+            Uri downloadUri = ValidateSecureUri(
+                update.DownloadUrl,
+                "Update download URL");
+            string tagFromUrl;
+            if (!TryGetGitHubReleaseTag(downloadUri, out tagFromUrl))
+            {
+                Log("Update ignored because download URL is not a GitHub release asset for this repository.");
+                return false;
+            }
+
+            if (!string.Equals(
+                tagFromUrl,
+                update.TagName,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                Log("Update ignored because manifest version tag does not match download URL tag. Manifest=" +
+                    update.TagName + ", Url=" + tagFromUrl + ".");
+                return false;
+            }
+
+            string releaseApiUrl =
+                "https://" + GitHubApiHost + "/repos/" +
+                GitHubOwner + "/" + GitHubRepository +
+                "/releases/tags/" + Uri.EscapeDataString(update.TagName);
+            using (HttpResponseMessage response =
+                await client.GetAsync(releaseApiUrl))
+            {
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Log("GitHub release tag is not public. Tag=" + update.TagName + ".");
+                    return false;
+                }
+
+                ValidateFinalResponseUrl(response, "GitHub release metadata");
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new InvalidOperationException(
+                        "GitHub release metadata HTTP " +
+                        (int)response.StatusCode + " " +
+                        response.ReasonPhrase);
+                }
+
+                string json = await response.Content.ReadAsStringAsync();
+                GitHubReleaseInfo release =
+                    JsonConvert.DeserializeObject<GitHubReleaseInfo>(json);
+
+                if (release == null ||
+                    release.Draft ||
+                    !string.Equals(
+                        release.TagName,
+                        update.TagName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                string expectedFileName = Path.GetFileName(downloadUri.LocalPath);
+                return release.Assets != null &&
+                    release.Assets.Any(asset =>
+                        asset != null &&
+                        (string.Equals(
+                             asset.Name,
+                             expectedFileName,
+                             StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(
+                             asset.BrowserDownloadUrl,
+                             downloadUri.AbsoluteUri,
+                             StringComparison.OrdinalIgnoreCase)));
+            }
+        }
+
+        private static bool TryGetGitHubReleaseTag(
+            Uri downloadUri,
+            out string tagName)
+        {
+            tagName = null;
+            if (downloadUri == null ||
+                !string.Equals(
+                    downloadUri.Host,
+                    GitHubHost,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string[] parts = downloadUri.AbsolutePath.Split('/');
+            if (parts.Length < 7 ||
+                !string.Equals(parts[1], GitHubOwner, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(parts[2], GitHubRepository, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(parts[3], "releases", StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(parts[4], "download", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            tagName = Uri.UnescapeDataString(parts[5]);
+            return !string.IsNullOrWhiteSpace(tagName);
         }
 
         private static UpdateInfo BuildUpdateInfo(OnlineUpdateManifest manifest)
@@ -616,6 +735,27 @@ namespace SX3_SCANER.Helper
                 "SX3 Scanner - Lỗi cập nhật",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+
+        private sealed class GitHubReleaseInfo
+        {
+            [JsonProperty("tag_name")]
+            public string TagName { get; set; }
+
+            [JsonProperty("draft")]
+            public bool Draft { get; set; }
+
+            [JsonProperty("assets")]
+            public GitHubReleaseAsset[] Assets { get; set; }
+        }
+
+        private sealed class GitHubReleaseAsset
+        {
+            [JsonProperty("name")]
+            public string Name { get; set; }
+
+            [JsonProperty("browser_download_url")]
+            public string BrowserDownloadUrl { get; set; }
         }
 
         private sealed class OnlineUpdateManifest
