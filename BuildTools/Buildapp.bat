@@ -20,6 +20,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ".\release-all.ps1"
 
 echo.
 echo ===============================================
-echo      DA CHAY XONG - BAM PHIM BAT KY DE DONG
+echo      DA CHAY XONG - BAM PHIM HOAC SO BAT KY DE THOAT
 echo ===============================================
-pauses
+pause

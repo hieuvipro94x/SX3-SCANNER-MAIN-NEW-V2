@@ -198,11 +198,12 @@ namespace SX3_SCANER
             grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(18) });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            StackPanel header = new StackPanel
+            Grid header = new Grid
             {
-                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center
             };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             Border icon = new Border
             {
@@ -226,14 +227,19 @@ namespace SX3_SCANER
                 TextAlignment = TextAlignment.Center
             };
 
-            StackPanel titlePanel = new StackPanel();
+            StackPanel titlePanel = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                MinWidth = 0
+            };
             titlePanel.Children.Add(new TextBlock
             {
                 Text = "BẮT BUỘC CẬP NHẬT PHẦN MỀM",
                 FontSize = 24,
                 FontWeight = FontWeights.Black,
                 Foreground = new SolidColorBrush(Color.FromRgb(127, 29, 29)),
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.None
             });
             titlePanel.Children.Add(new TextBlock
             {
@@ -242,9 +248,12 @@ namespace SX3_SCANER
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
                 Margin = new Thickness(0, 5, 0, 0),
-                TextWrapping = TextWrapping.Wrap
+                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.None
             });
 
+            Grid.SetColumn(icon, 0);
+            Grid.SetColumn(titlePanel, 1);
             header.Children.Add(icon);
             header.Children.Add(titlePanel);
             Grid.SetRow(header, 0);

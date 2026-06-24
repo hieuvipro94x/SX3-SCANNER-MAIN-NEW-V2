@@ -49,9 +49,9 @@ using System.Windows;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("10.25.0.0")]
-[assembly: AssemblyFileVersion("10.25.0.0")]
-[assembly: AssemblyInformationalVersion("10.25.0")]
+[assembly: AssemblyVersion("10.26.0.0")]
+[assembly: AssemblyFileVersion("10.26.0.0")]
+[assembly: AssemblyInformationalVersion("10.26.0")]
 
 
 
