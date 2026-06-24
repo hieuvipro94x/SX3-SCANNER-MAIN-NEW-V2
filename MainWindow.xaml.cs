@@ -18,7 +18,10 @@ namespace SX3_SCANER
     {
         private readonly DispatcherTimer timer = new DispatcherTimer();
         private readonly DispatcherTimer updatePollingTimer = new DispatcherTimer();
+        private readonly DispatcherTimer updateReadinessTimer = new DispatcherTimer();
         private static readonly TimeSpan UpdatePollingInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan UpdateReadinessCheckInterval = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan RequiredScanInputIdleTime = TimeSpan.FromMinutes(1);
         private readonly string applicationVersion;
 
         private readonly UpdateService _updateService = new UpdateService();
@@ -35,6 +38,8 @@ namespace SX3_SCANER
         private bool _isMandatoryUpdateWorkflowRunning;
         private bool isUpdateDeferredUntilScannerIdle;
         private bool _startupInitializationStarted;
+        private DateTime _lastScanInputActivityAt = DateTime.Now;
+        private string _currentScanInputText = string.Empty;
 
         private INotifyPropertyChanged _announcementViewModel;
         private CancellationTokenSource _announcementMarqueeCts;
@@ -73,6 +78,12 @@ namespace SX3_SCANER
 
             updatePollingTimer.Interval = UpdatePollingInterval;
             updatePollingTimer.Tick += UpdatePollingTimer_Tick;
+            updateReadinessTimer.Interval = UpdateReadinessCheckInterval;
+            updateReadinessTimer.Tick += UpdateReadinessTimer_Tick;
+            AddHandler(
+                TextBox.TextChangedEvent,
+                new TextChangedEventHandler(ScanInputTextChanged),
+                true);
 
             UpdateClock();
             UpdateTopRightStatusText();
@@ -203,6 +214,27 @@ namespace SX3_SCANER
             await CheckMandatoryUpdateWhileRunningAsync();
         }
 
+        private async void UpdateReadinessTimer_Tick(object sender, EventArgs e)
+        {
+            if (!isUpdateDeferredUntilScannerIdle ||
+                availableUpdate == null ||
+                _isMandatoryUpdateWorkflowRunning ||
+                _isBackgroundUpdateCheckRunning ||
+                Application.Current == null ||
+                Application.Current.Dispatcher.HasShutdownStarted)
+            {
+                return;
+            }
+
+            if (!CanShowMandatoryUpdateNow())
+            {
+                return;
+            }
+
+            updateReadinessTimer.Stop();
+            await RunDeferredAutoUpdateWorkflowAsync();
+        }
+
         private async Task CheckMandatoryUpdateWhileRunningAsync()
         {
             if (_isBackgroundUpdateCheckRunning ||
@@ -220,10 +252,11 @@ namespace SX3_SCANER
                 if (isUpdateDeferredUntilScannerIdle &&
                     availableUpdate != null)
                 {
-                    if (!IsScannerIdleForAutoUpdate())
+                    if (!CanShowMandatoryUpdateNow())
                     {
                         SetDeferredUpdateWaitingStatus(
                             GetScannerBusyReasonForUpdate());
+                        StartUpdateReadinessPolling();
                         return;
                     }
 
@@ -250,18 +283,20 @@ namespace SX3_SCANER
                 }
 
                 availableUpdate = update;
-                _hasUpdateAvailable = true;
                 _showUpdateErrorStatus = false;
                 _isUpdateStatusBusy = false;
 
-                if (!IsScannerIdleForAutoUpdate())
+                if (!CanShowMandatoryUpdateNow())
                 {
+                    _hasUpdateAvailable = true;
                     isUpdateDeferredUntilScannerIdle = true;
                     SetDeferredUpdateWaitingStatus(
                         GetScannerBusyReasonForUpdate());
+                    StartUpdateReadinessPolling();
                     return;
                 }
 
+                _hasUpdateAvailable = true;
                 txtUpdateStatus.Text =
                     "Phát hiện bản cập nhật bắt buộc: V" + update.Version;
                 txtUpdateStatus.Foreground = Brushes.Red;
@@ -291,6 +326,14 @@ namespace SX3_SCANER
             }
         }
 
+        private void StartUpdateReadinessPolling()
+        {
+            if (!updateReadinessTimer.IsEnabled)
+            {
+                updateReadinessTimer.Start();
+            }
+        }
+
         private bool IsScannerIdleForAutoUpdate()
         {
             MainViewModel viewModel = DataContext as MainViewModel;
@@ -300,6 +343,44 @@ namespace SX3_SCANER
             return !viewModel.InJob &&
                 !viewModel.HasOpenScanSession &&
                 !viewModel.IsFullBoxReadyToComplete;
+        }
+
+        private bool CanShowMandatoryUpdateNow()
+        {
+            return IsScannerIdleForAutoUpdate() &&
+                IsScanInputIdleForMandatoryUpdate();
+        }
+
+        private bool IsScanInputIdleForMandatoryUpdate()
+        {
+            MainViewModel viewModel = DataContext as MainViewModel;
+            if (viewModel == null)
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(_currentScanInputText))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(viewModel.InputScanCode))
+                return false;
+
+            return DateTime.Now - _lastScanInputActivityAt >=
+                RequiredScanInputIdleTime;
+        }
+
+        private void ScanInputTextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox textBox = e.OriginalSource as TextBox;
+            if (textBox == null ||
+                !string.Equals(
+                    textBox.Name,
+                    "TbxInputCode",
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastScanInputActivityAt = DateTime.Now;
+            _currentScanInputText = textBox.Text ?? string.Empty;
         }
 
         private string GetScannerBusyReasonForUpdate()
@@ -323,13 +404,13 @@ namespace SX3_SCANER
         private void SetDeferredUpdateWaitingStatus(string reason)
         {
             txtUpdateStatus.Text =
-                "Có bản cập nhật mới. Chờ kết thúc scan để cập nhật bắt buộc" +
+                "Có bản cập nhật mới. Có thể cập nhật thủ công sau khi app lưu phiên scan đang dở" +
                 (string.IsNullOrWhiteSpace(reason) ? "." : ": " + reason + ".");
 
             txtUpdateStatus.Foreground = Brushes.Red;
             softwareUpdatePanel.Visibility = Visibility.Visible;
             updateNotificationDot.Visibility = Visibility.Visible;
-            btnSoftwareUpdate.IsEnabled = false;
+            btnSoftwareUpdate.IsEnabled = true;
         }
 
         private async Task RunDeferredAutoUpdateWorkflowAsync()
@@ -342,6 +423,7 @@ namespace SX3_SCANER
 
             isUpdateDeferredUntilScannerIdle = false;
             updatePollingTimer.Stop();
+            updateReadinessTimer.Stop();
             await RunMandatoryUpdateWorkflowAsync(availableUpdate);
         }
 
@@ -525,7 +607,12 @@ namespace SX3_SCANER
 
             timer.Stop();
             updatePollingTimer.Stop();
+            updateReadinessTimer.Stop();
             updatePollingTimer.Tick -= UpdatePollingTimer_Tick;
+            updateReadinessTimer.Tick -= UpdateReadinessTimer_Tick;
+            RemoveHandler(
+                TextBox.TextChangedEvent,
+                new TextChangedEventHandler(ScanInputTextChanged));
             StopOnlineAnnouncementAnimation();
             AttachAnnouncementViewModel(null);
 

@@ -105,6 +105,13 @@ namespace SX3_SCANER
                         continue;
                     }
 
+                    if (!TrySaveScanSessionBeforeSoftwareUpdate())
+                    {
+                        lastError =
+                            "Chưa thể lưu phiên scan đang dở. Vui lòng chờ xử lý mã scan hiện tại rồi cập nhật lại.";
+                        continue;
+                    }
+
                     _isUpdateStatusBusy = true;
                     _showUpdateErrorStatus = false;
                     txtUpdateStatus.Text =
@@ -508,7 +515,7 @@ namespace SX3_SCANER
             _isUpdateStatusBusy = true;
             _showUpdateErrorStatus = false;
 
-            txtUpdateStatus.Text = "Đang tải và xác thực bản cập nhật...";
+            txtUpdateStatus.Text = "Đang mở thông tin bản cập nhật...";
             txtUpdateStatus.Foreground = Brushes.DarkOrange;
             softwareUpdatePanel.Visibility = Visibility.Visible;
             updateNotificationDot.Visibility = Visibility.Collapsed;
@@ -518,12 +525,6 @@ namespace SX3_SCANER
 
             try
             {
-                string installerPath =
-                    await _updateService.DownloadAndVerifyAsync(
-                        availableUpdate);
-
-                txtUpdateStatus.Text = "Bản cập nhật đã được xác thực.";
-
                 bool accepted = ShowUpdateDetailDialog(availableUpdate);
 
                 if (!accepted)
@@ -532,6 +533,22 @@ namespace SX3_SCANER
                     btnSoftwareUpdate.IsEnabled = true;
                     return;
                 }
+
+                if (!TrySaveScanSessionBeforeSoftwareUpdate())
+                {
+                    _hasUpdateAvailable = true;
+                    btnSoftwareUpdate.IsEnabled = true;
+                    return;
+                }
+
+                txtUpdateStatus.Text = "Đang tải và xác thực bản cập nhật...";
+                txtUpdateStatus.Foreground = Brushes.DarkOrange;
+
+                string installerPath =
+                    await _updateService.DownloadAndVerifyAsync(
+                        availableUpdate);
+
+                txtUpdateStatus.Text = "Bản cập nhật đã được xác thực.";
 
                 installerStarted =
                     _updateService.TryStartInstallerAndExit(installerPath);
@@ -608,6 +625,25 @@ namespace SX3_SCANER
                 };
 
             return detailWindow.ShowDialog() == true;
+        }
+
+        private bool TrySaveScanSessionBeforeSoftwareUpdate()
+        {
+            MainViewModel viewModel = DataContext as MainViewModel;
+            if (viewModel == null)
+                return true;
+
+            string message;
+            if (viewModel.TrySaveScanSessionBeforeSoftwareUpdate(out message))
+                return true;
+
+            ProfessionalMessageBox.Show(
+                message,
+                "CHƯA THỂ CẬP NHẬT",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
+            return false;
         }
     }
 }

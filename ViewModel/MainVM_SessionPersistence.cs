@@ -43,6 +43,37 @@ namespace SX3_SCANER.ViewModel
                 CurrentScanProgress));
         }
 
+        public bool TrySaveScanSessionBeforeSoftwareUpdate(out string message)
+        {
+            message = string.Empty;
+
+            if (_isScanBusy)
+            {
+                message =
+                    "Ứng dụng đang xử lý mã scan. Vui lòng chờ xử lý xong rồi bấm cập nhật lại.";
+                return false;
+            }
+
+            if (!HasOpenScanSession)
+            {
+                InputScanCode = string.Empty;
+                return true;
+            }
+
+            SaveCurrentScanSession(InJob);
+            InJob = false;
+            InputScanCode = string.Empty;
+            ResetScanStatus();
+            OnPropertyChanged(nameof(HasOpenScanSession));
+            OnPropertyChanged(nameof(CanModifySessionSelection));
+            OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
+            CommandManager.InvalidateRequerySuggested();
+
+            StartupManager.SetStatus(
+                "Đã lưu phiên scan đang dở trước khi cập nhật phần mềm.");
+            return true;
+        }
+
         private ScanSessionState BuildCurrentScanSession(
             bool isInJob,
             int scannedCount)
