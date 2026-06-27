@@ -21,6 +21,7 @@ namespace SX3_SCANER.ViewModel
         private const int ExportHistoryResultLimit = 50000;
         private int _historyQueryVersion;
         private CancellationTokenSource _historySearchCts;
+        private CancellationTokenSource _historyExportCts;
 
         private readonly List<string> _scanResultFilterOptions =
             new List<string> { "All", "PASS", "NG" };
@@ -379,22 +380,27 @@ namespace SX3_SCANER.ViewModel
         internal async void LoadQueryLookupsAsync()
         {
             ResetHistoryFilters();
+            IsQuerying = true;
             QueryStatus = "Đang tải bộ lọc và dữ liệu lịch sử scan trong ngày...";
 
             try
             {
                 var lookups = await Task.Run(() =>
                 {
-                    var repository = new ScanHistoryRepository();
-                    var dataRepository = new HistoryDataRepository();
-                    return new
+                    using (DatabaseMaintenanceCoordinator.EnterOperation(
+                        "load history lookups"))
                     {
-                        Sources = dataRepository.GetAvailableSources(),
-                        SealNos = repository.GetDistinctSealNos(),
-                        ProductNumbers = repository.GetDistinctProductNumbers(),
-                        BoxNames = repository.GetDistinctBoxNames(),
-                        Messages = repository.GetDistinctNGMessage()
-                    };
+                        var repository = new ScanHistoryRepository();
+                        var dataRepository = new HistoryDataRepository();
+                        return new
+                        {
+                            Sources = dataRepository.GetAvailableSources(),
+                            SealNos = repository.GetDistinctSealNos(),
+                            ProductNumbers = repository.GetDistinctProductNumbers(),
+                            BoxNames = repository.GetDistinctBoxNames(),
+                            Messages = repository.GetDistinctNGMessage()
+                        };
+                    }
                 });
 
                 HistoryDataSources = lookups.Sources;
@@ -419,6 +425,10 @@ namespace SX3_SCANER.ViewModel
                 HistoryResults = new ObservableCollection<HistoryDataRow>();
                 RowCounts = 0;
                 QueryStatus = "Không tải được lịch sử scan: " + ex.Message;
+            }
+            finally
+            {
+                IsQuerying = false;
             }
         }
 
@@ -465,14 +475,25 @@ namespace SX3_SCANER.ViewModel
 
         private void CancelPendingHistorySearch()
         {
-            if (_historySearchCts == null)
-            {
-                return;
-            }
+            CancellationTokenSource cts = Interlocked.Exchange(
+                ref _historySearchCts,
+                null);
+            if (cts == null) return;
+            cts.Cancel();
+            cts.Dispose();
+        }
 
-            _historySearchCts.Cancel();
-            _historySearchCts.Dispose();
-            _historySearchCts = null;
+        private void CancelDatabaseWorkForMaintenance()
+        {
+            CancelPendingHistorySearch();
+            CancellationTokenSource exportCts = Interlocked.Exchange(
+                ref _historyExportCts,
+                null);
+            if (exportCts != null)
+            {
+                exportCts.Cancel();
+                exportCts.Dispose();
+            }
         }
 
         private async Task QueryDataAsync(CancellationToken token)
@@ -508,7 +529,8 @@ namespace SX3_SCANER.ViewModel
                         resultFilter,
                         fromDate,
                         toDate,
-                        limit),
+                        limit,
+                        token),
                     token);
 
                 token.ThrowIfCancellationRequested();
@@ -517,16 +539,13 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                ObservableCollection<HistoryDataRow> newestFirstResults =
-                    SortHistoryNewestFirst(results);
-
-                HistoryResults = newestFirstResults;
-                RowCounts = newestFirstResults.Count;
+                HistoryResults = results;
+                RowCounts = results.Count;
                 stopwatch.Stop();
                 QueryTimes = stopwatch.Elapsed.TotalMilliseconds.ToString("0");
-                QueryStatus = newestFirstResults.Count == 0
+                QueryStatus = results.Count == 0
                     ? "Không có dữ liệu lịch sử scan phù hợp."
-                    : "Hiển thị " + newestFirstResults.Count + " dòng mới nhất theo bộ lọc ngày.";
+                    : "Hiển thị " + results.Count + " dòng mới nhất theo bộ lọc ngày.";
             }
             catch (OperationCanceledException)
             {
@@ -569,8 +588,21 @@ namespace SX3_SCANER.ViewModel
             IsQuerying = true;
             QueryStatus = "Đang xuất Excel lịch sử scan...";
 
+            CancellationTokenSource exportCts = new CancellationTokenSource();
+            CancellationTokenSource previousExportCts = Interlocked.Exchange(
+                ref _historyExportCts,
+                exportCts);
+            previousExportCts?.Cancel();
+            previousExportCts?.Dispose();
+            CancellationToken exportToken = exportCts.Token;
+            IDisposable exportActivity = null;
+
             try
             {
+                exportActivity = await Task.Run(
+                    () => DatabaseMaintenanceCoordinator.EnterOperation(
+                        "export history"),
+                    exportToken);
                 DateTime? fromDate = HistoryFromDate;
                 DateTime? toDate = HistoryToDate;
                 NormalizeDateRange(ref fromDate, ref toDate);
@@ -594,9 +626,13 @@ namespace SX3_SCANER.ViewModel
                         resultFilter,
                         fromDate,
                         toDate,
-                        ExportHistoryResultLimit));
+                        ExportHistoryResultLimit,
+                        exportToken),
+                    exportToken);
 
-                ObservableCollection<HistoryDataRow> sorted = SortHistoryNewestFirst(results);
+                exportToken.ThrowIfCancellationRequested();
+
+                ObservableCollection<HistoryDataRow> sorted = results;
                 if (sorted.Count == 0)
                 {
                     QueryStatus = "Không có dữ liệu để xuất Excel.";
@@ -608,7 +644,9 @@ namespace SX3_SCANER.ViewModel
                     return;
                 }
 
-                await Task.Run(() => XlsxExportService.ExportHistory(dialog.FileName, sorted));
+                await Task.Run(
+                    () => XlsxExportService.ExportHistory(dialog.FileName, sorted),
+                    exportToken);
 
                 _lastExportFolder = Path.GetDirectoryName(
                     Path.GetFullPath(dialog.FileName));
@@ -622,6 +660,10 @@ namespace SX3_SCANER.ViewModel
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
+            catch (OperationCanceledException)
+            {
+                QueryStatus = "Đã hủy xuất dữ liệu để bảo trì database.";
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine("Export history failed: " + ex);
@@ -634,6 +676,14 @@ namespace SX3_SCANER.ViewModel
             }
             finally
             {
+                exportActivity?.Dispose();
+                if (Interlocked.CompareExchange(
+                        ref _historyExportCts,
+                        null,
+                        exportCts) == exportCts)
+                {
+                    exportCts.Dispose();
+                }
                 IsQuerying = false;
             }
         }
@@ -672,24 +722,6 @@ namespace SX3_SCANER.ViewModel
                 fromDate = toDate.Value;
                 toDate = temp;
             }
-        }
-
-        private static ObservableCollection<HistoryDataRow> SortHistoryNewestFirst(
-            IEnumerable<HistoryDataRow> rows)
-        {
-            List<HistoryDataRow> sortedRows =
-                (rows ?? Enumerable.Empty<HistoryDataRow>())
-                .OrderByDescending(row => row.ScanTime ?? DateTime.MinValue)
-                .ThenByDescending(row => row.SortSequence > 0 ? row.SortSequence : row.ID)
-                .ThenByDescending(row => row.ID)
-                .ToList();
-
-            for (int index = 0; index < sortedRows.Count; index++)
-            {
-                sortedRows[index].RowIndex = index + 1;
-            }
-
-            return new ObservableCollection<HistoryDataRow>(sortedRows);
         }
 
         private bool? GetScanResultFilter()

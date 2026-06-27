@@ -22,6 +22,10 @@ namespace SX3_SCANER.ViewModel
         private readonly BoxProductRepository _boxProductRepository = new BoxProductRepository();
         private readonly ScanSessionService _scanSessionService = new ScanSessionService();
         private readonly SemaphoreSlim _scanWriteLock = new SemaphoreSlim(1, 1);
+        private readonly HashSet<string> _currentBoxPassScanCodes =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private string _scanCodeCacheBoxName;
+        private bool _isScanCodeCacheInitialized;
         private bool _isScanBusy;
         private string _lastScannedCode = string.Empty;
         private DateTime _lastScannedAt = DateTime.MinValue;
@@ -272,13 +276,8 @@ namespace SX3_SCANER.ViewModel
                 _lastScannedCode = inputScanCode;
                 _lastScannedAt = scannedAt;
 
-                if (ScanHistorySource != null &&
-                    ScanHistorySource.Any(item =>
-                        item.ScanResult &&
-                        string.Equals(
-                            item.ScanData,
-                            inputScanCode,
-                            StringComparison.OrdinalIgnoreCase)))
+                EnsureCurrentBoxPassScanCache();
+                if (_currentBoxPassScanCodes.Contains(inputScanCode))
                 {
                     await RecordRejectedScanAsync(
                         inputScanCode,
@@ -498,7 +497,8 @@ namespace SX3_SCANER.ViewModel
                 }
 
                 ScanHistorySource.Insert(0, _CurrentScanHistory);
-                RefreshScanHistoryDisplayIndex();
+                if (isPass)
+                    _currentBoxPassScanCodes.Add(inputScanCode);
                 if (allocatedBoxName)
                 {
                     OnPropertyChanged(nameof(HasOpenScanSession));
@@ -641,7 +641,6 @@ namespace SX3_SCANER.ViewModel
 
             _CurrentScanHistory = rejectedHistory;
             ScanHistorySource.Insert(0, rejectedHistory);
-            RefreshScanHistoryDisplayIndex();
             OnPropertyChanged(nameof(HasOpenScanSession));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
@@ -670,6 +669,40 @@ namespace SX3_SCANER.ViewModel
             }
 
             SaveCurrentScanSession(true);
+        }
+
+        private void EnsureCurrentBoxPassScanCache()
+        {
+            if (_isScanCodeCacheInitialized && string.Equals(
+                    _scanCodeCacheBoxName,
+                    _CurrentBoxName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _currentBoxPassScanCodes.Clear();
+            if (ScanHistorySource != null)
+            {
+                foreach (ScanHistory item in ScanHistorySource)
+                {
+                    if (item != null &&
+                        item.ScanResult &&
+                        !string.IsNullOrWhiteSpace(item.ScanData))
+                    {
+                        _currentBoxPassScanCodes.Add(item.ScanData.Trim());
+                    }
+                }
+            }
+            _scanCodeCacheBoxName = _CurrentBoxName;
+            _isScanCodeCacheInitialized = true;
+        }
+
+        private void ResetCurrentBoxPassScanCache()
+        {
+            _currentBoxPassScanCodes.Clear();
+            _scanCodeCacheBoxName = null;
+            _isScanCodeCacheInitialized = false;
         }
 
         private async Task CancelCurrentBoxAsync()

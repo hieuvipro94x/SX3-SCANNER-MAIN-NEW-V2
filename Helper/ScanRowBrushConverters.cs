@@ -8,6 +8,27 @@ using System.Windows.Media;
 
 namespace SX3_SCANER.Helper
 {
+    public sealed class RowIndexFromAlternationConverter : IValueConverter
+    {
+        public object Convert(
+            object value,
+            Type targetType,
+            object parameter,
+            CultureInfo culture)
+        {
+            return value is int index ? index + 1 : 0;
+        }
+
+        public object ConvertBack(
+            object value,
+            Type targetType,
+            object parameter,
+            CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
     public class ScanRowBackgroundBrushConverter : IValueConverter
     {
         private static readonly Brush PassBrush = CreateBrush("#DCFCE7");

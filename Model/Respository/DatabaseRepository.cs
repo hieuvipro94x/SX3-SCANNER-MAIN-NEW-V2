@@ -77,11 +77,12 @@ namespace SX3_SCANER.Model.Respository
 
         public static SQLiteConnection CreateConnection()
         {
-            EnsureDatabaseFileExists(DatabaseFileName, DatabasePath);
-
+            IDisposable activity = DatabaseMaintenanceCoordinator.EnterOperation(
+                "open database.db");
             SQLiteConnection connection = null;
             try
             {
+                EnsureDatabaseFileExists(DatabaseFileName, DatabasePath);
                 connection = new SQLiteConnection(ConnectionString);
                 connection.Open();
                 using (var command = connection.CreateCommand())
@@ -89,6 +90,8 @@ namespace SX3_SCANER.Model.Respository
                     command.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;";
                     command.ExecuteNonQuery();
                 }
+                AttachActivityLifetime(connection, activity);
+                activity = null;
                 return connection;
             }
             catch (SQLiteException ex)
@@ -102,15 +105,20 @@ namespace SX3_SCANER.Model.Respository
                 StartupManager.LogStartupError(ex, DatabasePath);
                 throw;
             }
+            finally
+            {
+                activity?.Dispose();
+            }
         }
 
         public static SQLiteConnection CreateProductConnection()
         {
-            EnsureDatabaseFileExists(ProductDatabaseFileName, ProductDatabasePath);
-
+            IDisposable activity = DatabaseMaintenanceCoordinator.EnterOperation(
+                "open product.db");
             SQLiteConnection connection = null;
             try
             {
+                EnsureDatabaseFileExists(ProductDatabaseFileName, ProductDatabasePath);
                 connection = new SQLiteConnection(ProductConnectionString);
                 connection.Open();
                 using (var command = connection.CreateCommand())
@@ -118,6 +126,8 @@ namespace SX3_SCANER.Model.Respository
                     command.CommandText = "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;";
                     command.ExecuteNonQuery();
                 }
+                AttachActivityLifetime(connection, activity);
+                activity = null;
                 return connection;
             }
             catch (SQLiteException ex)
@@ -130,6 +140,35 @@ namespace SX3_SCANER.Model.Respository
                 StartupManager.SetStatus("Lỗi database: không mở được product.db.");
                 StartupManager.LogStartupError(ex, ProductDatabasePath);
                 throw;
+            }
+            finally
+            {
+                activity?.Dispose();
+            }
+        }
+
+        private static void AttachActivityLifetime(
+            SQLiteConnection connection,
+            IDisposable activity)
+        {
+            var lifetime = new ConnectionActivityLifetime(activity);
+            connection.Disposed += lifetime.OnConnectionDisposed;
+        }
+
+        private sealed class ConnectionActivityLifetime
+        {
+            private IDisposable _activity;
+
+            internal ConnectionActivityLifetime(IDisposable activity)
+            {
+                _activity = activity;
+            }
+
+            internal void OnConnectionDisposed(object sender, EventArgs e)
+            {
+                IDisposable activity = _activity;
+                _activity = null;
+                activity?.Dispose();
             }
         }
 

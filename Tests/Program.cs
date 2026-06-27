@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using SX3_SCANER.Helper;
 using SX3_SCANER.Model.Respository;
 
@@ -39,6 +41,8 @@ namespace SX3.Scanner.Tests
             Run("PASS ScanData unique index preserves behavior", AssertPassScanDataUniqueness);
             Run("PASS Lot trigger preserves behavior", AssertPassLotUniqueness);
             Run("Session UPSERT updates in place", AssertSessionUpsert);
+            Run("Database maintenance waits for active operations", AssertMaintenanceLock);
+            Run("Box history lookup uses correlated index", AssertBoxHistoryLookupPlan);
 
             Console.WriteLine(_failures == 0 ? "All tests passed." : _failures + " test(s) failed.");
             return _failures == 0 ? 0 : 1;
@@ -156,6 +160,78 @@ namespace SX3.Scanner.Tests
                     Equal(2, reader.GetInt32(1));
                     Equal("B", reader.GetString(2));
                 }
+            }
+        }
+
+        private static void AssertMaintenanceLock()
+        {
+            IDisposable operation = DatabaseMaintenanceCoordinator.EnterOperation(
+                "test operation");
+            var maintenanceStarted = new ManualResetEventSlim(false);
+            var maintenanceAcquired = new ManualResetEventSlim(false);
+
+            Task maintenanceTask = Task.Run(() =>
+            {
+                maintenanceStarted.Set();
+                using (DatabaseMaintenanceCoordinator.EnterMaintenance(
+                    "test maintenance",
+                    TimeSpan.FromSeconds(5)))
+                {
+                    maintenanceAcquired.Set();
+                }
+            });
+
+            True(maintenanceStarted.Wait(TimeSpan.FromSeconds(1)));
+            Thread.Sleep(50);
+            True(!maintenanceAcquired.IsSet);
+            operation.Dispose();
+            True(maintenanceAcquired.Wait(TimeSpan.FromSeconds(2)));
+            True(maintenanceTask.Wait(TimeSpan.FromSeconds(2)));
+
+            maintenanceStarted.Dispose();
+            maintenanceAcquired.Dispose();
+        }
+
+        private static void AssertBoxHistoryLookupPlan()
+        {
+            using (var connection = new SQLiteConnection("Data Source=:memory:;Version=3;"))
+            {
+                connection.Open();
+                Execute(connection, "CREATE TABLE BoxProduct(ID INTEGER PRIMARY KEY, BoxName TEXT);");
+                Execute(connection, "CREATE TABLE ScanHistoryView(ID INTEGER PRIMARY KEY, BoxName TEXT, ScanTime TEXT);");
+                Execute(connection, "CREATE INDEX idx_test_box_time_id ON ScanHistoryView(BoxName COLLATE NOCASE, ScanTime DESC, ID DESC);");
+                Execute(connection, "INSERT INTO BoxProduct(ID,BoxName) VALUES(1,'BOX-01');");
+                Execute(connection, "INSERT INTO ScanHistoryView(ID,BoxName,ScanTime) VALUES(1,'BOX-01','2026-06-27 08:00:00'),(2,'BOX-01','2026-06-27 09:00:00');");
+
+                const string sql = @"SELECT latest.ID
+                    FROM BoxProduct bp
+                    LEFT JOIN ScanHistoryView latest
+                      ON latest.ID = (
+                          SELECT sh.ID FROM ScanHistoryView sh
+                          WHERE sh.BoxName = bp.BoxName COLLATE NOCASE
+                          ORDER BY sh.ScanTime DESC, sh.ID DESC LIMIT 1)
+                    WHERE bp.BoxName = 'BOX-01'";
+
+                using (var command = new SQLiteCommand(sql, connection))
+                {
+                    Equal(2, Convert.ToInt32(command.ExecuteScalar()));
+                }
+
+                bool usesIndex = false;
+                using (var command = new SQLiteCommand(
+                    "EXPLAIN QUERY PLAN " + sql,
+                    connection))
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string detail = reader.GetString(3);
+                        usesIndex |= detail.IndexOf(
+                            "idx_test_box_time_id",
+                            StringComparison.OrdinalIgnoreCase) >= 0;
+                    }
+                }
+                True(usesIndex);
             }
         }
 

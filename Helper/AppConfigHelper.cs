@@ -11,6 +11,7 @@ namespace SX3_SCANER.Helper
     internal static class AppConfigHelper
     {
         private static readonly object SyncRoot = new object();
+        private static Dictionary<string, string> _cachedRuntimeSettings;
 
         public static string Read(string key)
         {
@@ -47,9 +48,17 @@ namespace SX3_SCANER.Helper
             {
                 try
                 {
-                    Dictionary<string, string> settings = LoadRuntimeSettings();
-                    settings[key] = value ?? string.Empty;
-                    SaveRuntimeSettings(settings);
+                Dictionary<string, string> settings = LoadRuntimeSettings();
+                string nextValue = value ?? string.Empty;
+                string currentValue;
+                if (settings.TryGetValue(key, out currentValue) &&
+                    string.Equals(currentValue, nextValue, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                settings[key] = nextValue;
+                SaveRuntimeSettings(settings);
                     return true;
                 }
                 catch (Exception ex)
@@ -62,12 +71,16 @@ namespace SX3_SCANER.Helper
 
         private static Dictionary<string, string> LoadRuntimeSettings()
         {
+            if (_cachedRuntimeSettings != null)
+                return _cachedRuntimeSettings;
+
             try
             {
                 string path = DatabaseRepository.RuntimeConfigPath;
                 if (!File.Exists(path))
                 {
-                    return NewSettingsDictionary();
+                    _cachedRuntimeSettings = NewSettingsDictionary();
+                    return _cachedRuntimeSettings;
                 }
 
                 Dictionary<string, string> settings =
@@ -75,15 +88,20 @@ namespace SX3_SCANER.Helper
 
                 if (settings == null)
                 {
-                    return NewSettingsDictionary();
+                    _cachedRuntimeSettings = NewSettingsDictionary();
+                    return _cachedRuntimeSettings;
                 }
 
-                return new Dictionary<string, string>(settings, StringComparer.OrdinalIgnoreCase);
+                _cachedRuntimeSettings = new Dictionary<string, string>(
+                    settings,
+                    StringComparer.OrdinalIgnoreCase);
+                return _cachedRuntimeSettings;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("Khong doc duoc cau hinh runtime: " + ex);
-                return NewSettingsDictionary();
+                _cachedRuntimeSettings = NewSettingsDictionary();
+                return _cachedRuntimeSettings;
             }
         }
 

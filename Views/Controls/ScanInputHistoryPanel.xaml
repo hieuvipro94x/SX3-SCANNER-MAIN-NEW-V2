@@ -352,6 +352,7 @@
                           EnableColumnVirtualization="True"
                           VirtualizingPanel.IsVirtualizing="True"
                           VirtualizingPanel.VirtualizationMode="Recycling"
+                          AlternationCount="2147483647"
                           ColumnHeaderStyle="{StaticResource UnifiedScanDataGridColumnHeaderStyle}"
                           RowStyle="{StaticResource UnifiedScanRowStyle}">
                     <DataGrid.CellStyle>
@@ -371,7 +372,13 @@
                     </DataGrid.CellStyle>
 
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="#" Binding="{Binding RowIndex}" Width="46" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="#" Width="46" ElementStyle="{StaticResource TodayViewCenterTextStyle}">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="AlternationIndex"
+                                         RelativeSource="{RelativeSource AncestorType=DataGridRow}"
+                                         Converter="{StaticResource RowIndexFromAlternationConverter}"/>
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding ScanTime, StringFormat=HH:mm:ss}" Width="95" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
                         <DataGridTextColumn Header="MÃ SCAN" Binding="{Binding ScanData}" Width="*" MinWidth="220" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
                         <DataGridTextColumn Header="KQ" Binding="{Binding ResultText}" Width="70" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>

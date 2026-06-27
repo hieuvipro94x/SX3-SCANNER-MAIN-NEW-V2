@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Globalization;
 
@@ -6,6 +8,11 @@ namespace SX3_SCANER.Model
 {
     internal static class ScanResultMapper
     {
+        private static readonly ConcurrentDictionary<string, HashSet<string>>
+            TableColumnCache =
+                new ConcurrentDictionary<string, HashSet<string>>(
+                    StringComparer.OrdinalIgnoreCase);
+
         internal static string BuildSelectColumns(SQLiteConnection connection)
         {
             return @"
@@ -69,24 +76,42 @@ namespace SX3_SCANER.Model
             string tableName,
             string columnName)
         {
+            return GetTableColumns(connection, tableName).Contains(columnName);
+        }
+
+        internal static HashSet<string> GetTableColumns(
+            SQLiteConnection connection,
+            string tableName)
+        {
+            string cacheKey = (connection.DataSource ?? string.Empty) + "|" + tableName;
+            HashSet<string> cached;
+            bool canCache = !string.Equals(
+                connection.DataSource,
+                ":memory:",
+                StringComparison.OrdinalIgnoreCase);
+            if (canCache && TableColumnCache.TryGetValue(cacheKey, out cached))
+                return cached;
+
+            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             using (SQLiteCommand command = new SQLiteCommand(
-                "PRAGMA table_info(" + tableName + ")",
+                "PRAGMA table_info([" + tableName.Replace("]", "]]") + "])",
                 connection))
             using (SQLiteDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
-                    if (string.Equals(
-                        SafeString(reader, "name"),
-                        columnName,
-                        StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
+                    columns.Add(SafeString(reader, "name"));
                 }
             }
 
-            return false;
+            if (canCache)
+                TableColumnCache[cacheKey] = columns;
+            return columns;
+        }
+
+        internal static void InvalidateSchemaCache()
+        {
+            TableColumnCache.Clear();
         }
 
         private static string SafeString(

@@ -8,13 +8,14 @@ namespace SX3_SCANER.Model
 {
     internal class DatabaseInitialize
     {
-        private const int MainDatabaseSchemaVersion = 6;
-        private const int ProductDatabaseSchemaVersion = 1;
+        private const int MainDatabaseSchemaVersion = 7;
+        private const int ProductDatabaseSchemaVersion = 2;
         private const string LastIntegrityCheckKey = "LastIntegrityCheckUtc";
         private static readonly TimeSpan IntegrityCheckInterval = TimeSpan.FromDays(7);
 
         internal void EnsureCreate()
         {
+            ScanResultMapper.InvalidateSchemaCache();
             StartupManager.SetStatus("\u0110ang ki\u1EC3m tra th\u01B0 m\u1EE5c d\u1EEF li\u1EC7u...");
             DatabaseRepository.EnsureDatabaseFiles();
             DatabaseRepository.ValidateDatabasePaths();
@@ -26,6 +27,7 @@ namespace SX3_SCANER.Model
 
             ApplyMigrationsIfNeeded();
             RunPeriodicIntegrityCheck();
+            ScanResultMapper.InvalidateSchemaCache();
             StartupManager.SetStatus("Ho\u00E0n t\u1EA5t kh\u1EDFi \u0111\u1ED9ng");
         }
 
@@ -46,7 +48,10 @@ namespace SX3_SCANER.Model
             BoxProductRepository.CreateTableIfNotExists();
             ScanHistoryRepository.CreateTableIfNotExists();
             ScanSessionService.CreateTableIfNotExists();
-            SyncHistoryBoxTypes();
+            if (mainVersion < 6)
+            {
+                SyncHistoryBoxTypes();
+            }
             CreateMainIndexes();
             CreateDataIntegrityTriggers();
 
@@ -68,6 +73,10 @@ namespace SX3_SCANER.Model
             }
 
             LabelProductInfoRepository.CreateTableIfNotExists();
+            if (productVersion < 2)
+            {
+                CleanAndValidateProductDuplicates();
+            }
             CreateProductIndexes();
 
             if (productVersion < ProductDatabaseSchemaVersion)
@@ -169,6 +178,7 @@ PRAGMA busy_timeout = 5000;";
         {
             DropRedundantMainIndexes();
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ScanTime ON ScanHistoryView(BoxName, ScanTime DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ScanTime_ID ON ScanHistoryView(BoxName COLLATE NOCASE, ScanTime DESC, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_BoxName_ID ON ScanHistoryView(BoxName COLLATE NOCASE, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_Result_ID ON ScanHistoryView(ScanResult, ID DESC);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_ScanHistoryView_ScanTime_Result ON ScanHistoryView(ScanTime, ScanResult);");
@@ -191,6 +201,8 @@ PRAGMA busy_timeout = 5000;";
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Complete ON BoxProduct(BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxDate_Type_Complete ON BoxProduct(BoxDate, BoxType, BoxComplete);");
             TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_Part_Seal ON BoxProduct(ProductPartNumber, BoxSealNo);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_BoxDate_ID ON BoxProduct(BoxDate DESC, ID DESC);");
+            TryExecute("CREATE INDEX IF NOT EXISTS idx_BoxProduct_PartNumber_ID ON BoxProduct(ProductPartNumber COLLATE NOCASE, ID DESC);");
         }
 
         private static void DropRedundantMainIndexes()
@@ -221,7 +233,9 @@ PRAGMA busy_timeout = 5000;";
             // thực hiện một lần kiểm tra index.
             TryExecute("DROP TRIGGER IF EXISTS trg_ScanHistory_UniquePassScanData_Insert;");
 
-            TryExecute(@"
+            ExecuteCriticalTrigger(
+                "trg_BoxProduct_UniqueBoxName_Insert",
+                @"
                 CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Insert
                 BEFORE INSERT ON BoxProduct
                 WHEN NEW.BoxName IS NOT NULL
@@ -233,9 +247,12 @@ PRAGMA busy_timeout = 5000;";
                   )
                 BEGIN
                     SELECT RAISE(ABORT, 'DUPLICATE_BOX_NAME');
-                END;");
+                END;",
+                "Không tạo được trigger chống trùng BoxName khi thêm mới.");
 
-            TryExecute(@"
+            ExecuteCriticalTrigger(
+                "trg_BoxProduct_UniqueBoxName_Update",
+                @"
                 CREATE TRIGGER IF NOT EXISTS trg_BoxProduct_UniqueBoxName_Update
                 BEFORE UPDATE OF BoxName ON BoxProduct
                 WHEN NEW.BoxName IS NOT NULL
@@ -248,9 +265,12 @@ PRAGMA busy_timeout = 5000;";
                   )
                 BEGIN
                     SELECT RAISE(ABORT, 'DUPLICATE_BOX_NAME');
-                END;");
+                END;",
+                "Không tạo được trigger chống trùng BoxName khi cập nhật.");
 
-            TryExecute(@"
+            ExecuteCriticalTrigger(
+                "trg_ScanHistory_UniquePassLot_Insert",
+                @"
                 CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassLot_Insert
                 BEFORE INSERT ON ScanHistoryView
                 WHEN NEW.ScanResult = 1
@@ -267,9 +287,12 @@ PRAGMA busy_timeout = 5000;";
                   )
                 BEGIN
                     SELECT RAISE(ABORT, 'DUPLICATE_PASS_LOT');
-                END;");
+                END;",
+                "Không tạo được trigger chống trùng Lot PASS khi thêm mới.");
 
-            TryExecute(@"
+            ExecuteCriticalTrigger(
+                "trg_ScanHistory_UniquePassLot_Update",
+                @"
                 CREATE TRIGGER IF NOT EXISTS trg_ScanHistory_UniquePassLot_Update
                 BEFORE UPDATE OF ProductPartNumber, SealNo, LotNo, ScanResult
                 ON ScanHistoryView
@@ -288,13 +311,98 @@ PRAGMA busy_timeout = 5000;";
                   )
                 BEGIN
                     SELECT RAISE(ABORT, 'DUPLICATE_PASS_LOT');
-                END;");
+                END;",
+                "Không tạo được trigger chống trùng Lot PASS khi cập nhật.");
         }
 
         private static void CreateProductIndexes()
         {
-            TryExecuteProduct("CREATE INDEX IF NOT EXISTS idx_LabelProductInfo_PartNumber ON LabelProductInfo(PartNumber);");
+            ExecuteCriticalProduct(
+                "CREATE UNIQUE INDEX IF NOT EXISTS UX_LabelProductInfo_PartNumber ON LabelProductInfo(PartNumber COLLATE NOCASE) WHERE PartNumber IS NOT NULL AND TRIM(PartNumber) <> '';",
+                "Không tạo được unique index cho Product PartNumber.");
+            ExecuteCriticalProduct(
+                "CREATE UNIQUE INDEX IF NOT EXISTS UX_LabelProductInfo_PartName ON LabelProductInfo(PartName COLLATE NOCASE) WHERE PartName IS NOT NULL AND TRIM(PartName) <> '';",
+                "Không tạo được unique index cho Product PartName.");
             TryExecuteProduct("CREATE INDEX IF NOT EXISTS idx_LabelProductInfo_PartName_PartNumber ON LabelProductInfo(PartName, PartNumber);");
+        }
+
+        private static void CleanAndValidateProductDuplicates()
+        {
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
+            using (SQLiteTransaction transaction = connection.BeginTransaction())
+            {
+                using (SQLiteCommand normalize = connection.CreateCommand())
+                {
+                    normalize.Transaction = transaction;
+                    normalize.CommandText = @"
+                        UPDATE LabelProductInfo
+                        SET PartNumber = TRIM(PartNumber),
+                            PartName = TRIM(PartName)
+                        WHERE PartNumber <> TRIM(PartNumber)
+                           OR PartName <> TRIM(PartName);";
+                    normalize.ExecuteNonQuery();
+                }
+
+                using (SQLiteCommand removeExactDuplicates = connection.CreateCommand())
+                {
+                    removeExactDuplicates.Transaction = transaction;
+                    removeExactDuplicates.CommandText = @"
+                        DELETE FROM LabelProductInfo
+                        WHERE ID NOT IN (
+                            SELECT MIN(ID)
+                            FROM LabelProductInfo
+                            GROUP BY COALESCE(Car, ''),
+                                     COALESCE(PartNumber, '') COLLATE NOCASE,
+                                     COALESCE(PartName, '') COLLATE NOCASE,
+                                     COALESCE(CodeStringForm, ''),
+                                     COALESCE(CodePrefix, ''),
+                                     COALESCE(CodeSuffix, ''),
+                                     COALESCE(CodeLength, 0),
+                                     COALESCE(BoxQuantity, 0));";
+                    removeExactDuplicates.ExecuteNonQuery();
+                }
+
+                string duplicateDetails = FindProductDuplicateDetails(
+                    connection,
+                    transaction);
+                if (!string.IsNullOrWhiteSpace(duplicateDetails))
+                {
+                    throw new InvalidOperationException(
+                        "Product database có dữ liệu trùng nhưng khác cấu hình. " +
+                        "Không tự động xóa để tránh mất dữ liệu. Hãy xử lý các giá trị: " +
+                        duplicateDetails);
+                }
+
+                transaction.Commit();
+            }
+        }
+
+        private static string FindProductDuplicateDetails(
+            SQLiteConnection connection,
+            SQLiteTransaction transaction)
+        {
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = @"
+                    SELECT 'PartNumber=' || PartNumber
+                    FROM LabelProductInfo
+                    WHERE PartNumber IS NOT NULL AND TRIM(PartNumber) <> ''
+                    GROUP BY PartNumber COLLATE NOCASE HAVING COUNT(*) > 1
+                    UNION ALL
+                    SELECT 'PartName=' || PartName
+                    FROM LabelProductInfo
+                    WHERE PartName IS NOT NULL AND TRIM(PartName) <> ''
+                    GROUP BY PartName COLLATE NOCASE HAVING COUNT(*) > 1
+                    LIMIT 10;";
+                var duplicates = new System.Collections.Generic.List<string>();
+                using (SQLiteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                        duplicates.Add(Convert.ToString(reader[0]));
+                }
+                return string.Join(", ", duplicates);
+            }
         }
 
         private static void TryExecute(string sql)
@@ -337,6 +445,61 @@ PRAGMA busy_timeout = 5000;";
             catch (Exception ex)
             {
                 StartupManager.Log("Khong tao duoc product index tuy chon. SQL=" + sql + ". Chi tiet: " + ex);
+            }
+        }
+
+        private static void ExecuteCriticalTrigger(
+            string triggerName,
+            string createSql,
+            string failureMessage)
+        {
+            try
+            {
+                using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
+                using (SQLiteTransaction transaction = connection.BeginTransaction())
+                {
+                    using (SQLiteCommand drop = connection.CreateCommand())
+                    {
+                        drop.Transaction = transaction;
+                        drop.CommandText = "DROP TRIGGER IF EXISTS [" +
+                            triggerName.Replace("]", "]]") + "];";
+                        drop.ExecuteNonQuery();
+                    }
+
+                    using (SQLiteCommand create = connection.CreateCommand())
+                    {
+                        create.Transaction = transaction;
+                        create.CommandText = createSql;
+                        create.ExecuteNonQuery();
+                    }
+                    transaction.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupManager.SetStatus(failureMessage);
+                StartupManager.Log(
+                    failureMessage + " Trigger=" + triggerName + ". Chi tiet: " + ex);
+                throw new InvalidOperationException(failureMessage, ex);
+            }
+        }
+
+        private static void ExecuteCriticalProduct(string sql, string failureMessage)
+        {
+            try
+            {
+                using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
+                using (SQLiteCommand command = connection.CreateCommand())
+                {
+                    command.CommandText = sql;
+                    command.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupManager.SetStatus(failureMessage);
+                StartupManager.Log(failureMessage + " SQL=" + sql + ". Chi tiet: " + ex);
+                throw new InvalidOperationException(failureMessage, ex);
             }
         }
     }

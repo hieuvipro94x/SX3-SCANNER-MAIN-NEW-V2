@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SQLite;
 using System.Diagnostics;
+using System.Threading;
 using SX3_SCANER.Helper;
 using SX3_SCANER.Model.Respository;
 
@@ -21,7 +22,8 @@ namespace SX3_SCANER.Model
             bool? scanResult,
             DateTime? fromDate = null,
             DateTime? toDate = null,
-            int limit = 500)
+            int limit = 500,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return GetScanned(
                 boxname: boxName,
@@ -32,7 +34,8 @@ namespace SX3_SCANER.Model
                 scanmessage: scanMessage,
                 fromDate: fromDate,
                 toDate: toDate,
-                limit: limit);
+                limit: limit,
+                cancellationToken: cancellationToken);
         }
 
         public ObservableCollection<ScanHistory> GetScanned(
@@ -45,7 +48,8 @@ namespace SX3_SCANER.Model
             DateTime? fromDate = null,
             DateTime? toDate = null,
             int limit = 500,
-            bool useBoxNameContains = false)
+            bool useBoxNameContains = false,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ObservableCollection<ScanHistory> scanHistoryItems = new ObservableCollection<ScanHistory>();
 
@@ -54,6 +58,7 @@ namespace SX3_SCANER.Model
             string normalizedSealNo = NormalizeFilterValue(sealno);
             string normalizedScanMessage = NormalizeFilterValue(scanmessage);
             List<string> searchTerms = BuildSearchTerms(scandata);
+            bool? directKeywordResult = TryParseScanResultKeyword(scandata);
             int safeLimit = Math.Max(1, Math.Min(limit, 2000));
 
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
@@ -111,18 +116,18 @@ namespace SX3_SCANER.Model
                 if (!string.IsNullOrWhiteSpace(normalizedBoxName))
                 {
                     selectQuery += useBoxNameContains
-                        ? " AND COALESCE(BoxName, '') COLLATE NOCASE LIKE @BoxName ESCAPE '\\'"
-                        : " AND COALESCE(BoxName, '') = @BoxName COLLATE NOCASE";
+                        ? " AND BoxName COLLATE NOCASE LIKE @BoxName ESCAPE '\\'"
+                        : " AND BoxName = @BoxName COLLATE NOCASE";
                 }
 
                 if (!string.IsNullOrWhiteSpace(normalizedPartNumber))
                 {
-                    selectQuery += " AND COALESCE(ProductPartNumber, '') = @ProductPartNumber COLLATE NOCASE";
+                    selectQuery += " AND ProductPartNumber = @ProductPartNumber COLLATE NOCASE";
                 }
 
                 if (!string.IsNullOrWhiteSpace(normalizedSealNo))
                 {
-                    selectQuery += " AND COALESCE(SealNo, '') = @SealNo COLLATE NOCASE";
+                    selectQuery += " AND SealNo = @SealNo COLLATE NOCASE";
                 }
 
                 if (scanresult.HasValue)
@@ -132,7 +137,7 @@ namespace SX3_SCANER.Model
 
                 if (!string.IsNullOrWhiteSpace(normalizedScanMessage))
                 {
-                    selectQuery += " AND COALESCE(ScanMessage, '') = @ScanMessage COLLATE NOCASE";
+                    selectQuery += " AND ScanMessage = @ScanMessage COLLATE NOCASE";
                 }
 
                 if (fromDate.HasValue)
@@ -145,7 +150,11 @@ namespace SX3_SCANER.Model
                     selectQuery += " AND ScanTime < @ToDateExclusive";
                 }
 
-                if (searchTerms.Count > 0)
+                if (directKeywordResult.HasValue)
+                {
+                    selectQuery += " AND ScanResult = @DirectKeywordResult";
+                }
+                else if (searchTerms.Count > 0)
                 {
                     selectQuery += " AND (";
                     for (int i = 0; i < searchTerms.Count; i++)
@@ -156,17 +165,14 @@ namespace SX3_SCANER.Model
                         }
 
                         string parameterName = "@Keyword" + i;
-                        string resultParameterName = "@KeywordResult" + i;
                         selectQuery += @"
                             (
                                 COALESCE(ProductPartNumber, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
                                 OR COALESCE(ScanData, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
                                 OR COALESCE(LotNo, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
                                 OR COALESCE(BoxName, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                                OR COALESCE(ScanWorker, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
                                 OR COALESCE(ScanMessage, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
                                 OR COALESCE(BoxType, '') COLLATE NOCASE LIKE " + parameterName + @" ESCAPE '\'
-                                OR (" + resultParameterName + @" IS NOT NULL AND ScanResult = " + resultParameterName + @")
                             )";
                     }
                     selectQuery += ")";
@@ -206,25 +212,30 @@ namespace SX3_SCANER.Model
                             toDate.Value.Date.AddDays(1));
                     }
 
-                    for (int i = 0; i < searchTerms.Count; i++)
+                    if (directKeywordResult.HasValue)
+                    {
+                        command.Parameters.AddWithValue(
+                            "@DirectKeywordResult",
+                            directKeywordResult.Value ? 1 : 0);
+                    }
+                    else for (int i = 0; i < searchTerms.Count; i++)
                     {
                         command.Parameters.AddWithValue(
                             "@Keyword" + i,
                             "%" + EscapeLikeValue(searchTerms[i]) + "%");
-                        bool? resultKeyword = TryParseScanResultKeyword(searchTerms[i]);
-                        command.Parameters.AddWithValue(
-                            "@KeywordResult" + i,
-                            resultKeyword.HasValue
-                                ? (object)(resultKeyword.Value ? 1 : 0)
-                                : DBNull.Value);
                     }
 
                     WriteSqlDiagnostics(selectQuery, command.Parameters);
 
-                    using (SQLiteDataReader reader = command.ExecuteReader())
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using (cancellationToken.Register(command.Cancel))
+                    using (SQLiteDataReader reader = ExecuteCancellableReader(
+                        command,
+                        cancellationToken))
                     {
                         while (reader.Read())
                         {
+                            cancellationToken.ThrowIfCancellationRequested();
                             scanHistoryItems.Add(ScanResultMapper.Read(reader));
                         }
                     }
@@ -235,13 +246,27 @@ namespace SX3_SCANER.Model
             return scanHistoryItems;
         }
 
+        private static SQLiteDataReader ExecuteCancellableReader(
+            SQLiteCommand command,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return command.ExecuteReader();
+            }
+            catch (SQLiteException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
+
         private static string NormalizeFilterValue(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return null;
 
             string trimmed = value.Trim();
             if (string.Equals(trimmed, "All", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(trimmed, "Táº¥t cáº£", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "Tất cả", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(trimmed, "Tat ca", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
@@ -300,10 +325,14 @@ namespace SX3_SCANER.Model
                      normalized.Contains("TEN SAN PHAM"))
             {
                 AddUnique(terms, "NG - Sai m\u00E3 s\u1EA3n ph\u1EA9m / PartName");
-                AddUnique(terms, "Lá»—i tĂªn sáº£n pháº©m");
-                AddUnique(terms, "Lá»–I TĂN Sáº¢N PHáº¨M");
+                AddUnique(terms, "Lỗi tên sản phẩm");
+                AddUnique(terms, "LỖI TÊN SẢN PHẨM");
+                // Giữ khả năng tìm các bản ghi cũ đã lưu mojibake; dùng escape để source vẫn là UTF-8 sạch.
+                AddUnique(terms, "L\u00E1\u00BB\u2014i t\u0102\u00AAn s\u00E1\u00BA\u00A3n ph\u00E1\u00BA\u00A9m");
+                AddUnique(terms, "L\u00E1\u00BB\u2013I T\u0102\u008AN S\u00E1\u00BA\u00A2N PH\u00E1\u00BA\u00A8M");
                 AddUnique(terms, "Sai m\u00E3");
-                AddUnique(terms, "Sai tĂªn sáº£n pháº©m");
+                AddUnique(terms, "Sai tên sản phẩm");
+                AddUnique(terms, "Sai t\u0102\u00AAn s\u00E1\u00BA\u00A3n ph\u00E1\u00BA\u00A9m");
                 AddUnique(terms, "Sai ma");
                 AddUnique(terms, "PartName");
                 AddUnique(terms, "PNAME");
@@ -312,10 +341,13 @@ namespace SX3_SCANER.Model
                       normalized.Contains("TRUNG SEAL") ||
                       normalized.Contains("DUP DATE")))
             {
-                AddUnique(terms, "NG - TrĂ¹ng ngĂ y / SealNo");
-                AddUnique(terms, "TrĂ¹ng ngĂ y");
+                AddUnique(terms, "NG - Trùng ngày / SealNo");
+                AddUnique(terms, "Trùng ngày");
+                AddUnique(terms, "NG - Tr\u0102\u00B9ng ng\u0102\u00A0y / SealNo");
+                AddUnique(terms, "Tr\u0102\u00B9ng ng\u0102\u00A0y");
                 AddUnique(terms, "Trung ngay");
-                AddUnique(terms, "TrĂ¹ng SealNo");
+                AddUnique(terms, "Trùng SealNo");
+                AddUnique(terms, "Tr\u0102\u00B9ng SealNo");
                 AddUnique(terms, "DUP_DATE");
             }
             else if (normalized.Contains("SAI NGAY") || normalized.Contains("SAI SEAL") || normalized.Contains("SAI DATE"))

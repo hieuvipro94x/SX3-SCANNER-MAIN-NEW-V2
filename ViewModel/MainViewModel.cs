@@ -278,6 +278,8 @@ namespace SX3_SCANER.ViewModel
 
         public MainViewModel()
         {
+            DatabaseMaintenanceCoordinator.MaintenanceRequested +=
+                CancelDatabaseWorkForMaintenance;
             OpenExportFolderCMD = new RelayCommand<object>(
                 null,
                 _ => OpenExportFolder());

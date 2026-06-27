@@ -891,6 +891,7 @@ namespace SX3_SCANER.ViewModel
             set
             {
                 _ScanHistorySource = value;
+                ResetCurrentBoxPassScanCache();
                 SubscribeDashboardScanHistory(value);
                 ScanHistoryView = value == null ? null : CollectionViewSource.GetDefaultView(value);
                 ApplyCurrentBoxHistoryFilter();

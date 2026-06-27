@@ -129,6 +129,7 @@
     </Compile>
     <Compile Include="Helper\AppConfigHelper.cs" />
     <Compile Include="Helper\DataBackupService.cs" />
+    <Compile Include="Helper\DatabaseMaintenanceCoordinator.cs" />
     <Compile Include="Helper\XlsxExportService.cs" />
     <Compile Include="Helper\UpdateInfo.cs" />
     <Compile Include="Helper\UpdateService.cs" />

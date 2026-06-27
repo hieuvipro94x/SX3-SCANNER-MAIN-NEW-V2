@@ -561,6 +561,9 @@ namespace SX3_SCANER.ViewModel
 
         public void StopOnlineAnnouncement()
         {
+            DatabaseMaintenanceCoordinator.MaintenanceRequested -=
+                CancelDatabaseWorkForMaintenance;
+            StopDailyBackupScheduler();
             _onlineAnnouncementAutoHideTimer.Stop();
             _onlineAnnouncementRotateTimer.Stop();
             IsAnnouncementCountdownVisible = false;

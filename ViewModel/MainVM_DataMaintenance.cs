@@ -7,12 +7,15 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace SX3_SCANER.ViewModel
 {
     internal partial class MainViewModel : ViewModelBase
     {
         private bool _isMaintenanceBusy;
+        private DispatcherTimer _dailyBackupTimer;
+        private bool _isDailyBackupCheckRunning;
         private bool _backupEnabled = true;
         private string _databaseSizeText = "0 MB";
         private string _productDatabaseSizeText = "0 MB";
@@ -312,16 +315,38 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private async void ScheduleDailyBackupCheck()
+        private void ScheduleDailyBackupCheck()
         {
+            if (_dailyBackupTimer != null)
+                return;
+
+            _dailyBackupTimer = new DispatcherTimer(
+                DispatcherPriority.Background)
+            {
+                Interval = TimeSpan.FromSeconds(20)
+            };
+            _dailyBackupTimer.Tick += DailyBackupTimer_Tick;
+            _dailyBackupTimer.Start();
+        }
+
+        private async void DailyBackupTimer_Tick(object sender, EventArgs e)
+        {
+            if (_dailyBackupTimer != null)
+                _dailyBackupTimer.Interval = TimeSpan.FromMinutes(15);
+
+            if (_isDailyBackupCheckRunning ||
+                InJob ||
+                _isScanBusy ||
+                IsQuerying ||
+                IsMaintenanceBusy ||
+                DatabaseMaintenanceCoordinator.IsMaintenancePendingOrActive)
+            {
+                return;
+            }
+
+            _isDailyBackupCheckRunning = true;
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(20));
-                if (InJob)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(30));
-                }
-
                 BackupOperationResult result = await DataBackupService.RunDailyBackupIfDueAsync();
                 if (result != null && result.Success)
                 {
@@ -333,6 +358,20 @@ namespace SX3_SCANER.ViewModel
                 Debug.WriteLine("Daily backup check failed: " + ex);
                 StartupManager.Log("Daily backup check failed: " + ex);
             }
+            finally
+            {
+                _isDailyBackupCheckRunning = false;
+            }
+        }
+
+        private void StopDailyBackupScheduler()
+        {
+            if (_dailyBackupTimer == null)
+                return;
+
+            _dailyBackupTimer.Stop();
+            _dailyBackupTimer.Tick -= DailyBackupTimer_Tick;
+            _dailyBackupTimer = null;
         }
     }
 }

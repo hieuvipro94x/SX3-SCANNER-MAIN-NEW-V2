@@ -1,3 +1,4 @@
+using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using System;
 using System.Data.SQLite;
@@ -154,8 +155,11 @@ namespace SX3_SCANER.Helper
                 _isBackupRunning = true;
             }
 
+            IDisposable databaseActivity = null;
             try
             {
+                databaseActivity = DatabaseMaintenanceCoordinator.EnterOperation(
+                    "backup database");
                 EnsureDefaultSettings();
                 string safeReason = MakeSafeFileName(string.IsNullOrWhiteSpace(reason) ? "backup" : reason.Trim());
                 string fileName = "SX3_Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + safeReason + ".zip";
@@ -216,6 +220,7 @@ namespace SX3_SCANER.Helper
             }
             finally
             {
+                databaseActivity?.Dispose();
                 lock (BackupSync)
                 {
                     _isBackupRunning = false;
@@ -298,11 +303,55 @@ namespace SX3_SCANER.Helper
                         throw new FileNotFoundException("Trong backup không có database.db.");
                     }
 
-                    ReplaceDatabaseFile(sourceMainDb, DatabaseRepository.DatabasePath);
-
-                    if (!string.IsNullOrWhiteSpace(sourceProductDb) && File.Exists(sourceProductDb))
+                    ValidateDatabaseFile(sourceMainDb, "database.db trong backup");
+                    if (!string.IsNullOrWhiteSpace(sourceProductDb) &&
+                        File.Exists(sourceProductDb))
                     {
-                        ReplaceDatabaseFile(sourceProductDb, DatabaseRepository.ProductDatabasePath);
+                        ValidateDatabaseFile(sourceProductDb, "product.db trong backup");
+                    }
+
+                    using (DatabaseMaintenanceCoordinator.EnterMaintenance(
+                        "restore database",
+                        TimeSpan.FromSeconds(60)))
+                    {
+                        SQLiteConnection.ClearAllPools();
+                        string mainRollbackPath = null;
+                        string productRollbackPath = null;
+                        try
+                        {
+                            mainRollbackPath = ReplaceDatabaseFile(
+                                sourceMainDb,
+                                DatabaseRepository.DatabasePath);
+
+                            if (!string.IsNullOrWhiteSpace(sourceProductDb) &&
+                                File.Exists(sourceProductDb))
+                            {
+                                productRollbackPath = ReplaceDatabaseFile(
+                                    sourceProductDb,
+                                    DatabaseRepository.ProductDatabasePath);
+                            }
+
+                            ValidateDatabaseFile(
+                                DatabaseRepository.DatabasePath,
+                                "database.db sau restore");
+                            ValidateDatabaseFile(
+                                DatabaseRepository.ProductDatabasePath,
+                                "product.db sau restore");
+                            ScanResultMapper.InvalidateSchemaCache();
+                            TryDeleteFile(mainRollbackPath);
+                            TryDeleteFile(productRollbackPath);
+                        }
+                        catch
+                        {
+                            RollbackDatabaseFile(
+                                DatabaseRepository.DatabasePath,
+                                mainRollbackPath);
+                            RollbackDatabaseFile(
+                                DatabaseRepository.ProductDatabasePath,
+                                productRollbackPath);
+                            SQLiteConnection.ClearAllPools();
+                            throw;
+                        }
                     }
 
                     string message = "Phục hồi database thành công. Vui lòng mở lại app để nạp dữ liệu mới.";
@@ -432,7 +481,9 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        private static void ReplaceDatabaseFile(string sourcePath, string destinationPath)
+        private static string ReplaceDatabaseFile(
+            string sourcePath,
+            string destinationPath)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
             PrepareDatabaseFileForReplace(destinationPath);
@@ -445,9 +496,15 @@ namespace SX3_SCANER.Helper
             }
 
             File.Copy(sourcePath, temporaryDestination, true);
+            string rollbackPath = null;
             if (File.Exists(destinationPath))
             {
-                File.Replace(temporaryDestination, destinationPath, null);
+                rollbackPath = destinationPath + ".restore_rollback_" +
+                    Guid.NewGuid().ToString("N");
+                File.Replace(
+                    temporaryDestination,
+                    destinationPath,
+                    rollbackPath);
             }
             else
             {
@@ -456,6 +513,49 @@ namespace SX3_SCANER.Helper
 
             DeleteSidecarFiles(destinationPath);
             SQLiteConnection.ClearAllPools();
+            return rollbackPath;
+        }
+
+        private static void RollbackDatabaseFile(
+            string destinationPath,
+            string rollbackPath)
+        {
+            if (string.IsNullOrWhiteSpace(rollbackPath) ||
+                !File.Exists(rollbackPath))
+            {
+                return;
+            }
+
+            DeleteSidecarFiles(destinationPath);
+            if (File.Exists(destinationPath))
+                File.Delete(destinationPath);
+            File.Move(rollbackPath, destinationPath);
+        }
+
+        private static void ValidateDatabaseFile(string path, string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                throw new FileNotFoundException("Không tìm thấy " + displayName + ".", path);
+
+            string connectionString =
+                "Data Source=" + path + ";Version=3;Read Only=True;Pooling=False;Default Timeout=5;";
+            using (var connection = new SQLiteConnection(connectionString))
+            {
+                connection.Open();
+                using (SQLiteCommand command = connection.CreateCommand())
+                {
+                    command.CommandText = "PRAGMA integrity_check;";
+                    object result = command.ExecuteScalar();
+                    if (!string.Equals(
+                            Convert.ToString(result),
+                            "ok",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException(
+                            displayName + " không vượt qua integrity_check: " + result);
+                    }
+                }
+            }
         }
 
         private static void PrepareDatabaseFileForReplace(string databasePath)

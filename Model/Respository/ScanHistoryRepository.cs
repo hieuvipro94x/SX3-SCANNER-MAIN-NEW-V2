@@ -115,12 +115,12 @@ namespace SX3_SCANER.Model
                         COALESCE(SUM(CASE WHEN ScanResult = 0 THEN 1 ELSE 0 END), 0) AS FailScan
                     FROM ScanHistoryView
                     WHERE
-                        -- Æ¯u tiĂªn thá»‘ng kĂª theo NGĂ€Y BOX.
-                        -- Náº¿u má»™t thĂ¹ng chÆ°a Ä‘á»§ sá»‘ lÆ°á»£ng vĂ  sang ngĂ y hĂ´m sau má»›i scan tiáº¿p,
-                        -- cĂ¡c tem scan thĂªm váº«n cĂ³ cĂ¹ng BoxDate nĂªn váº«n Ä‘Æ°á»£c cá»™ng vĂ o tá»•ng cá»§a phiĂªn thĂ¹ng.
+                        -- Ưu tiên thống kê theo NGÀY BOX.
+                        -- Nếu một thùng chưa đủ số lượng và sang ngày hôm sau mới scan tiếp,
+                        -- các tem scan thêm vẫn có cùng BoxDate nên vẫn được cộng vào tổng của phiên thùng.
                         date(BoxDate) = date(@BusinessDate)
 
-                        -- Fallback cho dá»¯ liá»‡u cÅ© chÆ°a cĂ³ BoxDate.
+                        -- Fallback cho dữ liệu cũ chưa có BoxDate.
                         OR (
                             (BoxDate IS NULL OR TRIM(CAST(BoxDate AS TEXT)) = '')
                             AND (
@@ -149,8 +149,8 @@ namespace SX3_SCANER.Model
 
                         return new DashboardScanStats
                         {
-                            // Tá»•ng scan = PASS + NG.
-                            // KhĂ´ng dĂ¹ng COUNT(1) Ä‘á»ƒ trĂ¡nh lá»‡ch náº¿u sau nĂ y cĂ³ báº£n ghi loáº¡i khĂ¡c.
+                            // Tổng scan = PASS + NG.
+                            // Không dùng COUNT(1) để tránh lệch nếu sau này có bản ghi loại khác.
                             Total = Math.Max(0, pass) + Math.Max(0, fail),
                             Pass = pass,
                             Fail = fail
@@ -410,9 +410,8 @@ namespace SX3_SCANER.Model
 
         public bool CheckExist(string productPartNumber, string sealno, string lotno)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT 1
                     FROM ScanHistoryView
@@ -434,9 +433,8 @@ namespace SX3_SCANER.Model
         public List<string> GetDistinctBoxNames()
         {
             List<string> boxNames = new List<string>() { "All" };
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT BoxName
                     FROM ScanHistoryView
@@ -465,9 +463,8 @@ namespace SX3_SCANER.Model
         public List<string> GetDistinctSealNos()
         {
             List<string> sealNos = new List<string>() { "All" };
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT SealNo
                     FROM ScanHistoryView
@@ -496,9 +493,8 @@ namespace SX3_SCANER.Model
         public List<string> GetDistinctProductNumbers()
         {
             List<string> productNumbers = new List<string>() { "All" };
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = "SELECT DISTINCT ProductPartNumber FROM ScanHistoryView WHERE ProductPartNumber IS NOT NULL AND ProductPartNumber <> '' ORDER BY ProductPartNumber";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
@@ -521,9 +517,8 @@ namespace SX3_SCANER.Model
         public List<string> GetDistinctNGMessage()
         {
             List<string> productNumbers = new List<string>() { "All" };
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT DISTINCT ScanMessage
                     FROM ScanHistoryView

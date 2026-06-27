@@ -85,9 +85,8 @@ namespace SX3_SCANER.Model
         public ObservableCollection<BoxProduct> GetAllBoxProducts()
         {
             ObservableCollection<BoxProduct> boxProducts = new ObservableCollection<BoxProduct>();
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string selectQuery = "SELECT * FROM BoxProduct";
                 using (SQLiteCommand command = new SQLiteCommand(selectQuery, connection))
                 {
@@ -252,9 +251,8 @@ namespace SX3_SCANER.Model
 
         public string GetNotComplete(string partnumber, DateTime date)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT BoxName
                     FROM BoxProduct
@@ -397,9 +395,8 @@ namespace SX3_SCANER.Model
 
         private int GetNextBoxNumberForToday(string today)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
-                connection.Open();
                 string query = @"
                     SELECT MAX(BoxName)
                     FROM (

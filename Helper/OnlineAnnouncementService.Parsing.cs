@@ -61,9 +61,9 @@ namespace SX3_SCANER.Helper
                             when (!token.IsCancellationRequested)
                         {
                             throw new TimeoutException(
-                                "KhĂ´ng nháº­n Ä‘Æ°á»£c pháº£n há»“i realtime tá»« mĂ¡y chá»§ trong " +
+                                "Không nhận được phản hồi realtime từ máy chủ trong " +
                                 Math.Max(1, (int)idleTimeout.TotalSeconds) +
-                                " giĂ¢y.");
+                                " giây.");
                         }
 
                         if (result.MessageType == WebSocketMessageType.Close)
@@ -125,7 +125,7 @@ namespace SX3_SCANER.Helper
                 ? "single"
                 : announcement.Mode.Trim().ToLowerInvariant();
             announcement.Title = string.IsNullOrWhiteSpace(announcement.Title)
-                ? "THĂ”NG BĂO Há»† THá»NG"
+                ? "THÔNG BÁO HỆ THỐNG"
                 : announcement.Title.Trim();
             announcement.Message =
                 announcement.Message?.Trim() ?? string.Empty;
@@ -187,7 +187,7 @@ namespace SX3_SCANER.Helper
 
                 message.Level = NormalizeLevel(message.Level);
                 message.Title = string.IsNullOrWhiteSpace(message.Title)
-                    ? "THĂ”NG BĂO Há»† THá»NG"
+                    ? "THÔNG BÁO HỆ THỐNG"
                     : message.Title.Trim();
                 message.Message = message.Message.Trim();
                 message.BackgroundColor =
@@ -254,21 +254,21 @@ namespace SX3_SCANER.Helper
             string[] markers =
             {
                 "\uFFFD",
-                "THĂƒ",
-                "SĂ¡Âº",
-                "Ă¡Âº",
-                "Ă¡Â»",
-                "Ă„â€˜",
-                "Ă„\u0090",
-                "Ă†Â°",
-                "Ă†Â¡",
-                "ĂƒÂ´",
-                "ĂƒÂ¡",
-                "ĂƒÂ¢",
-                "ĂƒÂª",
-                "ĂƒÂ©",
-                "ĂƒÂ¨",
-                "Ă°Å¸"
+                "TH\u0102\u0192",
+                "S\u0102\u00A1\u00C2\u00BA",
+                "\u0102\u00A1\u00C2\u00BA",
+                "\u0102\u00A1\u00C2\u00BB",
+                "\u0102\u201E\u00E2\u20AC\u02DC",
+                "\u0102\u201E\u0090",
+                "\u0102\u2020\u00C2\u00B0",
+                "\u0102\u2020\u00C2\u00A1",
+                "\u0102\u0192\u00C2\u00B4",
+                "\u0102\u0192\u00C2\u00A1",
+                "\u0102\u0192\u00C2\u00A2",
+                "\u0102\u0192\u00C2\u00AA",
+                "\u0102\u0192\u00C2\u00A9",
+                "\u0102\u0192\u00C2\u00A8",
+                "\u0102\u00B0\u00C5\u00B8"
             };
 
             foreach (char character in value)
@@ -347,8 +347,8 @@ namespace SX3_SCANER.Helper
             if (!Uri.TryCreate(value, UriKind.Absolute, out uri))
                 return defaultValue;
 
-            // App.config cÅ© cĂ³ thá»ƒ váº«n trá» tá»›i sx3-announcement.
-            // Ă‰p vá» IP mĂ¡y chá»§ Ä‘ang dĂ¹ng Ä‘á»ƒ trĂ¡nh lá»‡ch Ä‘á»‹a chá»‰.
+            // App.config cũ có thể vẫn trỏ tới sx3-announcement.
+            // Ép về IP máy chủ đang dùng để tránh lệch địa chỉ.
             if (string.Equals(
                     uri.Host,
                     LegacyAnnouncementHost,

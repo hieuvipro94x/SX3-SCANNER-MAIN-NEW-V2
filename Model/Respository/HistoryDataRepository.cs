@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using SX3_SCANER.Model;
 
 namespace SX3_SCANER.Model.Respository
@@ -48,7 +49,8 @@ namespace SX3_SCANER.Model.Respository
             bool? result,
             DateTime? fromDate,
             DateTime? toDate,
-            int limit)
+            int limit,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             string validatedSource = ValidateSource(source);
             int safeLimit = Math.Max(1, Math.Min(limit, MaxSearchLimit));
@@ -64,7 +66,8 @@ namespace SX3_SCANER.Model.Respository
                         result,
                         fromDate,
                         toDate,
-                        safeLimit)
+                        safeLimit,
+                        cancellationToken)
                     : SearchBoxProduct(
                         keyword,
                         boxName,
@@ -73,7 +76,8 @@ namespace SX3_SCANER.Model.Respository
                         result,
                         fromDate,
                         toDate,
-                        safeLimit)).ToList();
+                        safeLimit,
+                        cancellationToken)).ToList();
 
             rows = SortNewestFirst(rows);
 
@@ -107,7 +111,8 @@ namespace SX3_SCANER.Model.Respository
             bool? result,
             DateTime? fromDate,
             DateTime? toDate,
-            int limit)
+            int limit,
+            CancellationToken cancellationToken)
         {
             ObservableCollection<ScanHistory> histories =
                 new ScanHistoryRepository().SearchHistory(
@@ -119,7 +124,8 @@ namespace SX3_SCANER.Model.Respository
                     result,
                     fromDate,
                     toDate,
-                    limit);
+                    limit,
+                    cancellationToken);
 
             return histories.Select(history => new HistoryDataRow
             {
@@ -151,7 +157,8 @@ namespace SX3_SCANER.Model.Respository
             bool? result,
             DateTime? fromDate,
             DateTime? toDate,
-            int limit)
+            int limit,
+            CancellationToken cancellationToken)
         {
             using (SQLiteConnection connection = DatabaseRepository.CreateConnection())
             {
@@ -166,18 +173,16 @@ namespace SX3_SCANER.Model.Respository
                     ScanHistorySource);
                 string sql = hasScanHistory
                     ? @"SELECT bp.*,
-                               latest.RelatedScanTime,
-                               latest.RelatedLastHistoryID
+                               latest.ScanTime AS RelatedScanTime,
+                               latest.ID AS RelatedLastHistoryID
                         FROM [BoxProduct] bp
-                        LEFT JOIN (
-                            SELECT BoxName,
-                                   MAX(ScanTime) AS RelatedScanTime,
-                                   MAX(ID) AS RelatedLastHistoryID
-                            FROM [ScanHistoryView]
-                            GROUP BY BoxName
-                        ) latest
-                          ON latest.BoxName = bp.BoxName
-                          OR (latest.BoxName IS NULL AND bp.BoxName IS NULL)
+                        LEFT JOIN [ScanHistoryView] latest
+                          ON latest.ID = (
+                              SELECT sh.ID
+                              FROM [ScanHistoryView] sh
+                              WHERE sh.BoxName = bp.BoxName COLLATE NOCASE
+                              ORDER BY sh.ScanTime DESC, sh.ID DESC
+                              LIMIT 1)
                         WHERE 1=1"
                     : "SELECT bp.* FROM [BoxProduct] bp WHERE 1=1";
                 if (hasScanHistory)
@@ -232,14 +237,8 @@ namespace SX3_SCANER.Model.Respository
                     {
                         "ProductPartNumber",
                         "PartNumber",
-                        "ScanData",
-                        "ScannedQRCode",
-                        "QRData",
                         "LotNo",
                         "BoxName",
-                        "BoxWorker",
-                        "ScanWorker",
-                        "Worker",
                         "BoxType"
                     };
                     List<string> searchable =
@@ -247,15 +246,13 @@ namespace SX3_SCANER.Model.Respository
                     bool? keywordResult =
                         ScanHistoryRepository.TryParseScanResultKeyword(
                             normalizedKeyword);
+                    bool useKeywordResult =
+                        keywordResult.HasValue && resultColumn != null;
 
-                    if (searchable.Count > 0 || (keywordResult.HasValue && resultColumn != null))
+                    if (searchable.Count > 0 || useKeywordResult)
                     {
                         var keywordClauses = new List<string>();
-                        keywordClauses.AddRange(searchable.Select(column =>
-                            "COALESCE(bp.[" + column +
-                            "], '') COLLATE NOCASE LIKE @Keyword ESCAPE '\\'"));
-
-                        if (keywordResult.HasValue && resultColumn != null)
+                        if (useKeywordResult)
                         {
                             keywordClauses.Add(
                                 "bp.[" + resultColumn + "] = @KeywordResult");
@@ -263,9 +260,15 @@ namespace SX3_SCANER.Model.Respository
                                 "@KeywordResult",
                                 keywordResult.Value ? 1 : 0));
                         }
+                        else
+                        {
+                            keywordClauses.AddRange(searchable.Select(column =>
+                                "COALESCE(bp.[" + column +
+                                "], '') COLLATE NOCASE LIKE @Keyword ESCAPE '\\'"));
+                        }
 
                         sql += " AND (" + string.Join(" OR ", keywordClauses) + ")";
-                        if (searchable.Count > 0)
+                        if (!useKeywordResult && searchable.Count > 0)
                         {
                             parameters.Add(new SQLiteParameter(
                                 "@Keyword",
@@ -342,16 +345,35 @@ namespace SX3_SCANER.Model.Respository
                 using (var command = new SQLiteCommand(sql, connection))
                 {
                     command.Parameters.AddRange(parameters.ToArray());
-                    using (SQLiteDataReader reader = command.ExecuteReader())
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using (cancellationToken.Register(command.Cancel))
+                    using (SQLiteDataReader reader = ExecuteReader(
+                        command,
+                        cancellationToken))
                     {
                         while (reader.Read())
                         {
+                            cancellationToken.ThrowIfCancellationRequested();
                             rows.Add(MapBoxProduct(reader, columns));
                         }
                     }
                 }
 
                 return rows;
+            }
+        }
+
+        private static SQLiteDataReader ExecuteReader(
+            SQLiteCommand command,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return command.ExecuteReader();
+            }
+            catch (SQLiteException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
             }
         }
 
@@ -529,19 +551,9 @@ namespace SX3_SCANER.Model.Respository
             SQLiteConnection connection,
             string tableName)
         {
-            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            using (var command = new SQLiteCommand(
-                "PRAGMA table_info([" + tableName + "])",
-                connection))
-            using (SQLiteDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    columns.Add(Convert.ToString(reader["name"]));
-                }
-            }
-
-            return columns;
+            return new HashSet<string>(
+                ScanResultMapper.GetTableColumns(connection, tableName),
+                StringComparer.OrdinalIgnoreCase);
         }
 
         private static string FirstExisting(

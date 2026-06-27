@@ -190,17 +190,18 @@ namespace SX3_SCANER.Model
 
         public bool CheckIfExist(string partname, string partnumber, int selfID = -1)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            partname = (partname ?? string.Empty).Trim();
+            partnumber = (partnumber ?? string.Empty).Trim();
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
             {
-                connection.Open();
                 string query;
                 if (selfID == -1) // Nếu selfID không được cung cấp, kiểm tra sự tồn tại bình thường
                 {
-                    query = "SELECT COUNT(*) FROM LabelProductInfo WHERE PartName = @PartName OR PartNumber = @PartNumber";
+                    query = "SELECT COUNT(*) FROM LabelProductInfo WHERE PartName = @PartName COLLATE NOCASE OR PartNumber = @PartNumber COLLATE NOCASE";
                 }
                 else // Nếu selfID được cung cấp, loại trừ bản ghi có ID trùng với selfID
                 {
-                    query = "SELECT COUNT(*) FROM LabelProductInfo WHERE (PartName = @PartName OR PartNumber = @PartNumber) AND ID != @ID";
+                    query = "SELECT COUNT(*) FROM LabelProductInfo WHERE (PartName = @PartName COLLATE NOCASE OR PartNumber = @PartNumber COLLATE NOCASE) AND ID != @ID";
                 }
 
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
@@ -219,9 +220,8 @@ namespace SX3_SCANER.Model
 
         public int GetBoxQuantity(string _partnumber)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
             {
-                connection.Open();
                 string query = "SELECT BoxQuantity FROM LabelProductInfo WHERE PartNumber = @PartNumber";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
@@ -244,9 +244,8 @@ namespace SX3_SCANER.Model
         public List<string> GetAllPartNumber()
         {
             List<string> partNumbers = new List<string>();
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
             {
-                connection.Open();
                 string query = "SELECT DISTINCT PartNumber FROM LabelProductInfo";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
@@ -267,10 +266,9 @@ namespace SX3_SCANER.Model
 
         public LabelProductInfo GetWithPartNumber(string pnumber)
         {
-            using (SQLiteConnection connection = new SQLiteConnection(_connectionString))
+            using (SQLiteConnection connection = DatabaseRepository.CreateProductConnection())
             {
-                connection.Open();
-                string query = "SELECT * FROM LabelProductInfo WHERE PartNumber = @PartNumber";
+                string query = "SELECT * FROM LabelProductInfo WHERE PartNumber = @PartNumber COLLATE NOCASE ORDER BY ID ASC LIMIT 1";
                 using (SQLiteCommand command = new SQLiteCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@PartNumber", pnumber);
