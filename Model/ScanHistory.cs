@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace SX3_SCANER.Model
 {
-    internal class ScanHistory
+    internal class ScanHistory : INotifyPropertyChanged
     {
         public ScanHistory()
         {
@@ -18,7 +20,25 @@ namespace SX3_SCANER.Model
             BoxType = "OPEN";
         }
 
-        public int RowIndex { get; set; }
+        private int _rowIndex;
+
+        public int RowIndex
+        {
+            get { return _rowIndex; }
+            set
+            {
+                if (_rowIndex == value) return;
+                _rowIndex = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
 
         public int ID { get; set; }
 

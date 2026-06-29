@@ -5,6 +5,7 @@ using SX3_SCANER.View;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Data.SQLite;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,13 @@ namespace SX3_SCANER.ViewModel
 {
     internal partial class MainViewModel : ViewModelBase
     {
+        private void ScanHistorySource_CollectionChanged(
+            object sender,
+            NotifyCollectionChangedEventArgs e)
+        {
+            RefreshScanHistoryDisplayIndex();
+        }
+
         private void RefreshScanHistoryDisplayIndex()
         {
             if (ScanHistorySource == null) return;
@@ -27,8 +35,6 @@ namespace SX3_SCANER.ViewModel
             {
                 ScanHistorySource[i].RowIndex = i + 1;
             }
-
-            ScanHistoryView?.Refresh();
         }
 
         private void SaveCurrentScanSession(bool isInJob)

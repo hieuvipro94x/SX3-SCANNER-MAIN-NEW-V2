@@ -890,10 +890,24 @@ namespace SX3_SCANER.ViewModel
             get { return _ScanHistorySource; }
             set
             {
+                if (_ScanHistorySource != null)
+                {
+                    _ScanHistorySource.CollectionChanged -=
+                        ScanHistorySource_CollectionChanged;
+                }
+
                 _ScanHistorySource = value;
+
+                if (_ScanHistorySource != null)
+                {
+                    _ScanHistorySource.CollectionChanged +=
+                        ScanHistorySource_CollectionChanged;
+                }
+
                 ResetCurrentBoxPassScanCache();
                 SubscribeDashboardScanHistory(value);
                 ScanHistoryView = value == null ? null : CollectionViewSource.GetDefaultView(value);
+                RefreshScanHistoryDisplayIndex();
                 ApplyCurrentBoxHistoryFilter();
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentPassCount));
