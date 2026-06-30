@@ -22,6 +22,16 @@ namespace SX3.Scanner.Tests
                 Equal("ABC123", ScanValidationService.NormalizeQrProductCode(" #abc123 ")));
             Run("Extract bounded segment", () =>
                 Equal("CDE", ScanValidationService.ExtractSegment("ABCDE", 2, 10)));
+            Run("QR serial date parse", () =>
+            {
+                DateTime date;
+                True(ScanValidationService.TryParseLeadingDate("2606302001", out date));
+                Equal(new DateTime(2026, 6, 30), date.Date);
+                True(ScanValidationService.TryParseLeadingDate("3001010001", out date));
+                Equal(new DateTime(2030, 1, 1), date.Date);
+                True(!ScanValidationService.TryParseLeadingDate("2606322001", out date));
+                True(!ScanValidationService.TryParseLeadingDate("SERIAL-001", out date));
+            });
             Run("Session key is normalized", () =>
                 Equal("PART-01|20260621", ScanSessionService.BuildSessionKey(
                     " part-01 ", new DateTime(2026, 6, 21, 23, 59, 0))));

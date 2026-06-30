@@ -17,6 +17,34 @@ namespace SX3_SCANER.Helper
             return value.Trim().TrimStart('#').ToUpperInvariant();
         }
 
+        internal static bool TryParseLeadingDate(string value, out DateTime date)
+        {
+            date = default(DateTime);
+            if (string.IsNullOrWhiteSpace(value) || value.Trim().Length < 6)
+                return false;
+
+            string prefix = value.Trim().Substring(0, 6);
+            int year;
+            int month;
+            int day;
+            if (!int.TryParse(prefix.Substring(0, 2), out year) ||
+                !int.TryParse(prefix.Substring(2, 2), out month) ||
+                !int.TryParse(prefix.Substring(4, 2), out day))
+            {
+                return false;
+            }
+
+            year += 2000;
+            if (month < 1 || month > 12 ||
+                day < 1 || day > DateTime.DaysInMonth(year, month))
+            {
+                return false;
+            }
+
+            date = new DateTime(year, month, day);
+            return true;
+        }
+
         internal static string ExtractSegment(
             string input,
             int startIndex,

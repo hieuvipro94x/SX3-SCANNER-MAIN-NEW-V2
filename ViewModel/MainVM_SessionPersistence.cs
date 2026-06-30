@@ -91,7 +91,9 @@ namespace SX3_SCANER.ViewModel
                 ScannedCount = scannedCount,
                 TargetCount = SelectedQuantity,
                 IsInJob = isInJob,
-                Worker = Worker ?? string.Empty,
+                // Không lưu tên công nhân vào phiên nháp. Tên chỉ được xác nhận
+                // và ghi đồng loạt khi hoàn thành thùng.
+                Worker = string.Empty,
                 SessionDate = GetCurrentBoxCreatedDate(),
                 BoxDate = GetCurrentBoxCreatedDate(),
                 ScanLabelDate = ScanLabelDate
@@ -181,10 +183,7 @@ namespace SX3_SCANER.ViewModel
                 SelectedQuantity = state.TargetCount;
             }
 
-            if (!string.IsNullOrWhiteSpace(state.Worker))
-            {
-                Worker = state.Worker;
-            }
+            Worker = string.Empty;
 
             ScanHistorySource = string.IsNullOrWhiteSpace(state.BoxCode)
                 ? new ObservableCollection<ScanHistory>()

@@ -75,8 +75,6 @@ namespace SX3_SCANER.ViewModel
                 if (value)
                 {
                     AppConfigHelper.Modify(AppConfigStringKey.LastProduct, SelectedPartNumber ?? string.Empty);
-
-                    AppConfigHelper.Modify(AppConfigStringKey.LastWorker, Worker ?? string.Empty);
                 }
             }
         }
@@ -146,8 +144,9 @@ namespace SX3_SCANER.ViewModel
             get { return _Worker; }
             set
             {
-                if (_isScanBusy) return;
-                _Worker = value;
+                string next = value == null ? string.Empty : value.Trim();
+                if (string.Equals(_Worker, next, StringComparison.Ordinal)) return;
+                _Worker = next;
                 OnPropertyChanged();
             }
         }
@@ -1094,7 +1093,8 @@ namespace SX3_SCANER.ViewModel
 
             TextBox txtWorker = new TextBox
             {
-                Text = Worker ?? string.Empty,
+                // Luôn bắt buộc nhập lại, không gợi sẵn tên của thùng trước.
+                Text = string.Empty,
                 FontSize = 24,
                 Height = 56,
                 VerticalContentAlignment = VerticalAlignment.Center,
@@ -1172,7 +1172,6 @@ namespace SX3_SCANER.ViewModel
                 errorText.Visibility = Visibility.Collapsed;
 
                 Worker = workerName;
-                AppConfigHelper.Modify(AppConfigStringKey.LastWorker, Worker);
 
                 isConfirmed = true;
                 wd.DialogResult = true;

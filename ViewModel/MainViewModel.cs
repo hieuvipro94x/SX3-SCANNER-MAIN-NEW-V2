@@ -164,7 +164,10 @@ namespace SX3_SCANER.ViewModel
             InJob = false;
 
             this.SelectedPartNumber = AppConfigHelper.Read(AppConfigStringKey.LastProduct);
-            this.Worker = AppConfigHelper.Read(AppConfigStringKey.LastWorker);
+            // Tên công nhân phải được nhập mới khi đóng từng thùng.
+            // Không khôi phục tên của công nhân từ lần quét trước.
+            this.Worker = string.Empty;
+            AppConfigHelper.Modify(AppConfigStringKey.LastWorker, string.Empty);
 
         }
 

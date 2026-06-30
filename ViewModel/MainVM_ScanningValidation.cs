@@ -108,6 +108,8 @@ namespace SX3_SCANER.ViewModel
             if (!ShowWorkerCompletePopup())
                 return;
 
+            string confirmedWorker = Worker.Trim();
+
             string completedBoxName = _CurrentBoxName;
             string completedProductCode = SelectedPartNumber;
             DateTime completedBoxCreatedDate = GetCurrentBoxCreatedDate();
@@ -122,7 +124,7 @@ namespace SX3_SCANER.ViewModel
                     {
                         _scanHistoryRepository.UpdateWorkerByBoxName(
                             completedBoxName,
-                            Worker,
+                            confirmedWorker,
                             connection,
                             transaction);
                         _scanHistoryRepository.SetBoxTypeByBoxName(
@@ -133,7 +135,7 @@ namespace SX3_SCANER.ViewModel
                         _boxProductRepository.SetBoxComplete(
                             completedBoxName,
                             isPartial,
-                            Worker,
+                            confirmedWorker,
                             connection,
                             transaction);
                         _scanSessionService.RemoveSession(
@@ -159,7 +161,7 @@ namespace SX3_SCANER.ViewModel
 
             foreach (var item in ScanHistorySource)
             {
-                item.ScanWorker = Worker;
+                item.ScanWorker = confirmedWorker;
                 item.BoxType = boxType;
                 item.IsPartialBox = isPartial;
             }
@@ -168,7 +170,7 @@ namespace SX3_SCANER.ViewModel
             if (completedBox != null)
             {
                 completedBox.BoxProgress = CurrentScanProgress;
-                completedBox.BoxWorker = Worker;
+                completedBox.BoxWorker = confirmedWorker;
                 completedBox.BoxType = boxType;
                 completedBox.IsPartialBox = isPartial;
                 completedBox.BoxComplete = true;
@@ -191,6 +193,10 @@ namespace SX3_SCANER.ViewModel
             OnPropertyChanged(nameof(IsFullBoxReadyToComplete));
             OnPropertyChanged(nameof(CanModifySessionSelection));
             CommandManager.InvalidateRequerySuggested();
+
+            // Không mang tên vừa xác nhận sang thùng kế tiếp.
+            Worker = string.Empty;
+            AppConfigHelper.Modify(AppConfigStringKey.LastWorker, string.Empty);
 
             string message = isPartial
                 ? "HO\u00C0N TH\u00C0NH TH\u00D9NG L\u1EBA"
@@ -230,6 +236,16 @@ namespace SX3_SCANER.ViewModel
         private bool Scan(string input)
         {
             _CurrentScanHistory.ScanTime = GetBusinessScanTime();
+
+            DateTime currentCheckDate = DateTime.Today;
+            if (ScanLabelDate.Date != currentCheckDate)
+            {
+                _CurrentScanHistory.ScanTime = DateTime.Now;
+                SealNo_OK = 0;
+                SealnoScanResult = SealNoExpected;
+                _ScanMess = "NG - Ng\u00E0y tem kh\u00F4ng kh\u1EDBp ng\u00E0y check hi\u1EC7n t\u1EA1i";
+                return false;
+            }
 
             // Format mới cho mã hàng Car HE EV:
             // PART NO/PARTNAME: K32000-22400
@@ -313,10 +329,19 @@ namespace SX3_SCANER.ViewModel
             PNameScanResult = scannedPartNo;
             _CurrentScanHistory.ProductPartName = PNameExpected;
 
-            // QR mới không chứa ngày sản xuất/SealNo theo format cũ.
-            // Vẫn lưu SealNo theo ngày tem đang chọn để báo cáo/thống kê không bị rỗng.
+            DateTime qrLabelDate;
+            if (!ScanValidationService.TryParseLeadingDate(scannedSerial, out qrLabelDate) ||
+                qrLabelDate.Date != DateTime.Today)
+            {
+                SealNo_OK = 0;
+                SealnoScanResult = ScanValidationService.ExtractSegment(scannedSerial, 0, 6);
+                _CurrentScanHistory.SealNo = SealnoScanResult;
+                _ScanMess = "NG - Ng\u00E0y tem kh\u00F4ng kh\u1EDBp ng\u00E0y check hi\u1EC7n t\u1EA1i";
+                return false;
+            }
+
             SealNo_OK = 1;
-            SealnoScanResult = ScanLabelDate.ToString("yyMMdd");
+            SealnoScanResult = qrLabelDate.ToString("yyMMdd");
             _CurrentScanHistory.SealNo = SealnoScanResult;
 
             if (!string.IsNullOrWhiteSpace(SuffixExpected) &&
