@@ -225,6 +225,20 @@ namespace SX3_SCANER.ViewModel
             set { SelectedDate = value; }
         }
 
+        public DateTime EarliestScanLabelDate
+        {
+            get
+            {
+                return DateTime.Today.AddDays(
+                    -ScanValidationService.MaximumScanLabelAgeDays);
+            }
+        }
+
+        public DateTime LatestScanLabelDate
+        {
+            get { return DateTime.Today; }
+        }
+
         public DateTime BoxDate
         {
             get

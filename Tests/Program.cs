@@ -32,6 +32,15 @@ namespace SX3.Scanner.Tests
                 True(!ScanValidationService.TryParseLeadingDate("2606322001", out date));
                 True(!ScanValidationService.TryParseLeadingDate("SERIAL-001", out date));
             });
+            Run("Scan label date allows today through four days ago", () =>
+            {
+                DateTime today = new DateTime(2026, 6, 30);
+                True(ScanValidationService.IsScanLabelDateAllowed(today, today));
+                True(ScanValidationService.IsScanLabelDateAllowed(today.AddDays(-1), today));
+                True(ScanValidationService.IsScanLabelDateAllowed(today.AddDays(-4), today));
+                True(!ScanValidationService.IsScanLabelDateAllowed(today.AddDays(-5), today));
+                True(!ScanValidationService.IsScanLabelDateAllowed(today.AddDays(1), today));
+            });
             Run("Session key is normalized", () =>
                 Equal("PART-01|20260621", ScanSessionService.BuildSessionKey(
                     " part-01 ", new DateTime(2026, 6, 21, 23, 59, 0))));

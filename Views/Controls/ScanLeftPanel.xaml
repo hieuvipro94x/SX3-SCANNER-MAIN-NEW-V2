@@ -125,6 +125,8 @@
                             <DatePicker Height="30"
                                         FontSize="12.5"
                                         Language="vi-VN"
+                                        DisplayDateStart="{Binding EarliestScanLabelDate, Mode=OneWay}"
+                                        DisplayDateEnd="{Binding LatestScanLabelDate, Mode=OneWay}"
                                         SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         IsEnabled="{Binding IsApplicationReady}" />
                         </StackPanel>

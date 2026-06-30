@@ -96,7 +96,11 @@
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="6,0">
                         <StackPanel>
                             <TextBlock Text="NGÀY TEM" Style="{StaticResource DialogFieldLabelStyle}"/>
-                            <DatePicker Height="36" FontSize="14" SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <DatePicker Height="36"
+                                        FontSize="14"
+                                        DisplayDateStart="{Binding EarliestScanLabelDate, Mode=OneWay}"
+                                        DisplayDateEnd="{Binding LatestScanLabelDate, Mode=OneWay}"
+                                        SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>
                     </Border>
                     <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="6,0,0,0">

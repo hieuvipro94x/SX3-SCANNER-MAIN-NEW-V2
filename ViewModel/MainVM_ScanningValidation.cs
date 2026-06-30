@@ -238,12 +238,14 @@ namespace SX3_SCANER.ViewModel
             _CurrentScanHistory.ScanTime = GetBusinessScanTime();
 
             DateTime currentCheckDate = DateTime.Today;
-            if (ScanLabelDate.Date != currentCheckDate)
+            if (!ScanValidationService.IsScanLabelDateAllowed(
+                ScanLabelDate,
+                currentCheckDate))
             {
                 _CurrentScanHistory.ScanTime = DateTime.Now;
                 SealNo_OK = 0;
                 SealnoScanResult = SealNoExpected;
-                _ScanMess = "NG - Ng\u00E0y tem kh\u00F4ng kh\u1EDBp ng\u00E0y check hi\u1EC7n t\u1EA1i";
+                _ScanMess = "NG - Ng\u00E0y tem ch\u1EC9 \u0111\u01B0\u1EE3c t\u1EEB h\u00F4m nay l\u00F9i t\u1ED1i \u0111a 4 ng\u00E0y";
                 return false;
             }
 
@@ -331,12 +333,12 @@ namespace SX3_SCANER.ViewModel
 
             DateTime qrLabelDate;
             if (!ScanValidationService.TryParseLeadingDate(scannedSerial, out qrLabelDate) ||
-                qrLabelDate.Date != DateTime.Today)
+                qrLabelDate.Date != ScanLabelDate.Date)
             {
                 SealNo_OK = 0;
                 SealnoScanResult = ScanValidationService.ExtractSegment(scannedSerial, 0, 6);
                 _CurrentScanHistory.SealNo = SealnoScanResult;
-                _ScanMess = "NG - Ng\u00E0y tem kh\u00F4ng kh\u1EDBp ng\u00E0y check hi\u1EC7n t\u1EA1i";
+                _ScanMess = "NG - Ng\u00E0y tr\u00EAn tem kh\u00F4ng kh\u1EDBp NG\u00C0Y TEM \u0111ang ch\u1ECDn";
                 return false;
             }
 

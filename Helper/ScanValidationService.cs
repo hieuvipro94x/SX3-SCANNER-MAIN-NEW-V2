@@ -4,6 +4,19 @@ namespace SX3_SCANER.Helper
 {
     internal static class ScanValidationService
     {
+        internal const int MaximumScanLabelAgeDays = 4;
+
+        internal static bool IsScanLabelDateAllowed(
+            DateTime scanLabelDate,
+            DateTime currentDate)
+        {
+            DateTime labelDate = scanLabelDate.Date;
+            DateTime today = currentDate.Date;
+
+            return labelDate >= today.AddDays(-MaximumScanLabelAgeDays) &&
+                labelDate <= today;
+        }
+
         internal static bool IsPartNoCommaSerialFormat(string input)
         {
             return !string.IsNullOrWhiteSpace(input) && input.Contains(",");
