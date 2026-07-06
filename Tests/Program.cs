@@ -20,6 +20,26 @@ namespace SX3.Scanner.Tests
 
             Run("Normalize QR product", () =>
                 Equal("ABC123", ScanValidationService.NormalizeQrProductCode(" #abc123 ")));
+            Run("QR and DataMatrix are separated", () =>
+            {
+                string partName;
+                string serial;
+                True(ScanValidationService.IsQrCode(
+                    "K32000-22402,2607060001"));
+                True(ScanValidationService.TryParseQrCode(
+                    "K32000-22402,2607060001",
+                    out partName,
+                    out serial));
+                Equal("K32000-22402", partName);
+                Equal("2607060001", serial);
+                Equal("260706", ScanValidationService.ExtractSegment(serial, 0, 6));
+                Equal("0001", ScanValidationService.ExtractSegment(serial, 6, 4));
+                True(!ScanValidationService.IsQrCode("WH3220282607062001"));
+                True(!ScanValidationService.TryParseQrCode(
+                    "K32000-22402,2607060001,EXTRA",
+                    out partName,
+                    out serial));
+            });
             Run("Extract bounded segment", () =>
                 Equal("CDE", ScanValidationService.ExtractSegment("ABCDE", 2, 10)));
             Run("QR serial date parse", () =>

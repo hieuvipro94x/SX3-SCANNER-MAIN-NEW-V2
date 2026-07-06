@@ -17,9 +17,29 @@ namespace SX3_SCANER.Helper
                 labelDate <= today;
         }
 
-        internal static bool IsPartNoCommaSerialFormat(string input)
+        internal static bool IsQrCode(string input)
         {
             return !string.IsNullOrWhiteSpace(input) && input.Contains(",");
+        }
+
+        internal static bool TryParseQrCode(
+            string input,
+            out string partName,
+            out string serial)
+        {
+            partName = string.Empty;
+            serial = string.Empty;
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+
+            string[] parts = input.Trim().Split(',');
+            if (parts.Length != 2)
+                return false;
+
+            partName = parts[0].Trim();
+            serial = parts[1].Trim();
+            return !string.IsNullOrWhiteSpace(partName) &&
+                !string.IsNullOrWhiteSpace(serial);
         }
 
         internal static string NormalizeQrProductCode(string value)

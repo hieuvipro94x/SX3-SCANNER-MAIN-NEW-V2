@@ -249,45 +249,26 @@ namespace SX3_SCANER.ViewModel
                 return false;
             }
 
-            // Format mới cho mã hàng Car HE EV:
-            // PART NO/PARTNAME: K32000-22400
-            // QR thực tế: K32000-22400,2606172001
-            // Cấu trúc: <PartNo>,<Serial>
-            if (ScanValidationService.IsPartNoCommaSerialFormat(input))
-            {
-                return ScanPartNoCommaSerial(input);
-            }
+            // QR luôn có dấu phẩy sau PartName. Mã có dấu phẩy nhưng sai cấu
+            // trúc vẫn phải bị xử lý là QR, không được rơi xuống DataMatrix.
+            return ScanValidationService.IsQrCode(input)
+                ? ScanQrCode(input)
+                : ScanDataMatrix(input);
+        }
 
+        private bool ScanDataMatrix(string input)
+        {
             return CheckLength(input);
         }
 
-        private bool TryParsePartNoCommaSerial(
-            string input,
-            out string partNo,
-            out string serial)
-        {
-            partNo = string.Empty;
-            serial = string.Empty;
-
-            if (string.IsNullOrWhiteSpace(input))
-                return false;
-
-            string[] parts = input.Trim().Split(',');
-            if (parts.Length != 2)
-                return false;
-
-            partNo = parts[0].Trim();
-            serial = parts[1].Trim();
-
-            return !string.IsNullOrWhiteSpace(partNo) &&
-                !string.IsNullOrWhiteSpace(serial);
-        }
-
-        private bool ScanPartNoCommaSerial(string input)
+        private bool ScanQrCode(string input)
         {
             CodeLengthScanResult = input?.Length ?? 0;
 
-            if (!TryParsePartNoCommaSerial(input, out string scannedPartNo, out string scannedSerial))
+            if (!ScanValidationService.TryParseQrCode(
+                input,
+                out string scannedPartNo,
+                out string scannedSerial))
             {
                 Length_OK = 0;
                 _ScanMess = "NG - Sai định dạng QR dấu phẩy";
@@ -359,10 +340,14 @@ namespace SX3_SCANER.ViewModel
             Suffix_OK = 1;
             SuffixScanResult = SuffixExpected ?? string.Empty;
 
+            string qrLotNo = ScanValidationService.ExtractSegment(
+                scannedSerial,
+                6,
+                4);
             LotNo_OK = 1;
-            LotNoExpected = scannedSerial;
-            LotNoScanResult = scannedSerial;
-            _CurrentScanHistory.LotNo = scannedSerial;
+            LotNoExpected = qrLotNo;
+            LotNoScanResult = qrLotNo;
+            _CurrentScanHistory.LotNo = qrLotNo;
 
             return true;
         }
@@ -561,6 +546,14 @@ namespace SX3_SCANER.ViewModel
             if (string.IsNullOrWhiteSpace(input))
                 return string.Empty;
 
+            string qrPartNo;
+            string qrSerial;
+            if (ScanValidationService.TryParseQrCode(
+                input,
+                out qrPartNo,
+                out qrSerial))
+                return ScanValidationService.ExtractSegment(qrSerial, 6, 4);
+
             int lotStart = (PrefixExpected?.Length ?? 0) +
                 (PNameExpected?.Length ?? 0) +
                 (SealNoExpected?.Length ?? 0);
@@ -579,14 +572,24 @@ namespace SX3_SCANER.ViewModel
             string lotNo = !string.IsNullOrWhiteSpace(_CurrentScanHistory?.LotNo)
                 ? _CurrentScanHistory.LotNo
                 : TryExtractLotNo(inputScanCode);
-            string actualPartName = ScanValidationService.ExtractSegment(
+            string qrPartNo;
+            string qrSerial;
+            bool isQr = ScanValidationService.TryParseQrCode(
                 inputScanCode,
-                PrefixExpected?.Length ?? 0,
-                PNameExpected?.Length ?? 0);
-            string actualSealNo = ScanValidationService.ExtractSegment(
-                inputScanCode,
-                (PrefixExpected?.Length ?? 0) + (PNameExpected?.Length ?? 0),
-                SealNoExpected?.Length ?? 0);
+                out qrPartNo,
+                out qrSerial);
+            string actualPartName = isQr
+                ? qrPartNo
+                : ScanValidationService.ExtractSegment(
+                    inputScanCode,
+                    PrefixExpected?.Length ?? 0,
+                    PNameExpected?.Length ?? 0);
+            string actualSealNo = isQr
+                ? ScanValidationService.ExtractSegment(qrSerial, 0, 6)
+                : ScanValidationService.ExtractSegment(
+                    inputScanCode,
+                    (PrefixExpected?.Length ?? 0) + (PNameExpected?.Length ?? 0),
+                    SealNoExpected?.Length ?? 0);
 
             if (normalizedMessage.Contains("LOT"))
             {
@@ -596,7 +599,9 @@ namespace SX3_SCANER.ViewModel
                     Detail = isDuplicate ? "NG - Tr\u00F9ng LotNo" : "NG - Sai LotNo",
                     Standard = isDuplicate
                         ? "LotNo ch\u01B0a \u0111\u01B0\u1EE3c scan trong th\u00F9ng ho\u1EB7c l\u1ECBch s\u1EED"
-                        : "LotNo t\u1EEB 2000 \u0111\u1EBFn 2999",
+                        : isQr
+                            ? "LotNo QR g\u1ED3m 4 ch\u1EEF s\u1ED1 t\u1EEB 0000 \u0111\u1EBFn 9999"
+                            : "LotNo t\u1EEB 2000 \u0111\u1EBFn 2999",
                     Actual = ScanValidationService.DisplayValue(lotNo),
                     Resolution = isDuplicate
                         ? "Ki\u1EC3m tra l\u1EA1i tem, tr\u00E1nh scan tr\u00F9ng LotNo."
