@@ -1,6 +1,6 @@
 {
-    "version":  "10.33.0",
-    "downloadUrl":  "https://github.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/releases/download/v10.33.0/SX3ScannerSetup-10.33.0.exe",
-    "sha256":  "d57da924efd107c56bbbec556472516ee0245fcdfe76e5debb2dd08dd12e28d3",
-    "releaseNotes":  "Tối ưu hiệu suất phần mềm nâng cao trải nghiệm người dùng"
+    "version":  "10.34.0",
+    "downloadUrl":  "https://github.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/releases/download/v10.34.0/SX3ScannerSetup-10.34.0.exe",
+    "sha256":  "bf731f2c186a413d630a21b156f702efdf15cd095ac2caf4d1ef1bfe8f749415",
+    "releaseNotes":  "Sửa cơ chế kiểm tra cập nhật để luôn nhận manifest mới nhất, tránh cache phiên bản cũ từ GitHub."
 }

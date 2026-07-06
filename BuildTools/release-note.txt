@@ -1,1 +1,1 @@
-Tối ưu hiệu suất phần mềm nâng cao trải nghiệm người dùng
+Sửa cơ chế kiểm tra cập nhật để luôn nhận manifest mới nhất, tránh cache phiên bản cũ từ GitHub.

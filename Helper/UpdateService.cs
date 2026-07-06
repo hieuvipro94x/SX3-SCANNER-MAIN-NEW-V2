@@ -342,10 +342,13 @@ namespace SX3_SCANER.Helper
         {
             string manifestUrl = GetUpdateManifestUrl();
             ValidateSecureUri(manifestUrl, "Update manifest URL");
+            string manifestRequestUrl = AddCacheBuster(
+                manifestUrl,
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             using (var client = CreateHttpClient(RequestTimeout))
             using (HttpResponseMessage response =
-                await client.GetAsync(manifestUrl))
+                await client.GetAsync(manifestRequestUrl))
             {
                 ValidateFinalResponseUrl(response, "update manifest");
                 if (!response.IsSuccessStatusCode)
@@ -627,6 +630,14 @@ namespace SX3_SCANER.Helper
         private static HttpClient CreateHttpClient(TimeSpan timeout)
         {
             var client = new HttpClient { Timeout = timeout };
+            client.DefaultRequestHeaders.CacheControl =
+                new System.Net.Http.Headers.CacheControlHeaderValue
+                {
+                    NoCache = true,
+                    NoStore = true,
+                    MaxAge = TimeSpan.Zero
+                };
+            client.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
             client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
             client.DefaultRequestHeaders.Accept.ParseAdd(
                 "application/vnd.github+json");
@@ -634,6 +645,18 @@ namespace SX3_SCANER.Helper
                 "X-GitHub-Api-Version",
                 "2022-11-28");
             return client;
+        }
+
+        internal static string AddCacheBuster(string url, long cacheKey)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                throw new ArgumentException("URL không được để trống.", "url");
+
+            var builder = new UriBuilder(url.Trim());
+            string query = builder.Query.TrimStart('?');
+            builder.Query = (string.IsNullOrEmpty(query) ? string.Empty : query + "&") +
+                "_sx3=" + cacheKey;
+            return builder.Uri.AbsoluteUri;
         }
 
         private static bool TryParseVersion(string value, out Version version)

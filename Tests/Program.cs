@@ -51,6 +51,17 @@ namespace SX3.Scanner.Tests
                 True(UpdateService.IsNewerVersion(new Version(10, 6), new Version(10, 5)));
                 True(!UpdateService.IsNewerVersion(new Version(10, 5), new Version(10, 5)));
             });
+            Run("Update manifest cache buster", () =>
+            {
+                Equal(
+                    "https://example.com/update.json?_sx3=123",
+                    UpdateService.AddCacheBuster("https://example.com/update.json", 123));
+                Equal(
+                    "https://example.com/update.json?channel=stable&_sx3=456",
+                    UpdateService.AddCacheBuster(
+                        "https://example.com/update.json?channel=stable",
+                        456));
+            });
             Run("History result keyword parse", () =>
             {
                 Equal((bool?)true, SX3_SCANER.Model.ScanHistoryRepository.TryParseScanResultKeyword("pass"));
