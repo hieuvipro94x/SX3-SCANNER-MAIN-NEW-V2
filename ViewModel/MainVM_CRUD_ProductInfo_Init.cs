@@ -23,7 +23,7 @@ namespace SX3_SCANER.ViewModel
         public string CURR_CAR
         {
             get { return _CURR_CAR; }
-            set { _CURR_CAR = value; OnPropertyChanged(); }
+            set { _CURR_CAR = value; OnPropertyChanged(); UpdateStringSample(); }
         }
         private string _CURR_PARTNUMBER = "WH";
 
@@ -69,6 +69,15 @@ namespace SX3_SCANER.ViewModel
 
         private void UpdateStringSample()
         {
+            if (string.Equals(
+                (CURR_CAR ?? string.Empty).Trim(),
+                "HE EV",
+                System.StringComparison.OrdinalIgnoreCase))
+            {
+                CURR_SAMPLE = $"{CURR_PARTNAME ?? string.Empty},yyMMdd####";
+                return;
+            }
+
             CURR_SAMPLE = $"{CURR_PREFIX ?? string.Empty}{CURR_PARTNAME ?? string.Empty}yyMMdd2###{CURR_SUFFIX ?? string.Empty}";
 
         }

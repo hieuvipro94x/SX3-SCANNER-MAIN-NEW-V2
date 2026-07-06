@@ -25,6 +25,8 @@ namespace SX3.Scanner.Tests
             Run("QR serial date parse", () =>
             {
                 DateTime date;
+                True(ScanValidationService.TryParseQrSerial("2607050001", out date));
+                True(!ScanValidationService.TryParseQrSerial("260705AB01", out date));
                 True(ScanValidationService.TryParseLeadingDate("2606302001", out date));
                 Equal(new DateTime(2026, 6, 30), date.Date);
                 True(ScanValidationService.TryParseLeadingDate("3001010001", out date));

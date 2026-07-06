@@ -332,7 +332,8 @@ namespace SX3_SCANER.ViewModel
             _CurrentScanHistory.ProductPartName = PNameExpected;
 
             DateTime qrLabelDate;
-            if (!ScanValidationService.TryParseLeadingDate(scannedSerial, out qrLabelDate) ||
+            // QR accepts 0001; DataMatrix keeps its separate starts-with-2 LotNo rule.
+            if (!ScanValidationService.TryParseQrSerial(scannedSerial, out qrLabelDate) ||
                 qrLabelDate.Date != ScanLabelDate.Date)
             {
                 SealNo_OK = 0;

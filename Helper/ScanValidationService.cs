@@ -58,6 +58,25 @@ namespace SX3_SCANER.Helper
             return true;
         }
 
+        internal static bool TryParseQrSerial(string value, out DateTime date)
+        {
+            date = default(DateTime);
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            string serial = value.Trim();
+            if (serial.Length != 10)
+                return false;
+
+            for (int i = 0; i < serial.Length; i++)
+            {
+                if (serial[i] < '0' || serial[i] > '9')
+                    return false;
+            }
+
+            return TryParseLeadingDate(serial, out date);
+        }
+
         internal static string ExtractSegment(
             string input,
             int startIndex,
