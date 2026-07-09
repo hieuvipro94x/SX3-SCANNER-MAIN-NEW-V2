@@ -98,8 +98,6 @@
                             <TextBlock Text="NGÀY TEM" Style="{StaticResource DialogFieldLabelStyle}"/>
                             <DatePicker Height="36"
                                         FontSize="14"
-                                        DisplayDateStart="{Binding EarliestScanLabelDate, Mode=OneWay}"
-                                        DisplayDateEnd="{Binding LatestScanLabelDate, Mode=OneWay}"
                                         SelectedDate="{Binding ScanLabelDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>
                     </Border>

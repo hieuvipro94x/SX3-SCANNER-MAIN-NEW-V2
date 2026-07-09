@@ -10,11 +10,7 @@ namespace SX3_SCANER.Helper
             DateTime scanLabelDate,
             DateTime currentDate)
         {
-            DateTime labelDate = scanLabelDate.Date;
-            DateTime today = currentDate.Date;
-
-            return labelDate >= today.AddDays(-MaximumScanLabelAgeDays) &&
-                labelDate <= today;
+            return true;
         }
 
         internal static bool IsQrCode(string input)
