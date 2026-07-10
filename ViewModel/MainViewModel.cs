@@ -1,4 +1,4 @@
-﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Helper;
 using SX3_SCANER.Model;
 using SX3_SCANER.Model.Respository;
 using SX3_SCANER.View;
@@ -245,6 +245,8 @@ namespace SX3_SCANER.ViewModel
                 IsApplicationInitializing = false;
                 StartupDatabaseStatusText = "Database sẵn sàng.";
 
+                ReportClientVersionStatusOnStartup();
+
                 StartDefaultScanSessionOnLaunch();
             }
             catch (Exception ex)
@@ -279,6 +281,21 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
+
+        private void ReportClientVersionStatusOnStartup()
+        {
+            try
+            {
+                VersionStatusService.ReportCurrentMachine(
+                    null,
+                    true,
+                    "App started");
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log("Khong ghi duoc trang thai version client: " + ex.Message);
+            }
+        }
         public MainViewModel()
         {
             DatabaseMaintenanceCoordinator.MaintenanceRequested +=

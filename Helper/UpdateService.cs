@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.ComponentModel;
 using System.Configuration;
@@ -66,6 +66,7 @@ namespace SX3_SCANER.Helper
                 LastStatusMessage = _startupCheckResult == null
                     ? "Đã kiểm tra cập nhật lúc khởi động."
                     : "Có bản mới: V" + _startupCheckResult.Version;
+                ReportVersionStatusSafe(_startupCheckResult == null ? null : _startupCheckResult.Version, true, LastStatusMessage);
                 return _startupCheckResult;
             }
 
@@ -80,6 +81,7 @@ namespace SX3_SCANER.Helper
                 if (!update.IsUpdateAvailable)
                 {
                     LastStatusMessage = "Không có bản mới.";
+                    ReportVersionStatusSafe(update.Version, true, LastStatusMessage);
                     SaveStartupResult(showErrors, null);
                     Log("No update available. Current version: " +
                         GetCurrentVersion() + ".");
@@ -87,6 +89,7 @@ namespace SX3_SCANER.Helper
                 }
 
                 LastStatusMessage = "Có bản mới: V" + update.Version;
+                ReportVersionStatusSafe(update.Version, true, LastStatusMessage);
                 SaveStartupResult(showErrors, update);
                 Log("Update available. Current=" + GetCurrentVersion() +
                     ", Latest=" + update.Version + ".");
@@ -130,6 +133,7 @@ namespace SX3_SCANER.Helper
                 if (!update.IsUpdateAvailable)
                 {
                     LastStatusMessage = "Không có bản mới.";
+                    ReportVersionStatusSafe(update.Version, true, LastStatusMessage);
                     SaveStartupResult(false, null);
                     Log("No mandatory update available. Current version: " +
                         GetCurrentVersion() + ".");
@@ -138,6 +142,7 @@ namespace SX3_SCANER.Helper
 
                 update.IsMandatory = true;
                 LastStatusMessage = "Có bản cập nhật bắt buộc: V" + update.Version;
+                ReportVersionStatusSafe(update.Version, true, LastStatusMessage);
                 SaveStartupResult(false, update);
                 Log("Mandatory update available. Current=" + GetCurrentVersion() +
                     ", Latest=" + update.Version + ".");
@@ -621,12 +626,31 @@ namespace SX3_SCANER.Helper
         {
             LastCheckSucceeded = false;
             LastStatusMessage = message;
+            ReportVersionStatusSafe(null, false, LastStatusMessage);
             Log("Update check failed: " + exception);
             if (showErrors)
                 ShowError(message);
             return null;
         }
 
+
+        private static void ReportVersionStatusSafe(
+            string latestKnownVersion,
+            bool updateCheckSucceeded,
+            string updateStatus)
+        {
+            try
+            {
+                VersionStatusService.ReportCurrentMachine(
+                    latestKnownVersion,
+                    updateCheckSucceeded,
+                    updateStatus);
+            }
+            catch (Exception ex)
+            {
+                Log("Version status report failed: " + ex.Message);
+            }
+        }
         private static HttpClient CreateHttpClient(TimeSpan timeout)
         {
             var client = new HttpClient { Timeout = timeout };
