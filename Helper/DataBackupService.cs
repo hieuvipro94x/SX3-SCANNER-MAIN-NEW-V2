@@ -5,6 +5,7 @@ using System.Data.SQLite;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 
 namespace SX3_SCANER.Helper
@@ -21,6 +22,8 @@ namespace SX3_SCANER.Helper
     internal static class DataBackupService
     {
         private const string BackupEnabledKey = "BackupEnabled";
+        private const string BackupLocalEnabledKey = "BackupLocalEnabled";
+        private const string BackupServerEnabledKey = "BackupServerEnabled";
         private const string BackupNetworkPathKey = "BackupNetworkPath";
         private const string BackupRetentionDaysKey = "BackupRetentionDays";
         private const string LastDailyBackupDateKey = "LastDailyBackupDate";
@@ -34,6 +37,8 @@ namespace SX3_SCANER.Helper
         internal static void EnsureDefaultSettings()
         {
             AppConfigHelper.EnsureCreate(BackupEnabledKey, "1");
+            AppConfigHelper.EnsureCreate(BackupLocalEnabledKey, "1");
+            AppConfigHelper.EnsureCreate(BackupServerEnabledKey, "0");
             AppConfigHelper.EnsureCreate(BackupNetworkPathKey, string.Empty);
             AppConfigHelper.EnsureCreate(BackupRetentionDaysKey, DefaultRetentionDays.ToString());
             AppConfigHelper.EnsureCreate(LastDailyBackupDateKey, string.Empty);
@@ -51,6 +56,26 @@ namespace SX3_SCANER.Helper
         internal static void SetBackupEnabled(bool enabled)
         {
             AppConfigHelper.Modify(BackupEnabledKey, enabled ? "1" : "0");
+        }
+
+        internal static bool IsLocalBackupEnabled()
+        {
+            return ReadEnabledSetting(BackupLocalEnabledKey, true);
+        }
+
+        internal static void SetLocalBackupEnabled(bool enabled)
+        {
+            AppConfigHelper.Modify(BackupLocalEnabledKey, enabled ? "1" : "0");
+        }
+
+        internal static bool IsServerBackupEnabled()
+        {
+            return ReadEnabledSetting(BackupServerEnabledKey, false);
+        }
+
+        internal static void SetServerBackupEnabled(bool enabled)
+        {
+            AppConfigHelper.Modify(BackupServerEnabledKey, enabled ? "1" : "0");
         }
 
         internal static string GetNetworkBackupPath()
@@ -164,30 +189,62 @@ namespace SX3_SCANER.Helper
                 string safeReason = MakeSafeFileName(string.IsNullOrWhiteSpace(reason) ? "backup" : reason.Trim());
                 string fileName = "SX3_Backup_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + "_" + safeReason + ".zip";
 
-                string localPath = CreateBackupZip(DatabaseRepository.BackupDirectory, fileName);
-                CleanupOldBackups(DatabaseRepository.BackupDirectory, GetRetentionDays());
+                bool localBackupEnabled = IsLocalBackupEnabled();
+                bool serverBackupEnabled = includeNetworkBackup && IsServerBackupEnabled();
+                if (!localBackupEnabled && !serverBackupEnabled)
+                {
+                    string skippedMessage = "Backup skipped because both local and server backup are off.";
+                    AppConfigHelper.Modify(LastBackupAtKey, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                    AppConfigHelper.Modify(LastBackupStatusKey, skippedMessage);
+                    return new BackupOperationResult
+                    {
+                        Success = true,
+                        Message = skippedMessage,
+                        CompletedAt = DateTime.Now
+                    };
+                }
+
+                string localPath = string.Empty;
+                if (localBackupEnabled)
+                {
+                    localPath = CreateBackupZip(DatabaseRepository.BackupDirectory, fileName);
+                    CleanupOldBackups(DatabaseRepository.BackupDirectory, GetRetentionDays());
+                }
 
                 string networkPath = string.Empty;
                 string networkDirectory = GetNetworkBackupPath();
                 string warning = string.Empty;
-                if (includeNetworkBackup && !string.IsNullOrWhiteSpace(networkDirectory))
+                if (serverBackupEnabled && !string.IsNullOrWhiteSpace(networkDirectory))
                 {
-                    try
+                    if (!IsNetworkDirectoryLikelyAvailable(networkDirectory))
                     {
-                        networkPath = CreateBackupZip(networkDirectory, fileName);
-                        CleanupOldBackups(networkDirectory, GetRetentionDays());
+                        warning = " Backup server skipped because network path is not reachable.";
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        warning = " Backup local OK nhưng backup thư mục mạng lỗi: " + ex.Message;
-                        StartupManager.Log("Backup network failed: " + ex);
+                        try
+                        {
+                            networkPath = CreateBackupZip(networkDirectory, fileName);
+                            CleanupOldBackups(networkDirectory, GetRetentionDays());
+                        }
+                        catch (Exception ex)
+                        {
+                            warning = " Backup server failed: " + ex.Message;
+                            StartupManager.Log("Backup network failed: " + ex);
+                        }
                     }
                 }
+                else if (serverBackupEnabled)
+                {
+                    warning = " Backup server is on but server folder is not configured.";
+                }
 
-                string message = "Backup OK: " + localPath;
+                string message = !string.IsNullOrWhiteSpace(localPath)
+                    ? "Backup local OK: " + localPath
+                    : "Backup local is off.";
                 if (!string.IsNullOrWhiteSpace(networkPath))
                 {
-                    message += " | Network: " + networkPath;
+                    message += " | Server OK: " + networkPath;
                 }
                 message += warning;
 
@@ -646,6 +703,45 @@ namespace SX3_SCANER.Helper
             }
 
             return safe.Replace(' ', '_');
+        }
+
+        private static bool IsNetworkDirectoryLikelyAvailable(string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory) || !directory.StartsWith("\\\\"))
+                return true;
+
+            string trimmed = directory.Trim().TrimStart('\\');
+            int slashIndex = trimmed.IndexOf('\\');
+            string host = slashIndex >= 0 ? trimmed.Substring(0, slashIndex) : trimmed;
+            if (string.IsNullOrWhiteSpace(host))
+                return false;
+
+            try
+            {
+                using (var ping = new Ping())
+                {
+                    PingReply reply = ping.Send(host, 800);
+                    return reply != null && reply.Status == IPStatus.Success;
+                }
+            }
+            catch (Exception ex)
+            {
+                StartupManager.Log("Backup server ping failed for " + host + ": " + ex.Message);
+                return false;
+            }
+        }
+
+        private static bool ReadEnabledSetting(string key, bool defaultValue)
+        {
+            string value = AppConfigHelper.Read(key);
+            if (string.IsNullOrWhiteSpace(value))
+                return defaultValue;
+
+            value = value.Trim();
+            return value == "1" ||
+                value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("on", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void TryDeleteFile(string path)

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$Configuration = "Release",
     [string]$Platform = "x64",
     [string]$Repository = "hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2"
@@ -81,7 +81,7 @@ function Find-Git {
 function Get-ProjectRoot {
     $scriptDir = $PSScriptRoot
 
-    if ((Split-Path -Leaf $scriptDir) -ieq "kịch bản") {
+    if ((Split-Path -Leaf $scriptDir) -ieq "ká»‹ch báº£n") {
         $scriptDir = Split-Path -Parent $scriptDir
     }
 
@@ -440,9 +440,12 @@ Copy-Item -LiteralPath $ReleaseNote.Path -Destination $ReleaseNoteOutputFile -Fo
 
 Write-Step "[4/9] Tao Inno Setup script va dong goi installer..."
 $IconLine = ""
+$IconSourceLine = ""
 $IconPath = Join-Path $ProjectRoot "scan.ico"
 if (Test-Path -LiteralPath $IconPath) {
-    $IconLine = "SetupIconFile=$($IconPath.Replace('"', '""'))"
+    $EscapedIconPath = $IconPath.Replace('"', '""')
+    $IconLine = "SetupIconFile=$EscapedIconPath"
+    $IconSourceLine = "Source: `"$EscapedIconPath`"; DestDir: `"{app}`"; DestName: `"scan.ico`"; Flags: ignoreversion"
 }
 
 $EscapedOutputDir = $OutputDir.Replace('"', '""')
@@ -485,7 +488,7 @@ VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
-VersionInfoCopyright=Copyright © 2026 NAM
+VersionInfoCopyright=Copyright Â© 2026 NAM
 $IconLine
 
 [Languages]
@@ -503,16 +506,19 @@ Name: "{commonappdata}\JBZVN\SX3 Scanner\cache\updates"; Permissions: users-modi
 Type: filesandordirs; Name: "{app}\AnnouncementServer"
 Type: files; Name: "{userstartup}\SX3 SCANER.lnk"
 Type: files; Name: "{commonstartup}\SX3 SCANER.lnk"
+Type: files; Name: "{commondesktop}\SX3 Scanner.lnk"
+Type: files; Name: "{userdesktop}\SX3 Scanner.lnk"
 
 [Files]
 Source: "$EscapedPackageDir\*"; DestDir: "{app}"; Excludes: "database.db,product.db,database.db-wal,database.db-shm,product.db-wal,product.db-shm,database.db-journal,product.db-journal"; Flags: ignoreversion
 Source: "$EscapedPackageDir\x64\*"; DestDir: "{app}\x64"; Flags: ignoreversion recursesubdirs createallsubdirs
+$IconSourceLine
 ; Am thanh OK/NG da nhung vao EXE/DLL, khong copy file Sounds\*.wav roi vao thu muc cai dat.
 
 [Icons]
-Name: "{group}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\scan.ico"; IconIndex: 0
 Name: "{group}\Release note"; Filename: "{app}\release-note.txt"
-Name: "{commondesktop}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{commondesktop}\SX3 Scanner"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\scan.ico"; IconIndex: 0
 
 [Run]
 Filename: "{sys}\schtasks.exe"; Parameters: "/Create /F /TN ""SX3 Scanner"" /TR ""{app}\{#MyAppExeName}"" /SC ONLOGON /RL HIGHEST"; Flags: runhidden waituntilterminated

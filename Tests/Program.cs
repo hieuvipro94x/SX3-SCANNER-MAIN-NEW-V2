@@ -54,6 +54,34 @@ namespace SX3.Scanner.Tests
                 True(!ScanValidationService.TryParseLeadingDate("2606322001", out date));
                 True(!ScanValidationService.TryParseLeadingDate("SERIAL-001", out date));
             });
+            Run("SQDZ DataMatrix date parse", () =>
+            {
+                string partName;
+                string serial;
+                string dateCode;
+                string lotNo;
+                DateTime date;
+                True(ScanValidationService.IsSxdzDataMatrix("BJ250E0000,SQDZQ7S7001"));
+                True(ScanValidationService.TryParseSxdzDataMatrix(
+                    "BJ250E0000,SQDZQ7S7001",
+                    out partName,
+                    out serial,
+                    out dateCode,
+                    out date,
+                    out lotNo));
+                Equal("BJ250E0000", partName);
+                Equal("SQDZQ7S7001", serial);
+                Equal("Q7S", dateCode);
+                Equal(new DateTime(2026, 7, 28), date.Date);
+                Equal("7001", lotNo);
+                True(!ScanValidationService.TryParseSxdzDataMatrix(
+                    "BJ250E0000,SQDZQ7Z7001",
+                    out partName,
+                    out serial,
+                    out dateCode,
+                    out date,
+                    out lotNo));
+            });
             Run("Scan label date allows any selected date", () =>
             {
                 DateTime today = new DateTime(2026, 6, 30);

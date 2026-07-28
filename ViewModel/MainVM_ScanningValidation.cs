@@ -249,11 +249,15 @@ namespace SX3_SCANER.ViewModel
                 return false;
             }
 
-            // QR luôn có dấu phẩy sau PartName. Mã có dấu phẩy nhưng sai cấu
-            // trúc vẫn phải bị xử lý là QR, không được rơi xuống DataMatrix.
-            return ScanValidationService.IsQrCode(input)
-                ? ScanQrCode(input)
-                : ScanDataMatrix(input);
+            if (ScanValidationService.IsSxdzDataMatrix(input))
+                return ScanSxdzDataMatrix(input);
+
+            // QR cũ luôn có dấu phẩy sau PartName. Mã có dấu phẩy nhưng không
+            // đúng dạng SQDZ vẫn xử lý theo nhánh QR để báo lỗi định dạng rõ ràng.
+            if (ScanValidationService.IsQrCode(input))
+                return ScanQrCode(input);
+
+            return ScanDataMatrix(input);
         }
 
         private bool ScanDataMatrix(string input)
@@ -348,6 +352,91 @@ namespace SX3_SCANER.ViewModel
             LotNoExpected = qrLotNo;
             LotNoScanResult = qrLotNo;
             _CurrentScanHistory.LotNo = qrLotNo;
+
+            return true;
+        }
+
+        private bool ScanSxdzDataMatrix(string input)
+        {
+            CodeLengthScanResult = input?.Length ?? 0;
+
+            string scannedPartNo;
+            string scannedSerial;
+            string dateCode;
+            DateTime labelDate;
+            string lotNo;
+            if (!ScanValidationService.TryParseSxdzDataMatrix(
+                input,
+                out scannedPartNo,
+                out scannedSerial,
+                out dateCode,
+                out labelDate,
+                out lotNo))
+            {
+                Length_OK = 0;
+                _ScanMess = "NG - Sai định dạng DataMatrix SQDZ";
+                return false;
+            }
+
+            if (CodeLengthExpected > 0 && input.Length != CodeLengthExpected)
+            {
+                Length_OK = 0;
+                _ScanMess = "NG - Sai độ dài";
+                return false;
+            }
+
+            Length_OK = 1;
+
+            string expectedPartName = ScanValidationService.NormalizeQrProductCode(PNameExpected);
+            string expectedPartNumber = ScanValidationService.NormalizeQrProductCode(SelectedPartNumber);
+            string actualPartNo = ScanValidationService.NormalizeQrProductCode(scannedPartNo);
+            if (string.IsNullOrWhiteSpace(actualPartNo) ||
+                (actualPartNo != expectedPartName && actualPartNo != expectedPartNumber))
+            {
+                PName_OK = 0;
+                PNameScanResult = scannedPartNo;
+                _ScanMess = "NG - Sai mã sản phẩm / PartName";
+                return false;
+            }
+
+            PName_OK = 1;
+            PNameScanResult = scannedPartNo;
+            _CurrentScanHistory.ProductPartName = PNameExpected;
+
+            PrefixScanResut = "SQDZ";
+            Prefix_OK = 1;
+
+            if (labelDate.Date != ScanLabelDate.Date)
+            {
+                SealNo_OK = 0;
+                SealnoScanResult = dateCode;
+                _CurrentScanHistory.SealNo = dateCode;
+                _ScanMess = "NG - Ngày trên tem không khớp NGÀY TEM đang chọn";
+                return false;
+            }
+
+            SealNo_OK = 1;
+            SealnoScanResult = labelDate.ToString("yyMMdd");
+            _CurrentScanHistory.SealNo = SealnoScanResult;
+
+            LotNo_OK = 1;
+            LotNoExpected = lotNo;
+            LotNoScanResult = lotNo;
+            _CurrentScanHistory.LotNo = lotNo;
+
+            if (!string.IsNullOrWhiteSpace(SuffixExpected) &&
+                !scannedSerial.EndsWith(SuffixExpected, StringComparison.OrdinalIgnoreCase))
+            {
+                Suffix_OK = 0;
+                SuffixScanResult = scannedSerial;
+                _ScanMess = "NG - Sai cuối mã / Suffix";
+                return false;
+            }
+
+            Suffix_OK = 1;
+            SuffixScanResult = string.IsNullOrWhiteSpace(SuffixExpected)
+                ? lotNo
+                : SuffixExpected;
 
             return true;
         }
@@ -548,6 +637,18 @@ namespace SX3_SCANER.ViewModel
 
             string qrPartNo;
             string qrSerial;
+            string sxdzDateCode;
+            DateTime sxdzDate;
+            string sxdzLotNo;
+            if (ScanValidationService.TryParseSxdzDataMatrix(
+                input,
+                out qrPartNo,
+                out qrSerial,
+                out sxdzDateCode,
+                out sxdzDate,
+                out sxdzLotNo))
+                return sxdzLotNo;
+
             if (ScanValidationService.TryParseQrCode(
                 input,
                 out qrPartNo,

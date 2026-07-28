@@ -11,6 +11,40 @@ namespace SX3_SCANER.ViewModel
 {
     internal partial class MainViewModel : ViewModelBase
     {
+        private const string CodeFormatOldDataMatrix = "DataMatrix cũ";
+        private const string CodeFormatQr = "QR";
+        private const string CodeFormatSxdzDataMatrix = "DataMatrix SQDZ";
+
+        public string[] ProductCodeFormatOptions
+        {
+            get
+            {
+                return new[]
+                {
+                    CodeFormatOldDataMatrix,
+                    CodeFormatQr,
+                    CodeFormatSxdzDataMatrix
+                };
+            }
+        }
+
+        private string _CURR_CODE_FORMAT = CodeFormatOldDataMatrix;
+
+        public string CURR_CODE_FORMAT
+        {
+            get { return _CURR_CODE_FORMAT; }
+            set
+            {
+                string next = string.IsNullOrWhiteSpace(value)
+                    ? CodeFormatOldDataMatrix
+                    : value.Trim();
+                if (_CURR_CODE_FORMAT == next) return;
+                _CURR_CODE_FORMAT = next;
+                OnPropertyChanged();
+                UpdateStringSample();
+            }
+        }
+
         private int _CURR_ID;
 
         public int CURR_ID
@@ -69,17 +103,19 @@ namespace SX3_SCANER.ViewModel
 
         private void UpdateStringSample()
         {
-            if (string.Equals(
-                (CURR_CAR ?? string.Empty).Trim(),
-                "HE EV",
-                System.StringComparison.OrdinalIgnoreCase))
+            if (CURR_CODE_FORMAT == CodeFormatSxdzDataMatrix)
+            {
+                CURR_SAMPLE = $"{CURR_PARTNAME ?? string.Empty},SQDZQ7S####";
+                return;
+            }
+
+            if (CURR_CODE_FORMAT == CodeFormatQr)
             {
                 CURR_SAMPLE = $"{CURR_PARTNAME ?? string.Empty},yyMMdd####";
                 return;
             }
 
             CURR_SAMPLE = $"{CURR_PREFIX ?? string.Empty}{CURR_PARTNAME ?? string.Empty}yyMMdd2###{CURR_SUFFIX ?? string.Empty}";
-
         }
         private int _CURR_LENGTH;
 
@@ -158,6 +194,7 @@ namespace SX3_SCANER.ViewModel
                         CURR_PARTNAME = string.Empty;
                         CURR_PREFIX = string.Empty;
                         CURR_SUFFIX = string.Empty;
+                        CURR_CODE_FORMAT = CodeFormatOldDataMatrix;
                         CURR_SAMPLE = string.Empty;
                         CURR_LENGTH = 0;
 
@@ -432,9 +469,22 @@ namespace SX3_SCANER.ViewModel
                 CURR_PREFIX = _SelectedProductInfoToModify.CodePrefix;
                 CURR_SUFFIX = _SelectedProductInfoToModify.CodeSuffix;
                 CURR_SAMPLE = _SelectedProductInfoToModify.CodeStringForm;
+                CURR_CODE_FORMAT = DetectCodeFormat(CURR_SAMPLE);
                 CURR_LENGTH = _SelectedProductInfoToModify.CodeLength;
                 CURR_QTY = _SelectedProductInfoToModify.BoxQuantity;
             }
+        }
+
+        private static string DetectCodeFormat(string sample)
+        {
+            string value = sample ?? string.Empty;
+            if (value.IndexOf(",SQDZ", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return CodeFormatSxdzDataMatrix;
+
+            if (value.Contains(","))
+                return CodeFormatQr;
+
+            return CodeFormatOldDataMatrix;
         }
     }
 }

@@ -20,6 +20,9 @@
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>scan.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -37,6 +40,9 @@
       <Project>{B050395A-4B9E-4630-AC11-ECC623F4C51F}</Project>
       <Name>SX3 SCANER</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="scan.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="CopySQLiteInteropDll" AfterTargets="Build">

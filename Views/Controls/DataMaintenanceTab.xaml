@@ -441,10 +441,31 @@
                             </Grid>
                         </Border>
 
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0"
+                                      IsChecked="{Binding BackupLocalEnabled}"
+                                      Content="Lưu backup local"
+                                      FontSize="13"
+                                      FontWeight="Bold"
+                                      Foreground="#0F172A"/>
+                            <CheckBox Grid.Column="2"
+                                      IsChecked="{Binding BackupServerEnabled}"
+                                      Content="Lưu backup server/NAS"
+                                      FontSize="13"
+                                      FontWeight="Bold"
+                                      Foreground="#0F172A"/>
+                        </Grid>
+
                         <TextBlock Margin="0,18,0,0"
                                    Text="Thư mục mạng / server / NAS"
                                    Style="{StaticResource FieldLabelStyleLocal}"/>
                         <TextBox Text="{Binding BackupNetworkDirectoryText, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding BackupServerEnabled}"
                                  Style="{StaticResource ModernTextBoxStyle}"
                                  ToolTip="Ví dụ: \\192.168.1.100\SX3Backup"/>
                         <TextBlock Margin="2,6,0,0"

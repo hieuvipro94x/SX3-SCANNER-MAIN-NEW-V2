@@ -374,6 +374,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="ID" Style="{StaticResource ConfigFieldLabelStyle}" />
@@ -413,14 +414,32 @@
                                  Style="{StaticResource ConfigTextBoxStyle}"
                                  d:Text="XYZ" />
 
-                        <TextBlock Grid.Row="6"
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="FORMAT" Style="{StaticResource ConfigFieldLabelStyle}" />
+                        <ComboBox Grid.Row="6" Grid.Column="1"
+                                  ItemsSource="{Binding ProductCodeFormatOptions}"
+                                  SelectedItem="{Binding CURR_CODE_FORMAT, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Height="40"
+                                  MinHeight="40"
+                                  Margin="0,4"
+                                  Padding="10,0"
+                                  FontSize="13.5"
+                                  FontWeight="SemiBold"
+                                  Foreground="{StaticResource ConfigTextMainBrush}"
+                                  Background="#F8FAFC"
+                                  BorderBrush="{StaticResource ConfigMutedBorderBrush}"
+                                  BorderThickness="1"
+                                  VerticalContentAlignment="Center" />
+
+                        <TextBlock Grid.Row="7"
                                    Grid.Column="0"
                                    Text="SAMPLE"
                                    Style="{StaticResource ConfigFieldLabelStyle}"
                                    VerticalAlignment="Top"
                                    Margin="0,14,10,0" />
-                        <TextBox Grid.Row="6" Grid.Column="1"
+                        <TextBox Grid.Row="7" Grid.Column="1"
                                  Text="{Binding CURR_SAMPLE}"
+                                 IsReadOnly="True"
+                                 IsTabStop="False"
                                  Style="{StaticResource ConfigTextBoxStyle}"
                                  Height="84"
                                  MinHeight="84"
@@ -431,14 +450,14 @@
                                  Padding="12,10"
                                  d:Text="THISISATEXTBOXTHISISATEXTBOXTHISISATEXTBOX" />
 
-                        <TextBlock Grid.Row="7" Grid.Column="0" Text="LENGTH" Style="{StaticResource ConfigFieldLabelStyle}" />
-                        <TextBox Grid.Row="7" Grid.Column="1"
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="LENGTH" Style="{StaticResource ConfigFieldLabelStyle}" />
+                        <TextBox Grid.Row="8" Grid.Column="1"
                                  Text="{Binding CURR_LENGTH, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ConfigTextBoxStyle}"
                                  d:Text="20" />
 
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="BOX QTY" Style="{StaticResource ConfigFieldLabelStyle}" />
-                        <TextBox Grid.Row="8" Grid.Column="1"
+                        <TextBlock Grid.Row="9" Grid.Column="0" Text="BOX QTY" Style="{StaticResource ConfigFieldLabelStyle}" />
+                        <TextBox Grid.Row="9" Grid.Column="1"
                                  Text="{Binding CURR_QTY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource ConfigTextBoxStyle}"
                                  d:Text="20" />

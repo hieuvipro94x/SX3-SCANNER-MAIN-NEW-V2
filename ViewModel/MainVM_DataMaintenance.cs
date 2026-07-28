@@ -17,6 +17,8 @@ namespace SX3_SCANER.ViewModel
         private DispatcherTimer _dailyBackupTimer;
         private bool _isDailyBackupCheckRunning;
         private bool _backupEnabled = true;
+        private bool _backupLocalEnabled = true;
+        private bool _backupServerEnabled;
         private string _databaseSizeText = "0 MB";
         private string _productDatabaseSizeText = "0 MB";
         private string _databasePathText = string.Empty;
@@ -48,6 +50,18 @@ namespace SX3_SCANER.ViewModel
         {
             get { return _backupEnabled; }
             set { _backupEnabled = value; OnPropertyChanged(); }
+        }
+
+        public bool BackupLocalEnabled
+        {
+            get { return _backupLocalEnabled; }
+            set { _backupLocalEnabled = value; OnPropertyChanged(); }
+        }
+
+        public bool BackupServerEnabled
+        {
+            get { return _backupServerEnabled; }
+            set { _backupServerEnabled = value; OnPropertyChanged(); }
         }
 
         public string DatabaseSizeText
@@ -177,6 +191,8 @@ namespace SX3_SCANER.ViewModel
             {
                 DataBackupService.EnsureDefaultSettings();
                 BackupEnabled = DataBackupService.IsBackupEnabled();
+                BackupLocalEnabled = DataBackupService.IsLocalBackupEnabled();
+                BackupServerEnabled = DataBackupService.IsServerBackupEnabled();
                 DatabasePathText = DatabaseRepository.DatabasePath;
                 BackupLocalDirectoryText = DatabaseRepository.BackupDirectory;
                 BackupNetworkDirectoryText = DataBackupService.GetNetworkBackupPath();
@@ -207,6 +223,8 @@ namespace SX3_SCANER.ViewModel
                 }
 
                 DataBackupService.SetBackupEnabled(BackupEnabled);
+                DataBackupService.SetLocalBackupEnabled(BackupLocalEnabled);
+                DataBackupService.SetServerBackupEnabled(BackupServerEnabled);
                 DataBackupService.SetNetworkBackupPath(BackupNetworkDirectoryText);
                 DataBackupService.SetRetentionDays(retentionDays);
                 RefreshMaintenanceInfo();
@@ -336,6 +354,7 @@ namespace SX3_SCANER.ViewModel
 
             if (_isDailyBackupCheckRunning ||
                 InJob ||
+                HasOpenScanSession ||
                 _isScanBusy ||
                 IsQuerying ||
                 IsMaintenanceBusy ||

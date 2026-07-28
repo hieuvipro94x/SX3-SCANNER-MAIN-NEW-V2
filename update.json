@@ -1,6 +1,6 @@
 {
-    "version":  "10.42.0",
-    "downloadUrl":  "https://github.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/releases/download/v10.42.0/SX3ScannerSetup-10.42.0.exe",
-    "sha256":  "7e5fcf5811df36355c10cd5b0e598f3ea92179659f032c8a2e9bebfc144a8c77",
+    "version":  "10.45.0",
+    "downloadUrl":  "https://github.com/hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2/releases/download/v10.45.0/SX3ScannerSetup-10.45.0.exe",
+    "sha256":  "8f07f7df35a468d506adf633ccd52c73011d5c404455c4529ef1f05509ecfb4d",
     "releaseNotes":  "Sửa cơ chế kiểm tra cập nhật để luôn nhận manifest mới nhất, tránh cache phiên bản cũ từ GitHub.\nTách riêng kiểm tra QR và DataMatrix; sửa tách ngày YYMMDD và LotNo QR sau dấu phẩy."
 }
