@@ -31,6 +31,7 @@ namespace SX3_SCANER.Helper
             "ws://100.72.125.42:5055/ws/announcements";
         private const string DefaultSnapshotUrl =
             "http://100.72.125.42:5055/api/announcements/current";
+        private const string AnnouncementEnabledSetting = "AnnouncementEnabled";
 
         private readonly HttpClient _httpClient;
         private readonly Dispatcher _dispatcher;
@@ -120,6 +121,13 @@ namespace SX3_SCANER.Helper
         public AnnouncementServerStatusInfo CurrentConnectionStatus
         {
             get { return _currentConnectionStatus; }
+        }
+
+        public static bool IsEnabled()
+        {
+            bool enabled;
+            string configured = ConfigurationManager.AppSettings[AnnouncementEnabledSetting];
+            return bool.TryParse(configured, out enabled) && enabled;
         }
 
         public void Start()

@@ -36,7 +36,7 @@ namespace SX3_SCANER.Helper
 
         internal static void EnsureDefaultSettings()
         {
-            AppConfigHelper.EnsureCreate(BackupEnabledKey, "1");
+            AppConfigHelper.EnsureCreate(BackupEnabledKey, "0");
             AppConfigHelper.EnsureCreate(BackupLocalEnabledKey, "1");
             AppConfigHelper.EnsureCreate(BackupServerEnabledKey, "0");
             AppConfigHelper.EnsureCreate(BackupNetworkPathKey, string.Empty);
@@ -48,9 +48,7 @@ namespace SX3_SCANER.Helper
 
         internal static bool IsBackupEnabled()
         {
-            string value = AppConfigHelper.Read(BackupEnabledKey);
-            return value == null || value.Trim() == "" || value.Trim() == "1" ||
-                value.Equals("true", StringComparison.OrdinalIgnoreCase);
+            return ReadEnabledSetting(BackupEnabledKey, false);
         }
 
         internal static void SetBackupEnabled(bool enabled)
@@ -120,6 +118,12 @@ namespace SX3_SCANER.Helper
 
         internal static Task<BackupOperationResult> RunDailyBackupIfDueAsync()
         {
+            EnsureDefaultSettings();
+            if (!IsBackupEnabled())
+            {
+                return Task.FromResult(CreateAutoBackupDisabledResult());
+            }
+
             return Task.Run(() => RunDailyBackupIfDue());
         }
 
@@ -161,6 +165,16 @@ namespace SX3_SCANER.Helper
         internal static Task<BackupOperationResult> CreateManualBackupAsync()
         {
             return Task.Run(() => CreateBackup("manual", true));
+        }
+
+        private static BackupOperationResult CreateAutoBackupDisabledResult()
+        {
+            return new BackupOperationResult
+            {
+                Success = true,
+                Message = "Backup tu dong dang tat.",
+                CompletedAt = DateTime.Now
+            };
         }
 
         internal static BackupOperationResult CreateBackup(string reason, bool includeNetworkBackup)

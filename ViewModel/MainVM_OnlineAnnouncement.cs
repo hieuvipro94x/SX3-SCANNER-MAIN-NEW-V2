@@ -237,6 +237,12 @@ namespace SX3_SCANER.ViewModel
 
         private void InitializeOnlineAnnouncement()
         {
+            if (!OnlineAnnouncementService.IsEnabled())
+            {
+                StartupManager.Log("[Announcement] Disabled by configuration.");
+                return;
+            }
+
             _onlineAnnouncementAutoHideTimer.Tick +=
                 OnlineAnnouncementAutoHideTimer_Tick;
             _onlineAnnouncementRotateTimer.Tick +=

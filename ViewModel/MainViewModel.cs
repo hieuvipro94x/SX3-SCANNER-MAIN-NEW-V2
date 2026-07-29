@@ -284,17 +284,20 @@ namespace SX3_SCANER.ViewModel
 
         private void ReportClientVersionStatusOnStartup()
         {
-            try
+            _ = Task.Run(() =>
             {
-                VersionStatusService.ReportCurrentMachine(
-                    null,
-                    true,
-                    "App started");
-            }
-            catch (Exception ex)
-            {
-                StartupManager.Log("Khong ghi duoc trang thai version client: " + ex.Message);
-            }
+                try
+                {
+                    VersionStatusService.ReportCurrentMachine(
+                        null,
+                        true,
+                        "App started");
+                }
+                catch (Exception ex)
+                {
+                    StartupManager.Log("Khong ghi duoc trang thai version client: " + ex.Message);
+                }
+            });
         }
         public MainViewModel()
         {

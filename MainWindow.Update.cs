@@ -18,6 +18,9 @@ namespace SX3_SCANER
     {
         private async Task EnsureMandatoryUpdateBeforeRunAsync()
         {
+            if (!UpdateService.IsMandatoryUpdateCheckEnabled())
+                return;
+
             if (_mandatoryUpdateWorkflowStarted)
                 return;
 

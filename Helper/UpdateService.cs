@@ -25,12 +25,16 @@ namespace SX3_SCANER.Helper
         private const string InstallerFileName = "SX3ScannerSetup.exe";
         private const string UserAgent = "SX3Scanner-Updater";
         private const string EnabledSetting = "UpdateCheckOnStartup";
+        private const string MandatoryEnabledSetting = "MandatoryUpdateCheckEnabled";
+        private const string PollingEnabledSetting = "UpdatePollingEnabled";
         private const string ManifestUrlSetting = "UpdateManifestUrl";
+        private const string RequestTimeoutSecondsSetting = "UpdateRequestTimeoutSeconds";
+        private const string VerifyGitHubReleaseAssetSetting = "UpdateVerifyGitHubReleaseAsset";
         private const string GitHubHost = "github.com";
         private const string GitHubApiHost = "api.github.com";
         private const string GitHubOwner = "hieuvipro94x";
         private const string GitHubRepository = "SX3-SCANNER-MAIN-NEW-V2";
-        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
         private static readonly object StartupCheckLock = new object();
         private static readonly object LogLock = new object();
@@ -343,6 +347,21 @@ namespace SX3_SCANER.Helper
             return latest.CompareTo(current) > 0;
         }
 
+        internal static bool IsMandatoryUpdateCheckEnabled()
+        {
+            return ReadBooleanAppSetting(MandatoryEnabledSetting, false);
+        }
+
+        internal static bool IsUpdatePollingEnabled()
+        {
+            return ReadBooleanAppSetting(PollingEnabledSetting, false);
+        }
+
+        internal static bool IsStartupUpdateCheckEnabled()
+        {
+            return IsStartupCheckEnabled();
+        }
+
         private async Task<UpdateInfo> GetLatestReleaseAsync()
         {
             string manifestUrl = GetUpdateManifestUrl();
@@ -351,7 +370,7 @@ namespace SX3_SCANER.Helper
                 manifestUrl,
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
-            using (var client = CreateHttpClient(RequestTimeout))
+            using (var client = CreateHttpClient(GetRequestTimeout()))
             using (HttpResponseMessage response =
                 await client.GetAsync(manifestRequestUrl))
             {
@@ -367,7 +386,8 @@ namespace SX3_SCANER.Helper
                 OnlineUpdateManifest manifest =
                     JsonConvert.DeserializeObject<OnlineUpdateManifest>(json);
                 UpdateInfo update = BuildUpdateInfo(manifest);
-                if (update.IsUpdateAvailable &&
+                if (IsGitHubReleaseAssetVerificationEnabled() &&
+                    update.IsUpdateAvailable &&
                     !await IsPublishedGitHubReleaseAssetAsync(update, client))
                 {
                     Log("Update ignored because GitHub release is not published or asset is not public. Version=" +
@@ -700,9 +720,31 @@ namespace SX3_SCANER.Helper
 
         private static bool IsStartupCheckEnabled()
         {
+            return ReadBooleanAppSetting(EnabledSetting, false);
+        }
+
+        private static bool ReadBooleanAppSetting(string key, bool defaultValue)
+        {
             bool enabled;
-            string configured = ConfigurationManager.AppSettings[EnabledSetting];
-            return !bool.TryParse(configured, out enabled) || enabled;
+            string configured = ConfigurationManager.AppSettings[key];
+            return bool.TryParse(configured, out enabled) ? enabled : defaultValue;
+        }
+
+        private static bool IsGitHubReleaseAssetVerificationEnabled()
+        {
+            return ReadBooleanAppSetting(VerifyGitHubReleaseAssetSetting, false);
+        }
+
+        private static TimeSpan GetRequestTimeout()
+        {
+            int seconds;
+            string configured = ConfigurationManager.AppSettings[RequestTimeoutSecondsSetting];
+            if (!int.TryParse(configured, out seconds))
+                return DefaultRequestTimeout;
+
+            if (seconds < 2) seconds = 2;
+            if (seconds > 30) seconds = 30;
+            return TimeSpan.FromSeconds(seconds);
         }
 
         private static string GetUpdateManifestUrl()

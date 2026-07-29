@@ -43,7 +43,7 @@ namespace SX3_SCANER.Helper
 
         internal static void EnsureDefaultSettings()
         {
-            AppConfigHelper.EnsureCreate(VersionStatusEnabledKey, "1");
+            AppConfigHelper.EnsureCreate(VersionStatusEnabledKey, "0");
             AppConfigHelper.EnsureCreate(
                 VersionStatusDirectoryKey,
                 DefaultVersionStatusDirectory);
@@ -53,8 +53,9 @@ namespace SX3_SCANER.Helper
         internal static bool IsEnabled()
         {
             string value = AppConfigHelper.Read(VersionStatusEnabledKey);
-            return value == null || value.Trim() == string.Empty || value.Trim() == "1" ||
-                value.Equals("true", StringComparison.OrdinalIgnoreCase);
+            return value != null &&
+                (value.Trim() == "1" ||
+                 value.Equals("true", StringComparison.OrdinalIgnoreCase));
         }
 
         internal static void SetEnabled(bool enabled)

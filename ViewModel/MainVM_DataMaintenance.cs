@@ -16,7 +16,7 @@ namespace SX3_SCANER.ViewModel
         private bool _isMaintenanceBusy;
         private DispatcherTimer _dailyBackupTimer;
         private bool _isDailyBackupCheckRunning;
-        private bool _backupEnabled = true;
+        private bool _backupEnabled;
         private bool _backupLocalEnabled = true;
         private bool _backupServerEnabled;
         private string _databaseSizeText = "0 MB";
@@ -227,6 +227,16 @@ namespace SX3_SCANER.ViewModel
                 DataBackupService.SetServerBackupEnabled(BackupServerEnabled);
                 DataBackupService.SetNetworkBackupPath(BackupNetworkDirectoryText);
                 DataBackupService.SetRetentionDays(retentionDays);
+
+                if (BackupEnabled)
+                {
+                    ScheduleDailyBackupCheck();
+                }
+                else
+                {
+                    StopDailyBackupScheduler();
+                }
+
                 RefreshMaintenanceInfo();
                 MaintenanceStatus = "Đã lưu cấu hình backup.";
             }
@@ -335,6 +345,12 @@ namespace SX3_SCANER.ViewModel
 
         private void ScheduleDailyBackupCheck()
         {
+            if (!DataBackupService.IsBackupEnabled())
+            {
+                StopDailyBackupScheduler();
+                return;
+            }
+
             if (_dailyBackupTimer != null)
                 return;
 
@@ -349,6 +365,12 @@ namespace SX3_SCANER.ViewModel
 
         private async void DailyBackupTimer_Tick(object sender, EventArgs e)
         {
+            if (!DataBackupService.IsBackupEnabled())
+            {
+                StopDailyBackupScheduler();
+                return;
+            }
+
             if (_dailyBackupTimer != null)
                 _dailyBackupTimer.Interval = TimeSpan.FromMinutes(15);
 

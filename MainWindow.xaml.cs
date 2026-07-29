@@ -185,10 +185,15 @@ namespace SX3_SCANER
             }
 
 #if !DEBUG
-            await EnsureMandatoryUpdateBeforeRunAsync();
+            if (UpdateService.IsMandatoryUpdateCheckEnabled())
+            {
+                await EnsureMandatoryUpdateBeforeRunAsync();
+            }
 #else
             await Task.CompletedTask;
 #endif
+
+            StartStartupUpdateCheck();
 
             if (Application.Current != null &&
                 !Application.Current.Dispatcher.HasShutdownStarted)
@@ -197,8 +202,42 @@ namespace SX3_SCANER
             }
         }
 
+        private void StartStartupUpdateCheck()
+        {
+            if (!UpdateService.IsStartupUpdateCheckEnabled() ||
+                _isUpdateStatusBusy ||
+                _isBackgroundUpdateCheckRunning)
+            {
+                return;
+            }
+
+            _ = Dispatcher.BeginInvoke(
+                new Action(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(2));
+                        if (Application.Current == null ||
+                            Application.Current.Dispatcher.HasShutdownStarted)
+                        {
+                            return;
+                        }
+
+                        await RefreshUpdateStatusAsync(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        StartupManager.Log("Startup update check failed: " + ex);
+                    }
+                }),
+                DispatcherPriority.Background);
+        }
+
         private void StartUpdatePolling()
         {
+            if (!UpdateService.IsUpdatePollingEnabled())
+                return;
+
             if (updatePollingTimer.IsEnabled)
                 return;
 
