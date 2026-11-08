@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using SX3_SCANER.Helper;
 using SX3_SCANER.Model.Respository;
 using System;
@@ -405,7 +405,7 @@ namespace SX3_SCANER.ViewModel
             }
         }
 
-        private void StopDailyBackupScheduler()
+        internal void StopDailyBackupScheduler()
         {
             if (_dailyBackupTimer == null)
                 return;

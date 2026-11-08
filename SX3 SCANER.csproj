@@ -67,9 +67,6 @@
     <Reference Include="MaterialDesignThemes.Wpf, Version=5.2.1.0, Culture=neutral, PublicKeyToken=df2a72020bd7962a, processorArchitecture=MSIL">
       <HintPath>packages\MaterialDesignThemes.5.2.1\lib\net462\MaterialDesignThemes.Wpf.dll</HintPath>
     </Reference>
-    <Reference Include="Markdig, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\Markdig.1.2.0\lib\net462\Markdig.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.8, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.8\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
@@ -108,7 +105,6 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="System.Net.Http" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Runtime.Serialization" />
@@ -128,14 +124,10 @@
       <DependentUpon>AskPasswordWD.xaml</DependentUpon>
     </Compile>
     <Compile Include="Helper\AppConfigHelper.cs" />
+    <Compile Include="Helper\ApplicationVersion.cs" />
     <Compile Include="Helper\DataBackupService.cs" />
     <Compile Include="Helper\DatabaseMaintenanceCoordinator.cs" />
     <Compile Include="Helper\XlsxExportService.cs" />
-    <Compile Include="Helper\UpdateInfo.cs" />
-    <Compile Include="Helper\UpdateService.cs" />
-    <Compile Include="Helper\VersionStatusService.cs" />
-    <Compile Include="Helper\OnlineAnnouncementService.cs" />
-    <Compile Include="Helper\OnlineAnnouncementService.Parsing.cs" />
     <Compile Include="Helper\ProfessionalMessageBox.cs" />
     <Compile Include="Helper\ScanSoundService.cs" />
     <Compile Include="Helper\ScanValidationService.cs" />
@@ -143,7 +135,6 @@
     <Compile Include="Helper\StartupManager.cs" />
     <Compile Include="Helper\StartupStatusWindow.cs" />
     <Compile Include="Model\BoxProduct.cs" />
-    <Compile Include="Model\AnnouncementInfo.cs" />
     <Compile Include="Model\HistoryDataRow.cs" />
     <Compile Include="Model\DatabaseInitialize.cs" />
     <Compile Include="Model\LabelProductInfo.cs" />
@@ -157,9 +148,6 @@
     <Compile Include="Model\Respository\ScanSessionService.cs" />
     <Compile Include="Model\ScanHistory.cs" />
     <Compile Include="Model\ScanSessionState.cs" />
-    <Compile Include="UpdateReleaseNotesWindow.xaml.cs">
-      <DependentUpon>UpdateReleaseNotesWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\StartupScanSessionWindow.xaml.cs">
       <DependentUpon>StartupScanSessionWindow.xaml</DependentUpon>
     </Compile>
@@ -174,7 +162,6 @@
     <Compile Include="ViewModel\MainVM_SessionPersistence.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_PASS.cs" />
     <Compile Include="ViewModel\MainVM_SCANING_Init.cs" />
-    <Compile Include="ViewModel\MainVM_OnlineAnnouncement.cs" />
     <Compile Include="ViewModel\MainVM_UISession.cs" />
     <Compile Include="ViewModel\TodayBoxVM\TodayBoxViewModel.cs" />
     <Compile Include="ViewModel\ViewModelBase.cs" />
@@ -242,7 +229,6 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="MainWindow.Update.cs" />
     <Compile Include="Views\Controls\ScanTabView.xaml.cs">
       <DependentUpon>ScanTabView.xaml</DependentUpon>
     </Compile>
@@ -264,10 +250,6 @@
     <Compile Include="Views\Controls\ScanRightPanel.xaml.cs">
       <DependentUpon>ScanRightPanel.xaml</DependentUpon>
     </Compile>
-    <Page Include="UpdateReleaseNotesWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="View\ConfirmDeleteBoxWD.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

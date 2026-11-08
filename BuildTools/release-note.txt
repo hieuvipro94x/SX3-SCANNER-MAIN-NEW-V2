@@ -1,2 +1,3 @@
-Sửa cơ chế kiểm tra cập nhật để luôn nhận manifest mới nhất, tránh cache phiên bản cũ từ GitHub.
-Tách riêng kiểm tra QR và DataMatrix; sửa tách ngày YYMMDD và LotNo QR sau dấu phẩy.
+﻿Gỡ toàn bộ nhận thông báo online, cập nhật phần mềm và gửi trạng thái version qua server.
+Giữ hiển thị phiên bản ứng dụng và quy trình cài đặt thủ công.
+Rà soát giao diện cho màn hình 1980 × 1080; sửa tiến độ 0%, bỏ animation tiến độ liên tục, dọn trạng thái server và thêm hướng dẫn khi bảng mã hàng rỗng.

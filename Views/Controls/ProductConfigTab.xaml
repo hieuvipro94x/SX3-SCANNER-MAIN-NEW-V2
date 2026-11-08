@@ -292,7 +292,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="450" MinWidth="410" MaxWidth="490" />
             <ColumnDefinition Width="16" />
-            <ColumnDefinition Width="*" MinWidth="650" />
+            <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>
 
         <!-- ===================== LEFT: PRODUCT FORM ===================== -->
@@ -328,7 +328,7 @@
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                         <TextBlock Text="THÔNG TIN MÃ HÀNG"
                                    Style="{StaticResource ConfigPageTitleStyle}" />
-                        <TextBlock Text="Cấu hình định dạng mã QR, độ dài và số lượng đóng thùng."
+                        <TextBlock Text="Cấu hình QR / DataMatrix, độ dài và số lượng đóng thùng."
                                    Style="{StaticResource ConfigSubTitleStyle}"
                                    Margin="0,3,0,0" />
                     </StackPanel>
@@ -774,6 +774,24 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsHitTestVisible="False" Margin="16,48,16,16">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LabelProductInfoView.IsEmpty}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="Chưa có mã hàng phù hợp" TextAlignment="Center"
+                                   FontSize="15" FontWeight="SemiBold" Foreground="#475569"/>
+                        <TextBlock Text="Thử đổi từ khóa hoặc thêm cấu hình mã hàng."
+                                   TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Foreground="#64748B"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

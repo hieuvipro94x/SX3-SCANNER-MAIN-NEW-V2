@@ -1,4 +1,4 @@
-﻿using SX3_SCANER.Helper;
+using SX3_SCANER.Helper;
 using System;
 using System.IO;
 using System.Reflection;
@@ -82,6 +82,7 @@ namespace SX3_SCANER
                 startupWindow.Close();
                 startupWindow = null;
                 mainWindow.Show();
+                StartupManager.SetStatus(mainViewModel.InJob ? "Đang quét" : "Sẵn sàng");
                 ShutdownMode = ShutdownMode.OnMainWindowClose;
             }
             catch (Exception ex)

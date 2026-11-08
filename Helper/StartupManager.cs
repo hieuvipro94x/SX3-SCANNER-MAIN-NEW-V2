@@ -1,4 +1,3 @@
-﻿using SX3_SCANER.Model;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,8 +19,6 @@ namespace SX3_SCANER.Helper
 
         internal static event Action<string> StatusChanged;
 
-        public static event Action<AnnouncementServerStatusInfo>
-            AnnouncementServerStatusChanged;
 
         internal static string ErrorLogPath
         {
@@ -42,11 +39,6 @@ namespace SX3_SCANER.Helper
             }
         }
 
-        public static AnnouncementServerStatusInfo CurrentAnnouncementServerStatus
-        {
-            get;
-            private set;
-        } = AnnouncementServerStatusInfo.Unknown();
 
         internal static void SetStatus(string message)
         {
@@ -63,16 +55,6 @@ namespace SX3_SCANER.Helper
 
             Debug.WriteLine("[StartupStatus] " + _currentStatus);
             handler?.Invoke(_currentStatus);
-        }
-
-        public static void SetAnnouncementServerStatus(
-            AnnouncementServerStatusInfo status)
-        {
-            if (status == null)
-                return;
-
-            CurrentAnnouncementServerStatus = status;
-            AnnouncementServerStatusChanged?.Invoke(status);
         }
 
         internal static bool HasArgument(string[] args, string argument)

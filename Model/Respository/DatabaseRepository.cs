@@ -54,10 +54,6 @@ namespace SX3_SCANER.Model.Respository
             get { return Path.Combine(ApplicationDataDirectory, "config", "runtime-settings.json"); }
         }
 
-        public static string UpdateCacheDirectory
-        {
-            get { return Path.Combine(ApplicationDataDirectory, "cache", "updates"); }
-        }
 
         public static string ConnectionString
         {

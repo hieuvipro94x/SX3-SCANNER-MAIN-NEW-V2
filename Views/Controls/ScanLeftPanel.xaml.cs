@@ -20,7 +20,7 @@ namespace SX3_SCANER.Views.Controls
         {
             InitializeComponent();
 
-            _applicationVersion = UpdateService.GetCurrentVersionString();
+            _applicationVersion = ApplicationVersion.Current;
 
             _clockTimer = new DispatcherTimer(DispatcherPriority.Background)
             {

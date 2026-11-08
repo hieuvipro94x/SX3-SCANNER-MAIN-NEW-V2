@@ -19,6 +19,7 @@
                 <Setter Property="TextAlignment" Value="Center"/>
                 <Setter Property="TextWrapping" Value="NoWrap"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
             </Style>
 
             <Style x:Key="TodayViewLeftTextStyle" TargetType="TextBlock">
@@ -27,6 +28,7 @@
                 <Setter Property="TextAlignment" Value="Left"/>
                 <Setter Property="TextWrapping" Value="NoWrap"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}"/>
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -55,10 +57,10 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Border Width="34" Height="34" CornerRadius="11" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1">
-                        <TextBlock Text="QR" FontSize="12" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="MÃ" FontSize="12" FontWeight="Black" Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                        <TextBlock Text="MÃ QR YÊU CẦU" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="MÃ TEM YÊU CẦU" Style="{StaticResource SectionTitleStyle}"/>
                         <TextBlock Text="Dùng để so sánh với tem đang scan." Style="{StaticResource SectionSubTitleStyle}"/>
                     </StackPanel>
                 </Grid>
@@ -346,7 +348,7 @@
                           Background="White"
                           RowBackground="White"
                           AlternatingRowBackground="#F8FAFC"
-                          HorizontalScrollBarVisibility="Disabled"
+                          HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Auto"
                           EnableRowVirtualization="True"
                           EnableColumnVirtualization="True"
@@ -373,12 +375,12 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="STT"
                                             Binding="{Binding RowIndex}"
-                                            Width="52"
+                                            Width="52" MinWidth="52"
                                             ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
-                        <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding ScanTime, StringFormat=HH:mm:ss}" Width="95" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding ScanTime, StringFormat=HH:mm:ss}" Width="95" MinWidth="95" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
                         <DataGridTextColumn Header="MÃ SCAN" Binding="{Binding ScanData}" Width="*" MinWidth="220" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
-                        <DataGridTextColumn Header="KQ" Binding="{Binding ResultText}" Width="70" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
-                        <DataGridTextColumn Header="THÔNG BÁO" Binding="{Binding ScanMessage}" Width="210" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
+                        <DataGridTextColumn Header="KQ" Binding="{Binding ResultText}" Width="70" MinWidth="70" ElementStyle="{StaticResource TodayViewCenterTextStyle}"/>
+                        <DataGridTextColumn Header="THÔNG BÁO" Binding="{Binding ScanMessage}" Width="210" MinWidth="210" ElementStyle="{StaticResource TodayViewLeftTextStyle}"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>

@@ -245,7 +245,6 @@ namespace SX3_SCANER.ViewModel
                 IsApplicationInitializing = false;
                 StartupDatabaseStatusText = "Database sẵn sàng.";
 
-                ReportClientVersionStatusOnStartup();
 
                 StartDefaultScanSessionOnLaunch();
             }
@@ -282,23 +281,6 @@ namespace SX3_SCANER.ViewModel
         }
 
 
-        private void ReportClientVersionStatusOnStartup()
-        {
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    VersionStatusService.ReportCurrentMachine(
-                        null,
-                        true,
-                        "App started");
-                }
-                catch (Exception ex)
-                {
-                    StartupManager.Log("Khong ghi duoc trang thai version client: " + ex.Message);
-                }
-            });
-        }
         public MainViewModel()
         {
             DatabaseMaintenanceCoordinator.MaintenanceRequested +=
@@ -308,7 +290,6 @@ namespace SX3_SCANER.ViewModel
                 _ => OpenExportFolder());
             EnsureCreateAppConfig();
             InitializeScaningPropeties();
-            InitializeOnlineAnnouncement();
             InitializeMaintenanceProperties();
         }
     }

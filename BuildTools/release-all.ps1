@@ -1,7 +1,10 @@
 ﻿param(
-    [string]$Configuration = "Release",
-    [string]$Platform = "x64",
-    [string]$Repository = "hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2"
+    [ValidateSet("Release")][string]$Configuration = "Release",
+    [ValidateSet("x64")][string]$Platform = "x64",
+    [string]$Repository = "hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2",
+    [Alias("Version")][string]$ReleaseVersion,
+    [switch]$BuildOnly,
+    [switch]$Draft
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +19,16 @@ function Assert-LastExitCode($StepName) {
     if ($LASTEXITCODE -ne 0) {
         Fail "$StepName FAILED. ExitCode=$LASTEXITCODE"
     }
+}
+
+function Remove-ProjectBuildDirectory($Directory) {
+    if (-not (Test-Path -LiteralPath $Directory)) { return }
+    $resolvedTarget = [IO.Path]::GetFullPath($Directory)
+    $allowedRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\') + '\'
+    if (-not $resolvedTarget.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        Fail "Tu choi xoa thu muc ngoai project: $resolvedTarget"
+    }
+    Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
 }
 
 function Find-InnoSetup {
@@ -102,15 +115,12 @@ function Get-GitRoot($ProjectRoot, $GitExe) {
 }
 
 function Read-VersionFromAssemblyInfo($ProjectRoot) {
-    $assemblyInfo = Get-ChildItem -Path $ProjectRoot -Recurse -File -Filter "AssemblyInfo.cs" |
-        Where-Object { $_.FullName -notmatch "\\bin\\|\\obj\\|\\InstallerOutput\\|\\ReleasePackages\\|\\ReleaseOutput\\" } |
-        Select-Object -First 1
-
-    if (-not $assemblyInfo) {
-        Fail "Khong tim thay Properties\AssemblyInfo.cs de doc version."
+    $assemblyInfo = Join-Path $ProjectRoot "Properties\AssemblyInfo.cs"
+    if (-not (Test-Path -LiteralPath $assemblyInfo)) {
+        Fail "Khong tim thay Properties\AssemblyInfo.cs."
     }
 
-    $text = Get-Content -LiteralPath $assemblyInfo.FullName -Raw -Encoding UTF8
+    $text = Get-Content -LiteralPath $assemblyInfo -Raw -Encoding UTF8
 
     $patterns = @(
         'AssemblyInformationalVersion\("([^"+]+)(?:\+[^"+]+)?"\)',
@@ -192,7 +202,15 @@ function Test-RemoteTagExists($GitExe, $GitRoot, $Tag) {
 }
 
 function New-ReleaseManifest($InstallerFile, $ManifestFile, $Version, $Repository) {
-    $sha256 = (Get-FileHash -LiteralPath $InstallerFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    $hashAlgorithm = [Security.Cryptography.SHA256]::Create()
+    $installerStream = [IO.File]::OpenRead($InstallerFile)
+    try {
+        $sha256 = ([BitConverter]::ToString($hashAlgorithm.ComputeHash($installerStream))).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $installerStream.Dispose()
+        $hashAlgorithm.Dispose()
+    }
     $installerName = Split-Path -Leaf $InstallerFile
 
     $manifest = @"
@@ -208,35 +226,7 @@ Build time: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
     return $sha256
 }
 
-function New-OnlineUpdateManifest(
-    $UpdateManifestFile,
-    $Version,
-    $Repository,
-    $InstallerFile,
-    $Sha256,
-    $ReleaseNotes
-) {
-    $installerName = Split-Path -Leaf $InstallerFile
-    $downloadUrl = "https://github.com/$Repository/releases/download/v$Version/$installerName"
-
-    $manifest = [ordered]@{
-        version = $Version
-        downloadUrl = $downloadUrl
-        sha256 = $Sha256
-        releaseNotes = $ReleaseNotes
-    }
-
-    $json = $manifest | ConvertTo-Json -Depth 4
-    [IO.File]::WriteAllText(
-        $UpdateManifestFile,
-        $json + [Environment]::NewLine,
-        [Text.UTF8Encoding]::new($false))
-
-    Ok "Da tao online update manifest: $UpdateManifestFile"
-    Info "Update download URL: $downloadUrl"
-}
-
-function Publish-GitHubDraftRelease(
+function Publish-GitHubRelease(
     $GitRoot,
     $GitExe,
     $GitHubCLI,
@@ -244,8 +234,7 @@ function Publish-GitHubDraftRelease(
     $Version,
     $InstallerFile,
     $ReleaseNoteFile,
-    $ManifestFile,
-    $UpdateManifestFile
+    $ManifestFile
 ) {
     $tag = "v$Version"
     $title = "SX3 Scanner $Version"
@@ -287,7 +276,7 @@ function Publish-GitHubDraftRelease(
     }
 
     Write-Step "[7/9] Push source code..."
-    & $GitExe -C $GitRoot push
+    & $GitExe -C $GitRoot push origin "HEAD:refs/heads/$ReleaseBranch"
     Assert-LastExitCode "git push"
 
     Write-Step "[8/9] Tao tag moi $tag..."
@@ -297,17 +286,16 @@ function Publish-GitHubDraftRelease(
     & $GitExe -C $GitRoot push origin $tag
     Assert-LastExitCode "git push origin $tag"
 
-    Write-Step "[9/9] Tao GitHub Draft Release va upload assets..."
-    & $GitHubCLI release create $tag `
-        $InstallerFile `
-        $ReleaseNoteFile `
-        $ManifestFile `
-        $UpdateManifestFile `
-        --repo $Repository `
-        --title $title `
-        --notes-file $ReleaseNoteFile `
-        --draft
-    Assert-LastExitCode "gh release create $tag --draft"
+    Write-Step "[9/9] Tao GitHub Release va upload assets..."
+    $releaseArgs = @(
+        "release", "create", $tag, $InstallerFile, $ReleaseNoteFile, $ManifestFile,
+        "--repo", $Repository, "--title", $title, "--notes-file", $ReleaseNoteFile,
+        "--verify-tag"
+    )
+    if ($Draft) { $releaseArgs += "--draft" }
+    & $GitHubCLI @releaseArgs
+    Assert-LastExitCode "gh release create $tag"
+
 }
 
 $ProjectRoot = Get-ProjectRoot
@@ -318,19 +306,34 @@ $PackageDir = Join-Path $OutputDir "PackageFiles"
 $BinRelease = Join-Path $ProjectRoot "bin\$Platform\$Configuration"
 $ProjectFile = Join-Path $ProjectRoot "SX3 SCANER.csproj"
 
-$Version = Read-VersionFromAssemblyInfo $ProjectRoot
+$CurrentVersion = Read-VersionFromAssemblyInfo $ProjectRoot
+$Version = $CurrentVersion
+if (-not [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
+    $Version = $ReleaseVersion.Trim().TrimStart('v', 'V')
+}
+elseif (-not $BuildOnly) {
+    $parsedCurrent = [version]$CurrentVersion
+    $Version = "{0}.{1}.0" -f $parsedCurrent.Major, ($parsedCurrent.Minor + 1)
+}
+if ($Version -notmatch '^\d+\.\d+\.\d+$' -or
+    @($Version.Split('.') | Where-Object { [long]$_ -gt 65534 }).Count -gt 0) {
+    Fail "Version phai co dang 10.48.0, moi thanh phan tu 0 den 65534."
+}
+if (-not $BuildOnly -and ([version]$Version) -le ([version]$CurrentVersion)) {
+    Fail "Version phat hanh $Version phai lon hon version hien tai $CurrentVersion."
+}
 $ReleaseNote = Get-ReleaseNote -BuildToolsDir $BuildToolsDir -Version $Version
 
 $InstallerFileName = "SX3ScannerSetup-$Version.exe"
 $InstallerFile = Join-Path $OutputDir $InstallerFileName
 $ReleaseNoteOutputFile = Join-Path $OutputDir "release-note.txt"
 $ManifestFile = Join-Path $OutputDir "release-manifest.txt"
-$UpdateManifestFile = Join-Path $ProjectRoot "update.json"
 $IssFile = Join-Path $OutputDir "SX3ScannerSetup.iss"
 $ReleaseUrl = "https://github.com/$Repository/releases/tag/v$Version"
 
 $GitExe = Find-Git
-$GitHubCLI = Find-GitHubCLI
+$GitHubCLI = $null
+if (-not $BuildOnly) { $GitHubCLI = Find-GitHubCLI }
 $MSBuild = Find-MSBuild
 $InnoCompiler = Find-InnoSetup
 
@@ -339,19 +342,49 @@ Ok "GitHub CLI: $GitHubCLI"
 Ok "MSBuild: $MSBuild"
 Ok "Inno Setup: $InnoCompiler"
 
-Info "Kiem tra dang nhap GitHub CLI..."
-& $GitHubCLI auth status
-if ($LASTEXITCODE -ne 0) {
-    Fail "Chua dang nhap GitHub CLI. Hay chay: gh auth login"
-}
-
 $GitRoot = Get-GitRoot -ProjectRoot $ProjectRoot -GitExe $GitExe
 Ok "Git repository: $GitRoot"
+
+if (-not $BuildOnly) {
+    Info "Kiem tra dang nhap GitHub CLI..."
+    & $GitHubCLI auth status
+    Assert-LastExitCode "GitHub login (neu chua dang nhap, chay gh auth login)"
+    $originUrl = & $GitExe -C $GitRoot remote get-url origin
+    Assert-LastExitCode "git remote get-url origin"
+    $normalizedOrigin = ($originUrl.Trim() -replace '\.git$', '').TrimEnd('/')
+    if ($normalizedOrigin -notin @("https://github.com/$Repository", "git@github.com:$Repository")) {
+        Fail "origin khong khop repository $Repository : $originUrl"
+    }
+    $ReleaseBranch = & $GitExe -C $GitRoot symbolic-ref --quiet --short HEAD
+    Assert-LastExitCode "Nhanh Git hien tai (khong phat hanh tu detached HEAD)"
+    & $GitExe -C $GitRoot fetch origin
+    Assert-LastExitCode "git fetch origin"
+    & $GitExe -C $GitRoot merge-base --is-ancestor "origin/$ReleaseBranch" HEAD
+    Assert-LastExitCode "Nhanh local phai chua code moi nhat tu origin/$ReleaseBranch"
+    $tag = "v$Version"
+    if ((Test-GitHubReleaseExists $GitHubCLI $Repository $tag) -or
+        (Test-RemoteTagExists $GitExe $GitRoot $tag)) {
+        Fail "Release/tag $tag da ton tai. Chay lai voi -Version khac."
+    }
+    & $GitExe -C $GitRoot show-ref --verify --quiet "refs/tags/$tag"
+    if ($LASTEXITCODE -eq 0) { Fail "Local tag $tag da ton tai." }
+    if ($LASTEXITCODE -ne 1) { Fail "Khong kiem tra duoc local tag $tag." }
+}
+
+# Only change the source version once prerequisites and remote checks pass.
+if ($Version -ne $CurrentVersion) {
+    $assemblyInfoPath = Join-Path $ProjectRoot "Properties\AssemblyInfo.cs"
+    $assemblyText = Get-Content -LiteralPath $assemblyInfoPath -Raw -Encoding UTF8
+    $assemblyText = $assemblyText -replace 'AssemblyVersion\("[^\"]+"\)', "AssemblyVersion(`"$Version`")"
+    $assemblyText = $assemblyText -replace 'AssemblyFileVersion\("[^\"]+"\)', "AssemblyFileVersion(`"$Version.0`")"
+    $assemblyText = $assemblyText -replace 'AssemblyInformationalVersion\("[^\"]+"\)', "AssemblyInformationalVersion(`"$Version`")"
+    [IO.File]::WriteAllText($assemblyInfoPath, $assemblyText, [Text.UTF8Encoding]::new($false))
+}
 
 Info "====================================="
 Info " SX3 SCANNER X64 BUILD + PACKAGE"
 Info " Version from AssemblyInfo: $Version"
-Info " GitHub release mode: DRAFT, no delete, no force"
+Info " BuildOnly=$BuildOnly | Draft=$Draft | Khong ghi de release/tag cu"
 Info "====================================="
 Info "ProjectRoot: $ProjectRoot"
 Info "Release source: $BinRelease"
@@ -360,19 +393,21 @@ Info "Repository: $Repository"
 
 Info "`nDon artifact cu truoc khi build..."
 foreach ($dir in @($ReleaseOutputDir, $OutputDir)) {
-    if (Test-Path -LiteralPath $dir) {
-        $resolvedDir = [IO.Path]::GetFullPath($dir)
-        $resolvedProjectRoot = [IO.Path]::GetFullPath($ProjectRoot).TrimEnd('\')
-        if (-not $resolvedDir.StartsWith($resolvedProjectRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-            Fail "Tu choi xoa thu muc ngoai project: $resolvedDir"
-        }
-        Remove-Item -LiteralPath $resolvedDir -Recurse -Force
-    }
+    Remove-ProjectBuildDirectory $dir
 }
 
 Write-Step "[1/9] Build $Configuration|$Platform..."
-& $MSBuild $ProjectFile /t:Rebuild /p:Configuration=$Configuration /p:Platform=$Platform /m
+& $MSBuild (Join-Path $ProjectRoot "SX3 SCANER.sln") /t:Restore /p:RestorePackagesConfig=true /p:Configuration=$Configuration /p:Platform=$Platform /v:minimal /nologo
+Assert-LastExitCode "NuGet restore"
+& $MSBuild $ProjectFile /t:Rebuild /p:Configuration=$Configuration /p:Platform=$Platform /m /v:minimal /nologo
 Assert-LastExitCode "MSBuild $Configuration|$Platform"
+
+$TestProject = Join-Path $ProjectRoot "Tests\SX3.Scanner.Tests.csproj"
+& $MSBuild $TestProject /p:Configuration=$Configuration /p:Platform=$Platform /v:minimal /nologo
+Assert-LastExitCode "Build tests"
+& (Join-Path $ProjectRoot "Tests\bin\$Configuration\SX3.Scanner.Tests.exe")
+Assert-LastExitCode "Scanner tests"
+
 
 $Exe = Join-Path $BinRelease "SX3 SCANER.exe"
 if (-not (Test-Path -LiteralPath $Exe)) {
@@ -397,14 +432,14 @@ Get-ChildItem -LiteralPath $PackageDir -Recurse -File |
 
 $PackageX86 = Join-Path $PackageDir "x86"
 if (Test-Path -LiteralPath $PackageX86) {
-    Remove-Item -LiteralPath $PackageX86 -Recurse -Force
+    Remove-ProjectBuildDirectory $PackageX86
 }
 
 # Am thanh OK/NG phai nam trong EXE/DLL dang Embedded Resource.
 # Neu project van copy Sounds\*.wav ra bin Release thi xoa khoi bo cai dat de nguoi dung khong thay/sua/xoa duoc.
 $PackageSoundsDir = Join-Path $PackageDir "Sounds"
 if (Test-Path -LiteralPath $PackageSoundsDir) {
-    Remove-Item -LiteralPath $PackageSoundsDir -Recurse -Force
+    Remove-ProjectBuildDirectory $PackageSoundsDir
     Ok "Da xoa thu muc Sounds khoi package vi am thanh da nhung trong EXE/DLL."
 }
 
@@ -464,10 +499,9 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://github.com/$Repository
 AppSupportURL=https://github.com/$Repository/issues
-AppUpdatesURL=https://github.com/$Repository/releases
 DefaultDirName={autopf}\JBZVN\SX3 Scanner
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 DisableDirPage=no
@@ -500,7 +534,6 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Dirs]
 Name: "{commonappdata}\JBZVN\SX3 Scanner"; Permissions: users-modify
 Name: "{commonappdata}\JBZVN\SX3 Scanner\config"; Permissions: users-modify
-Name: "{commonappdata}\JBZVN\SX3 Scanner\cache\updates"; Permissions: users-modify
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\AnnouncementServer"
@@ -558,15 +591,14 @@ if (-not (Test-Path -LiteralPath $InstallerFile)) {
 }
 
 $Sha256 = New-ReleaseManifest -InstallerFile $InstallerFile -ManifestFile $ManifestFile -Version $Version -Repository $Repository
-New-OnlineUpdateManifest `
-    -UpdateManifestFile $UpdateManifestFile `
-    -Version $Version `
-    -Repository $Repository `
-    -InstallerFile $InstallerFile `
-    -Sha256 $Sha256 `
-    -ReleaseNotes $ReleaseNote.Text
+if ($BuildOnly) {
+    Ok "BUILD THANH CONG - KHONG COMMIT/PUSH GITHUB"
+    Ok "Installer: $InstallerFile"
+    Ok "SHA256: $Sha256"
+    exit 0
+}
 
-Publish-GitHubDraftRelease `
+Publish-GitHubRelease `
     -GitRoot $GitRoot `
     -GitExe $GitExe `
     -GitHubCLI $GitHubCLI `
@@ -574,17 +606,15 @@ Publish-GitHubDraftRelease `
     -Version $Version `
     -InstallerFile $InstallerFile `
     -ReleaseNoteFile $ReleaseNoteOutputFile `
-    -ManifestFile $ManifestFile `
-    -UpdateManifestFile $UpdateManifestFile
+    -ManifestFile $ManifestFile
 
 Ok "`n====================================="
-Ok "DRAFT RELEASE DA DUOC TAO THANH CONG"
+Ok "GITHUB RELEASE DA DUOC TAO THANH CONG (Draft=$Draft)"
 Ok "Version: $Version"
 Ok "Release URL: $ReleaseUrl"
 Ok "Assets:"
 Ok "- $InstallerFileName"
 Ok "- release-note.txt"
 Ok "- release-manifest.txt"
-Ok "- update.json"
 Ok "SHA256: $Sha256"
 Ok "====================================="

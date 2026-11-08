@@ -84,9 +84,6 @@
                         <Border Width="5" Height="22" CornerRadius="3" Background="{StaticResource PrimaryBrush}" Margin="0,0,8,0"/>
                         <TextBlock Text="THIẾT LẬP THÙNG" Style="{StaticResource SectionTitleStyle}"/>
                     </StackPanel>
-                    <Border Grid.Column="1" CornerRadius="12" Padding="8,4" Background="{Binding CurrentBoxStatusBackground}" BorderBrush="{Binding CurrentBoxStatusBorderBrush}" BorderThickness="1">
-                        <TextBlock Text="{Binding CurrentBoxStatusText}" FontSize="10.5" FontWeight="Black" Foreground="{Binding CurrentBoxStatusForeground}" TextTrimming="CharacterEllipsis"/>
-                    </Border>
                 </Grid>
 
                 <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="10,8">
@@ -178,7 +175,7 @@
 
                     <StackPanel Grid.Row="0">
                         <TextBlock Text="CHUẨN KIỂM TRA" Style="{StaticResource SectionTitleStyle}"/>
-                        <TextBlock Text="Các thành phần QR được dùng để đối chiếu khi scan." Style="{StaticResource SectionSubTitleStyle}" Margin="0,3,0,0"/>
+                        <TextBlock Text="Các thành phần mã tem dùng để đối chiếu khi scan." Style="{StaticResource SectionSubTitleStyle}" Margin="0,3,0,0"/>
                     </StackPanel>
 
                     <Border Grid.Row="2" Style="{StaticResource ExpectedValueBorderStyle}">
@@ -229,7 +226,7 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="ĐỘ DÀI QR" Style="{StaticResource FieldLabelStyle}"/>
+                                <TextBlock Text="ĐỘ DÀI MÃ" Style="{StaticResource FieldLabelStyle}"/>
                                 <TextBlock Text="{Binding CodeLengthExpected}" Style="{StaticResource ExpectedValueTextStyle}"/>
                             </StackPanel>
                             <Border Grid.Column="1" Tag="{Binding Length_OK}" Style="{StaticResource CheckStatusDotStyle}"><TextBlock Style="{StaticResource CheckStatusTextStyle}"/></Border>
