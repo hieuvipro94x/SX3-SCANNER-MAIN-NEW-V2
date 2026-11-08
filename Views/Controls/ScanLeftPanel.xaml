@@ -101,6 +101,7 @@
                                   FontWeight="SemiBold"
                                   ItemsSource="{Binding PartNumberList}"
                                   SelectedItem="{Binding SelectedPartNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  ToolTip="{Binding SelectedPartNumber}" ToolTipService.ShowOnDisabled="True"
                                   IsEnabled="{Binding CanModifySessionSelection}" />
                     </Grid>
                 </Border>

@@ -207,7 +207,7 @@
                     <RowDefinition Height="16"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="16"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*" MinHeight="60"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Text="KẾT QUẢ SCAN MỚI NHẤT" Style="{StaticResource SectionTitleStyle}" HorizontalAlignment="Center"/>
@@ -342,7 +342,9 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <TextBlock Text="{Binding ScanResultDetailText, NotifyOnTargetUpdated=True}"
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="VerticalOnly">
+                    <TextBlock x:Name="ScanResultDetails" Text="{Binding ScanResultDetailText, NotifyOnTargetUpdated=True}"
                                FontSize="15.5"
                                FontWeight="Bold"
                                LineHeight="23"
@@ -367,6 +369,7 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    </ScrollViewer>
                 </Border>
             </Grid>
         </Border>
