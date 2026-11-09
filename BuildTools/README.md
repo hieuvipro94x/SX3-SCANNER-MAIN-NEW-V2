@@ -6,8 +6,8 @@ Chạy `Build-Installer-GitHub.cmd` ở thư mục gốc. File dùng đường d
 
 ```cmd
 Build-Installer-GitHub.cmd
-Build-Installer-GitHub.cmd -Version 10.48.0
-Build-Installer-GitHub.cmd -Version 10.48.0 -Draft
+Build-Installer-GitHub.cmd -Version 10.50.0
+Build-Installer-GitHub.cmd -Version 10.50.0 -Draft
 Build-Installer-GitHub.cmd -BuildOnly
 ```
 
@@ -27,7 +27,24 @@ Script không chạy installer trên máy hiện tại. File `BuildTools/release
 
 Visual Studio/Build Tools với .NET Framework 4.8 và WPF, Inno Setup 6.3 trở lên, Git; cần thêm GitHub CLI và `gh auth login` khi phát hành. Script khôi phục NuGet qua solution trước khi build.
 
-Nhánh hiện tại phải có nhánh tương ứng trên origin và chứa code mới nhất từ nhánh đó. Script kiểm tra origin đúng repository trước khi push.
+Script kiểm tra tên/email Git, đăng nhập GitHub và origin trước khi thay đổi phiên bản. Nếu thiếu tên/email, cấu hình trong project:
+
+```cmd
+git config --local user.name "Ten cua ban"
+git config --local user.email "Email cua ban"
+```
+
+Trước khi chọn version và build, script fetch và rebase nhánh hiện tại lên nhánh tương ứng trên origin. Thay đổi chưa commit (kể cả file mới và trạng thái staged) được tạm lưu rồi khôi phục. Nếu commit xung đột, script hủy rebase và khôi phục thay đổi local; nếu khôi phục stash xung đột, bản sao stash được giữ lại và script dừng để xử lý. Không force push. Nhánh mới chưa có trên origin sẽ được tạo khi push.
+
+Nếu origin có thêm commit trong lúc build, script giữ commit/bộ cài và yêu cầu chạy lại để build đúng source mới, không rebase rồi phát hành bộ cài từ source cũ.
+
+Tự tìm MSBuild qua Visual Studio Installer, kể cả Visual Studio cài ở ổ D. Với Inno Setup ở vị trí khác, dùng `-InnoSetupPath "D:\Tools\Inno Setup 6\ISCC.exe"`.
+
+Kiểm tra riêng luồng Git (dùng repository tạm, không đẩy lên GitHub):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Tests\BuildWorkflow.Tests.ps1
+```
 
 Nếu bước GitHub thất bại sau khi đã push tag, kiểm tra tag/release hiện có và hoàn tất upload bằng GitHub CLI; không xóa hoặc ghi đè tag tự động. Script dừng ngay khi một bước lỗi và trả exit code khác 0.
 

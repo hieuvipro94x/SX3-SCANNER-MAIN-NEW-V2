@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using SX3_SCANER.Helper;
@@ -107,9 +108,58 @@ namespace SX3.Scanner.Tests
             Run("Session UPSERT updates in place", AssertSessionUpsert);
             Run("Database maintenance waits for active operations", AssertMaintenanceLock);
             Run("Box history lookup uses correlated index", AssertBoxHistoryLookupPlan);
+            Run("First run creates both database files", () => WithEmptyDataDirectory(directory =>
+            {
+                DatabaseRepository.EnsureDatabaseFiles(directory);
+                foreach (string name in new[] { "database.db", "product.db" })
+                {
+                    string path = Path.Combine(directory, name);
+                    True(File.Exists(path));
+                    using (SQLiteConnection connection = OpenTestDatabase(path))
+                    {
+                        Execute(connection, "CREATE TABLE StartupProbe(Value TEXT); INSERT INTO StartupProbe VALUES ('keep');");
+                    }
+                }
+                DatabaseRepository.EnsureDatabaseFiles(directory);
+                foreach (string name in new[] { "database.db", "product.db" })
+                {
+                    using (SQLiteConnection connection = OpenTestDatabase(Path.Combine(directory, name)))
+                    using (var command = new SQLiteCommand("SELECT Value FROM StartupProbe", connection))
+                        Equal("keep", Convert.ToString(command.ExecuteScalar()));
+                }
+            }));
+            foreach (string missingName in new[] { "database.db", "product.db" })
+            {
+                Run("Create only missing " + missingName, () => WithEmptyDataDirectory(directory =>
+                {
+                    Directory.CreateDirectory(directory);
+                    string existingName = missingName == "database.db" ? "product.db" : "database.db";
+                    string existingPath = Path.Combine(directory, existingName);
+                    byte[] original = { 1, 2, 3, 4, 5 };
+                    File.WriteAllBytes(existingPath, original);
+                    DatabaseRepository.EnsureDatabaseFiles(directory);
+                    True(File.Exists(Path.Combine(directory, missingName)));
+                    Equal(Convert.ToBase64String(original), Convert.ToBase64String(File.ReadAllBytes(existingPath)));
+                }));
+            }
 
             Console.WriteLine(_failures == 0 ? "All tests passed." : _failures + " test(s) failed.");
             return _failures == 0 ? 0 : 1;
+        }
+
+        private static SQLiteConnection OpenTestDatabase(string path)
+        {
+            var builder = new SQLiteConnectionStringBuilder { DataSource = path, Pooling = false };
+            var connection = new SQLiteConnection(builder.ConnectionString);
+            connection.Open();
+            return connection;
+        }
+
+        private static void WithEmptyDataDirectory(Action<string> test)
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "sx3-first-run-" + Guid.NewGuid().ToString("N"));
+            try { test(directory); }
+            finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
         }
 
         private static void AssertRangeQueryPlan()

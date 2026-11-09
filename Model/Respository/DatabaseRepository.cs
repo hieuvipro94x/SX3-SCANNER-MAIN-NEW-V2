@@ -184,9 +184,13 @@ namespace SX3_SCANER.Model.Respository
         public static void EnsureDatabaseFiles()
         {
             EnsureApplicationDataDirectory();
+            EnsureDatabaseFiles(ApplicationDataDirectory);
+        }
 
-            EnsureDatabaseFileExists(DatabaseFileName, DatabasePath);
-            EnsureDatabaseFileExists(ProductDatabaseFileName, ProductDatabasePath);
+        internal static void EnsureDatabaseFiles(string dataDirectory)
+        {
+            EnsureDatabaseFileExists(DatabaseFileName, Path.Combine(dataDirectory, DatabaseFileName));
+            EnsureDatabaseFileExists(ProductDatabaseFileName, Path.Combine(dataDirectory, ProductDatabaseFileName));
         }
 
         public static void ValidateDatabasePaths()
@@ -302,7 +306,7 @@ namespace SX3_SCANER.Model.Respository
 
         private static void EnsureDatabaseFileExists(string fileName, string databasePath)
         {
-            EnsureApplicationDataDirectory();
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(databasePath)));
 
             if (File.Exists(databasePath))
             {
@@ -314,11 +318,22 @@ namespace SX3_SCANER.Model.Respository
                 return;
             }
 
-            var exception = new FileNotFoundException(
-                "Khong tim thay database hien co. Ung dung se khong tu tao, reset hoac copy database mau.",
-                databasePath);
-            StartupManager.LogStartupError(exception, databasePath);
-            throw exception;
+            // Reserve only a missing file. CreateNew never truncates an existing
+            // database, including one created by another process after our check.
+            try
+            {
+                using (new FileStream(databasePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite))
+                {
+                    // SQLite initializes the empty file on first open; startup
+                    // migrations then create the application's tables and indexes.
+                }
+                StartupManager.Log("Da tao database moi: " + databasePath);
+            }
+            catch (IOException)
+            {
+                if (!File.Exists(databasePath))
+                    throw;
+            }
         }
 
         public static List<string> GetListTableName()

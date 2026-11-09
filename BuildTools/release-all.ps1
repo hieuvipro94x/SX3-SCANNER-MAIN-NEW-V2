@@ -4,7 +4,8 @@
     [string]$Repository = "hieuvipro94x/SX3-SCANNER-MAIN-NEW-V2",
     [Alias("Version")][string]$ReleaseVersion,
     [switch]$BuildOnly,
-    [switch]$Draft
+    [switch]$Draft,
+    [string]$InnoSetupPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +33,12 @@ function Remove-ProjectBuildDirectory($Directory) {
 }
 
 function Find-InnoSetup {
+    if ($InnoSetupPath) {
+        if (-not (Test-Path -LiteralPath $InnoSetupPath -PathType Leaf)) {
+            Fail "Khong tim thay Inno Setup: $InnoSetupPath"
+        }
+        return (Resolve-Path -LiteralPath $InnoSetupPath).Path
+    }
     $paths = @(
         "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
         "C:\Program Files\Inno Setup 6\ISCC.exe"
@@ -48,6 +55,11 @@ function Find-InnoSetup {
 }
 
 function Find-MSBuild {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (Test-Path -LiteralPath $vswhere) {
+        $found = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe'
+        if ($LASTEXITCODE -eq 0 -and $found) { return @($found)[0] }
+    }
     $paths = @(
         "C:\Program Files\Microsoft Visual Studio\18\Insiders\MSBuild\Current\Bin\MSBuild.exe",
         "C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe",
@@ -112,6 +124,84 @@ function Get-GitRoot($ProjectRoot, $GitExe) {
     }
 
     return $gitRoot.Trim()
+}
+
+function Assert-GitIdentity($GitRoot, $GitExe) {
+    foreach ($identity in @("GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT")) {
+        $previousPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            & $GitExe -C $GitRoot var $identity *> $null
+            $identityExitCode = $LASTEXITCODE
+        }
+        finally { $ErrorActionPreference = $previousPreference }
+        if ($identityExitCode -ne 0) {
+            Fail "Git thieu ten/email. Chay git config --local user.name va git config --local user.email voi thong tin cua ban trong thu muc project, roi chay lai."
+        }
+    }
+}
+
+function Assert-NoGitOperation($GitRoot, $GitExe) {
+    $conflicts = & $GitExe -C $GitRoot diff --name-only --diff-filter=U
+    Assert-LastExitCode "Kiem tra xung dot Git"
+    if ($conflicts) { Fail "Git con file xung dot. Hay xu ly git status truoc khi build." }
+    foreach ($marker in @("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply")) {
+        $markerPath = & $GitExe -C $GitRoot rev-parse --git-path $marker
+        Assert-LastExitCode "Kiem tra trang thai Git"
+        if (-not [IO.Path]::IsPathRooted($markerPath)) { $markerPath = Join-Path $GitRoot $markerPath }
+        if (Test-Path -LiteralPath $markerPath) {
+            Fail "Git dang merge/rebase/cherry-pick. Hay hoan tat hoac huy thao tac do truoc khi build."
+        }
+    }
+}
+
+function Restore-BuildStash($GitRoot, $GitExe, $StashId) {
+    if (-not $StashId) { return }
+    & $GitExe -C $GitRoot stash apply --index $StashId | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Khong khoi phuc tu dong duoc thay doi local. Ban sao van o stash $StashId. Xu ly xung dot hien tai truoc khi chay lai; khong apply stash them lan nua."
+    }
+    $topStash = & $GitExe -C $GitRoot rev-parse --verify refs/stash
+    Assert-LastExitCode "Kiem tra stash da khoi phuc"
+    if ($topStash -eq $StashId) {
+        & $GitExe -C $GitRoot stash drop 'stash@{0}' | Out-Host
+        Assert-LastExitCode "Don stash da khoi phuc"
+    }
+}
+
+function Sync-SourceBeforeBuild($GitRoot, $GitExe, $Branch) {
+    Assert-NoGitOperation $GitRoot $GitExe
+    & $GitExe -C $GitRoot fetch origin --tags
+    Assert-LastExitCode "Tai code moi nhat tu origin"
+    & $GitExe -C $GitRoot show-ref --verify --quiet "refs/remotes/origin/$Branch"
+    $remoteExit = $LASTEXITCODE
+    if ($remoteExit -eq 1) { return } # A new local branch can be published for the first time.
+    if ($remoteExit -ne 0) { Fail "Khong kiem tra duoc nhanh origin/$Branch." }
+    & $GitExe -C $GitRoot merge-base --is-ancestor "origin/$Branch" HEAD
+    $ancestorExit = $LASTEXITCODE
+    if ($ancestorExit -eq 0) { return }
+    if ($ancestorExit -ne 1) { Fail "Khong so sanh duoc nhanh local va origin/$Branch." }
+
+    $dirty = & $GitExe -C $GitRoot status --porcelain
+    Assert-LastExitCode "Kiem tra thay doi local"
+    $stashId = $null
+    if ($dirty) {
+        & $GitExe -C $GitRoot stash push --include-untracked -m "SX3 build: preserve local changes before sync" | Out-Host
+        Assert-LastExitCode "Tam luu thay doi local"
+        $stashId = & $GitExe -C $GitRoot rev-parse --verify refs/stash
+        Assert-LastExitCode "Doc ban sao thay doi local"
+    }
+    Info "Dong bo code tu origin/$Branch truoc khi build..."
+    & $GitExe -C $GitRoot rebase "origin/$Branch" | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        & $GitExe -C $GitRoot rebase --abort | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Rebase bi loi. Chay git status de xu ly; thay doi chua commit duoc giu trong stash $stashId."
+        }
+        Restore-BuildStash $GitRoot $GitExe $stashId
+        Fail "Commit local xung dot voi origin/$Branch. Da huy rebase va khoi phuc thay doi local. Hay xu ly xung dot truoc khi build."
+    }
+    Restore-BuildStash $GitRoot $GitExe $stashId
 }
 
 function Read-VersionFromAssemblyInfo($ProjectRoot) {
@@ -276,7 +366,19 @@ function Publish-GitHubRelease(
     }
 
     Write-Step "[7/9] Push source code..."
-    & $GitExe -C $GitRoot push origin "HEAD:refs/heads/$ReleaseBranch"
+    # Do not rebase after building: the installer must match the committed source.
+    & $GitExe -C $GitRoot fetch origin
+    Assert-LastExitCode "Kiem tra origin truoc khi push"
+    & $GitExe -C $GitRoot show-ref --verify --quiet "refs/remotes/origin/$ReleaseBranch"
+    $remoteExit = $LASTEXITCODE
+    if ($remoteExit -eq 0) {
+        & $GitExe -C $GitRoot merge-base --is-ancestor "origin/$ReleaseBranch" HEAD
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Origin vua co code moi trong luc build. Commit va bo cai dat van duoc giu. Chay lai file CMD de dong bo va build lai truoc khi phat hanh."
+        }
+    }
+    elseif ($remoteExit -ne 1) { Fail "Khong kiem tra duoc nhanh remote truoc khi push." }
+    & $GitExe -C $GitRoot push --set-upstream origin "HEAD:refs/heads/$ReleaseBranch"
     Assert-LastExitCode "git push"
 
     Write-Step "[8/9] Tao tag moi $tag..."
@@ -306,6 +408,29 @@ $PackageDir = Join-Path $OutputDir "PackageFiles"
 $BinRelease = Join-Path $ProjectRoot "bin\$Platform\$Configuration"
 $ProjectFile = Join-Path $ProjectRoot "SX3 SCANER.csproj"
 
+# Resolve tools and Git prerequisites before changing versions or deleting output.
+$GitExe = Find-Git
+$MSBuild = Find-MSBuild
+$InnoCompiler = Find-InnoSetup
+$GitRoot = Get-GitRoot -ProjectRoot $ProjectRoot -GitExe $GitExe
+$GitHubCLI = $null
+if (-not $BuildOnly) {
+    Assert-GitIdentity $GitRoot $GitExe
+    Assert-NoGitOperation $GitRoot $GitExe
+    $GitHubCLI = Find-GitHubCLI
+    & $GitHubCLI auth status
+    Assert-LastExitCode "GitHub login (neu chua dang nhap, chay gh auth login)"
+    $originUrl = & $GitExe -C $GitRoot remote get-url origin
+    Assert-LastExitCode "git remote get-url origin"
+    $normalizedOrigin = ($originUrl.Trim() -replace '\.git$', '').TrimEnd('/')
+    if ($normalizedOrigin -notin @("https://github.com/$Repository", "git@github.com:$Repository")) {
+        Fail "origin khong khop repository $Repository : $originUrl"
+    }
+    $ReleaseBranch = & $GitExe -C $GitRoot symbolic-ref --quiet --short HEAD
+    Assert-LastExitCode "Nhanh Git hien tai (khong phat hanh tu detached HEAD)"
+    Sync-SourceBeforeBuild $GitRoot $GitExe $ReleaseBranch
+}
+
 $CurrentVersion = Read-VersionFromAssemblyInfo $ProjectRoot
 $Version = $CurrentVersion
 if (-not [string]::IsNullOrWhiteSpace($ReleaseVersion)) {
@@ -331,36 +456,14 @@ $ManifestFile = Join-Path $OutputDir "release-manifest.txt"
 $IssFile = Join-Path $OutputDir "SX3ScannerSetup.iss"
 $ReleaseUrl = "https://github.com/$Repository/releases/tag/v$Version"
 
-$GitExe = Find-Git
-$GitHubCLI = $null
-if (-not $BuildOnly) { $GitHubCLI = Find-GitHubCLI }
-$MSBuild = Find-MSBuild
-$InnoCompiler = Find-InnoSetup
-
 Ok "Git: $GitExe"
 Ok "GitHub CLI: $GitHubCLI"
 Ok "MSBuild: $MSBuild"
 Ok "Inno Setup: $InnoCompiler"
 
-$GitRoot = Get-GitRoot -ProjectRoot $ProjectRoot -GitExe $GitExe
 Ok "Git repository: $GitRoot"
 
 if (-not $BuildOnly) {
-    Info "Kiem tra dang nhap GitHub CLI..."
-    & $GitHubCLI auth status
-    Assert-LastExitCode "GitHub login (neu chua dang nhap, chay gh auth login)"
-    $originUrl = & $GitExe -C $GitRoot remote get-url origin
-    Assert-LastExitCode "git remote get-url origin"
-    $normalizedOrigin = ($originUrl.Trim() -replace '\.git$', '').TrimEnd('/')
-    if ($normalizedOrigin -notin @("https://github.com/$Repository", "git@github.com:$Repository")) {
-        Fail "origin khong khop repository $Repository : $originUrl"
-    }
-    $ReleaseBranch = & $GitExe -C $GitRoot symbolic-ref --quiet --short HEAD
-    Assert-LastExitCode "Nhanh Git hien tai (khong phat hanh tu detached HEAD)"
-    & $GitExe -C $GitRoot fetch origin
-    Assert-LastExitCode "git fetch origin"
-    & $GitExe -C $GitRoot merge-base --is-ancestor "origin/$ReleaseBranch" HEAD
-    Assert-LastExitCode "Nhanh local phai chua code moi nhat tu origin/$ReleaseBranch"
     $tag = "v$Version"
     if ((Test-GitHubReleaseExists $GitHubCLI $Repository $tag) -or
         (Test-RemoteTagExists $GitExe $GitRoot $tag)) {

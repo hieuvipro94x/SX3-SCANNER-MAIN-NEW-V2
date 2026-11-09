@@ -9,9 +9,11 @@ echo ============================================================
 echo SX3 SCANNER - BUILD INSTALLER AND GITHUB RELEASE
 echo Default: next minor version, commit all source changes, push,
 echo          publish GitHub Release with the installer.
+echo Git: sync origin before build; preserve uncommitted changes.
 echo Build only: %~nx0 -BuildOnly
-echo Version:    %~nx0 -Version 10.48.0
-echo Draft:      %~nx0 -Version 10.48.0 -Draft
+echo Version:    %~nx0 -Version 10.50.0
+echo Draft:      %~nx0 -Version 10.50.0 -Draft
+echo Inno path:  %~nx0 -InnoSetupPath "D:\Tools\Inno Setup 6\ISCC.exe"
 echo ============================================================
 echo.
 
