@@ -22,8 +22,9 @@ try {
     $resultPath = Join-Path $root 'artifacts\last-build.json'
     $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
     $output = [IO.Path]::GetFullPath($result.Output)
-    $artifactRoot = [IO.Path]::GetFullPath((Join-Path $root 'artifacts')) + '\'
-    if (-not $output.StartsWith($artifactRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid artifact path.' }
+    if ($result.Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid build version.' }
+    $expectedOutput = [IO.Path]::GetFullPath((Join-Path $root ("PublishSingle\V" + $result.Version)))
+    if (-not $output.Equals($expectedOutput, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid version output path.' }
 
     # Re-fetch after build: never publish source that became stale while building.
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Sync-BuildSource.ps1') -RepositoryPath $root -Remote origin -ExpectedRepositoryUrl $expected -VerifyCurrent
@@ -33,7 +34,7 @@ try {
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Test-LanReleasePath.ps1') -Path $lanParent -TimeoutSeconds 5
     if ($LASTEXITCODE -ne 0) { throw "LAN unavailable. Local build retained at $output." }
     New-Item -ItemType Directory -Path $LanRoot -Force | Out-Null
-    $destination = Join-Path $LanRoot ("V" + $result.Version + '\' + (Split-Path -Leaf $output))
+    $destination = Join-Path $LanRoot ("V" + $result.Version)
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Copy-VerifiedRelease.ps1') -Source $output -Destination $destination
     if ($LASTEXITCODE -ne 0) { throw 'LAN copy or SHA256 verification failed.' }
     Write-Host "LAN copy verified: $destination" -ForegroundColor Green

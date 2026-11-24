@@ -37,6 +37,26 @@ namespace SX3_SCANER
 
         private async void Application_Startup(object sender, StartupEventArgs e)
         {
+            // Package verification loads WPF resources and native SQLite without touching user data.
+            if (StartupManager.HasArgument(e.Args, "--package-smoke-test"))
+            {
+                try
+                {
+                    using (var connection = new System.Data.SQLite.SQLiteConnection("Data Source=:memory:;Version=3;"))
+                    {
+                        connection.Open();
+                        using (var command = connection.CreateCommand())
+                        {
+                            command.CommandText = "SELECT 1";
+                            if (Convert.ToInt32(command.ExecuteScalar()) != 1)
+                                throw new InvalidOperationException("SQLite package verification failed.");
+                        }
+                    }
+                    Shutdown(0);
+                }
+                catch { Shutdown(1); }
+                return;
+            }
             bool createdNew;
             StartupStatusWindow startupWindow = null;
             _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out createdNew);

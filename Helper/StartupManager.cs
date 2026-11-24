@@ -80,7 +80,9 @@ namespace SX3_SCANER.Helper
         {
             try
             {
-                string executablePath = Process.GetCurrentProcess().MainModule.FileName;
+                string executablePath = Environment.GetEnvironmentVariable("SX3_SINGLE_FILE_EXE");
+                if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+                    executablePath = Process.GetCurrentProcess().MainModule.FileName;
 
                 if (string.IsNullOrWhiteSpace(executablePath) ||
                     !File.Exists(executablePath))

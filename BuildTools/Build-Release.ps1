@@ -1,4 +1,4 @@
-param([switch]$NoPause)
+﻿param([switch]$NoPause)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -38,39 +38,20 @@ try {
     Invoke-Checked (Join-Path $projectRoot 'Tests\bin\Release\SX3.Scanner.Tests.exe') @()
 
     # Each build gets its own directory; older builds are retained.
-    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss_fff'
-    $output = Join-Path $projectRoot "artifacts\V$version\SX3Scanner_${stamp}"
+    $output = Join-Path $projectRoot "PublishSingle\V$version"
+    if (Test-Path -LiteralPath $output) { throw "Version output already exists: $output" }
     New-Item -ItemType Directory -Path $output -ErrorAction Stop | Out-Null
     $source = Join-Path $projectRoot 'bin\x64\Release'
-    foreach ($file in Get-ChildItem -LiteralPath $source -File) {
-        if ($file.Extension -in @('.exe', '.dll', '.config') -and $file.Name -notmatch '^Markdig\.dll$') {
-            Copy-Item -LiteralPath $file.FullName -Destination $output
-        }
+    & (Join-Path $PSScriptRoot 'Pack-SingleFile.ps1') -Source $source -Output $output -Version $version
+    $exe = Join-Path $output 'SX3 SCANER.exe'
+    $files = @(Get-ChildItem -LiteralPath $output -Force)
+    if ($files.Count -ne 1 -or $files[0].Name -ne 'SX3 SCANER.exe') {
+        throw 'Single-file output must contain exactly one EXE.'
     }
-    $nativeOutput = Join-Path $output 'x64'
-    New-Item -ItemType Directory -Path $nativeOutput | Out-Null
-    Copy-Item -LiteralPath (Join-Path $source 'x64\SQLite.Interop.dll') -Destination $nativeOutput
-    if (-not (Test-Path -LiteralPath (Join-Path $output 'SX3 SCANER.exe'))) { throw 'Application EXE missing.' }
-
-    @(
-        "SX3 Scanner V$version - Release x64"
-        'Requires Windows x64 and .NET Framework 4.8.'
-        'Keep the EXE, config, DLLs and x64 directory together.'
-        'Data directory: %LOCALAPPDATA%\SX3_SCANER. Missing databases are created on first run.'
-        'This build does not include online update or announcement services.'
-    ) | Set-Content -LiteralPath (Join-Path $output 'README.txt') -Encoding UTF8
-    $hashes = Get-ChildItem -LiteralPath $output -File -Recurse | ForEach-Object {
-        [PSCustomObject]@{
-            File = $_.FullName.Substring($output.Length + 1)
-            SHA256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
-        }
-    }
-    $hashes | Export-Csv -LiteralPath (Join-Path $output 'SHA256.csv') -NoTypeInformation -Encoding UTF8
-    $zip = "$output.zip"
-    Compress-Archive -Path (Join-Path $output '*') -DestinationPath $zip -CompressionLevel Optimal
-    @{ Version = $version; Output = $output; Zip = $zip } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $projectRoot 'artifacts\last-build.json') -Encoding UTF8
-    Write-Host "Build and tests passed. Output: $output" -ForegroundColor Green
-    Write-Host "ZIP: $zip"
+    New-Item -ItemType Directory -Path (Join-Path $projectRoot 'artifacts') -Force | Out-Null
+    @{ Version = $version; Output = $output; Exe = $exe; SHA256 = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash } |
+        ConvertTo-Json | Set-Content -LiteralPath (Join-Path $projectRoot 'artifacts\last-build.json') -Encoding UTF8
+    Write-Host "Build and tests passed. Single EXE: $exe" -ForegroundColor Green
     exit 0
 }
 catch {
